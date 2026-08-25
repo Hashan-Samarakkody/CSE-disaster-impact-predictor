@@ -1,2 +1,2 @@
-# Predicting-the-Impact-of-Natural-Disasters-on-the-Colombo-Stock-Exchange-
+# A Machine Learning Approach to Predicting the Impact of Natural Disasters on the Colombo Stock Exchange
 This is a multi-target machine learning model to forecast natural disaster impacts on Sri Lanka's vulnerable Colombo Stock Exchange. Using 2000-2025 data, it simultaneously predicts ASPI percentage change, abnormal volume crashes, and market recovery times, creating an explainable early-warning system for data-scarce frontier markets.
