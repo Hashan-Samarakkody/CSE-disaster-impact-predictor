@@ -1,0 +1,16 @@
+paths:
+  raw_data_dir: data/raw
+  processed_data_dir: data/processed
+  synthetic_data_dir: data/synthetic
+
+model:
+  targets: [Y1_aspi_log_return, Y2_abnormal_volume, Y3_recovery_days]
+  mlp:
+    hidden_dim: 64
+    dropout: 0.5
+    loss_weights: [1.0, 0.1, 0.5]
+
+validation:
+  train_window: 504
+  test_window: 21
+  step: 21
