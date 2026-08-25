@@ -41,14 +41,27 @@ class FeatureEngineer:
         for lag in (1, 2, 3, 5):
             df[f"lag_return_t-{lag}"] = df["log_return"].shift(lag)
 
+        # Shift the price series itself by one day before rolling, so sma_w/ema_w
+        # at row t only ever reflect prices through t-1 (thesis Sec. 3.5.1 "strict
+        # pre-shock boundary"). Rolling directly on df[price_col] without this
+        # shift would let the window's *last* point be the shock day itself --
+        # a real look-ahead bug found during this review, independent of any
+        # blueprint deviation.
+        shifted_price = df[c.price_col].shift(1)
         for window in (5, 10, 20):
-            df[f"sma_{window}"] = df[c.price_col].rolling(window=window, min_periods=window).mean()
-            df[f"ema_{window}"] = df[c.price_col].ewm(span=window, adjust=False, min_periods=window).mean()
+            df[f"sma_{window}"] = shifted_price.rolling(window=window, min_periods=window).mean()
+            df[f"ema_{window}"] = shifted_price.ewm(span=window, adjust=False, min_periods=window).mean()
 
         # Shift by one day to enforce pre-shock boundary (up to t-1) and avoid look-ahead.
         shifted_returns = df["log_return"].shift(1)
         for window in (5, 10, 20):
             df[f"rolling_std_{window}"] = shifted_returns.rolling(window=window, min_periods=window).std()
+
+        # Dedicated 30-day panic-proxy volatility (thesis Sec. 3.5.2/3.2.2) --
+        # distinct from the 5/10/20-day momentum windows above; this is the
+        # window that mirrors the ATV 30-day baseline used for Y2. Previously
+        # missing entirely.
+        df["rolling_std_30"] = shifted_returns.rolling(window=30, min_periods=30).std()
 
         df["squared_return"] = df["log_return"] ** 2
         return df
