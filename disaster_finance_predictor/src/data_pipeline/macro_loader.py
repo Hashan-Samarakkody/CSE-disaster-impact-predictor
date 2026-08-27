@@ -25,14 +25,24 @@ import pandas as pd
 
 
 def load_worldbank_macro(country: str = "LKA", start_year: int = 2000, end_year: int = 2025) -> pd.DataFrame:
-    """Annual Sri Lanka GDP growth (%) and CPI inflation (%) from the World
-    Bank via `wbgapi`. Returns one row per year, columns: year, gdp_growth_pct,
-    inflation_cpi_pct. Annual granularity only -- coarser than the thesis's
-    ideal (monthly CCPI), documented as a limitation rather than silently
-    presented as higher-resolution than it is."""
+    """Annual Sri Lanka GDP growth (%), CPI inflation (%), and GDP level
+    (current US$) from the World Bank via `wbgapi`. Returns one row per year,
+    columns: year, gdp_growth_pct, inflation_cpi_pct, gdp_current_usd. Annual
+    granularity only -- coarser than the thesis's ideal (monthly CCPI),
+    documented as a limitation rather than silently presented as
+    higher-resolution than it is.
+
+    `gdp_current_usd` (NY.GDP.MKTP.CD) is a separate series from the growth
+    rate above -- it's the economy's absolute size that year, used downstream
+    to normalize disaster damage figures (damage / GDP), which raw log-damage
+    alone can't express."""
     import wbgapi as wb
 
-    series = {"NY.GDP.MKTP.KD.ZG": "gdp_growth_pct", "FP.CPI.TOTL.ZG": "inflation_cpi_pct"}
+    series = {
+        "NY.GDP.MKTP.KD.ZG": "gdp_growth_pct",
+        "FP.CPI.TOTL.ZG": "inflation_cpi_pct",
+        "NY.GDP.MKTP.CD": "gdp_current_usd",
+    }
     df = wb.data.DataFrame(list(series.keys()), economy=country, time=range(start_year, end_year + 1))
     df = df.rename(index=series).T
     df.index = df.index.str.replace("YR", "").astype(int)
