@@ -29,12 +29,18 @@ def time_aware_smogn(
     max_year_gap: float = 5.0,
     noise_scale: float = 0.01,
     random_state: int = 42,
+    n_synthetic_per_row: int = 1,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Generate synthetic minority samples via neighbor-pair interpolation.
 
     `event_dates` (aligned to X/y's index) enables the temporal-window
     constraint. If omitted, falls back to feature-space nearest-neighbor only
     (no temporal restriction) -- documented, not silent.
+
+    `n_synthetic_per_row` (standard SMOTE oversampling-ratio knob): draws that
+    many interpolation ratios `r` per minority row along the same real
+    neighbor pair, instead of just one. Still real-neighbor interpolation, not
+    fabrication -- just a denser sample of the segment between two real events.
     """
     rng = np.random.default_rng(random_state)
     X_syn = X.copy()
@@ -64,18 +70,20 @@ def time_aware_smogn(
             # on this single point rather than skip it silently.
             row_x = X.loc[idx]
             row_y = y.loc[idx]
-            synthetic_rows_X.append(row_x + rng.normal(0.0, noise_scale, size=len(row_x)))
-            synthetic_rows_y.append(row_y + rng.normal(0.0, noise_scale, size=len(row_y)))
+            for _ in range(n_synthetic_per_row):
+                synthetic_rows_X.append(row_x + rng.normal(0.0, noise_scale, size=len(row_x)))
+                synthetic_rows_y.append(row_y + rng.normal(0.0, noise_scale, size=len(row_y)))
             continue
 
         dists = ((X_min_scaled.loc[candidates] - X_min_scaled.loc[idx]) ** 2).sum(axis=1)
         neighbor_idx = dists.idxmin()
 
-        r = rng.uniform(0.0, 1.0)
         x_a, x_b = X.loc[idx], X.loc[neighbor_idx]
         y_a, y_b = y.loc[idx], y.loc[neighbor_idx]
-        synthetic_rows_X.append(x_a + r * (x_b - x_a))
-        synthetic_rows_y.append(y_a + r * (y_b - y_a))
+        for _ in range(n_synthetic_per_row):
+            r = rng.uniform(0.0, 1.0)
+            synthetic_rows_X.append(x_a + r * (x_b - x_a))
+            synthetic_rows_y.append(y_a + r * (y_b - y_a))
 
     syn_x_df = pd.DataFrame(synthetic_rows_X, columns=X.columns)
     syn_y_df = pd.DataFrame(synthetic_rows_y, columns=y.columns)
