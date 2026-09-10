@@ -22,22 +22,48 @@ def test_engineer_market_features_generates_lags_and_no_lookahead_rolling_std():
 
 
 def test_engineer_disaster_features_filters_biological_and_low_impact_events():
+    # Three Floods so the surviving type clears the rare-type pooling threshold and this
+    # test keeps testing what it is named for: the Epidemic row is dropped as biological,
+    # and the 900-affected row is dropped as below the >=1000 threshold.
     disaster_df = pd.DataFrame(
         {
-            "event_date": ["2024-01-05", "2024-01-10", "2024-01-20"],
-            "disaster_type": ["Flood", "Epidemic", "Cyclone"],
-            "financial_damage": [1_000_000, 5_000_000, 2_000_000],
-            "population_affected": [5_000, 10_000, 900],
+            "event_date": ["2024-01-05", "2024-01-10", "2024-01-20", "2024-02-01", "2024-02-10"],
+            "disaster_type": ["Flood", "Epidemic", "Cyclone", "Flood", "Flood"],
+            "financial_damage": [1_000_000, 5_000_000, 2_000_000, 3_000_000, 4_000_000],
+            "population_affected": [5_000, 10_000, 900, 2_000, 1_000],
         }
     )
 
     fe = FeatureEngineer()
     out = fe.engineer_disaster_features(disaster_df)
 
-    assert len(out) == 1
-    assert out.iloc[0]["disaster_type"] == "Flood"
+    assert len(out) == 3
+    assert set(out["disaster_type"]) == {"Flood"}
     assert "log_financial_damage" in out.columns
     assert "log_population_affected" in out.columns
+    # The 1,000-affected event is retained: the threshold is >= 1000, matching the
+    # filter the thesis and the notebook both state.
+    assert 1_000 in set(out["population_affected"])
+
+
+def test_engineer_disaster_features_pools_types_with_too_few_events():
+    # Cyclone appears once. A one-hot column with a single positive case is a
+    # memorisation key in-sample and all-zero out-of-sample, so it is pooled into
+    # "Other" rather than given its own indicator.
+    disaster_df = pd.DataFrame(
+        {
+            "event_date": ["2024-01-05", "2024-01-10", "2024-01-20", "2024-02-01"],
+            "disaster_type": ["Flood", "Flood", "Flood", "Cyclone"],
+            "financial_damage": [1_000_000, 2_000_000, 3_000_000, 4_000_000],
+            "population_affected": [5_000, 6_000, 7_000, 8_000],
+        }
+    )
+
+    out = FeatureEngineer().engineer_disaster_features(disaster_df)
+
+    assert set(out["disaster_type"]) == {"Flood", "Other"}
+    assert "disaster_Other" in out.columns
+    assert "disaster_Cyclone" not in out.columns
 
 
 def test_build_targets_caps_recovery_days_at_90():

@@ -51,6 +51,16 @@ class FeatureEngineer:
         for window in (5, 10, 20):
             df[f"sma_{window}"] = shifted_price.rolling(window=window, min_periods=window).mean()
             df[f"ema_{window}"] = shifted_price.ewm(span=window, adjust=False, min_periods=window).mean()
+            # Stationary counterparts. The sma_/ema_ columns above are raw ASPI price
+            # LEVELS: the index runs from ~574 in 2000 to over 10,000 by 2022, so under a
+            # chronological split a later test fold occupies a feature range disjoint from
+            # anything the model saw in training -- tree models pin at the training
+            # boundary and linear models extrapolate off the end. Thesis Sec. 3.5.1
+            # requires stationary inputs, and these columns were never tested for it.
+            # The price-relative ratio carries the same momentum information (where is
+            # price now, relative to its own recent trend) with no trend in the level.
+            df[f"price_to_sma_{window}"] = shifted_price / df[f"sma_{window}"] - 1.0
+            df[f"price_to_ema_{window}"] = shifted_price / df[f"ema_{window}"] - 1.0
 
         # Shift by one day to enforce pre-shock boundary (up to t-1) and avoid look-ahead.
         shifted_returns = df["log_return"].shift(1)
@@ -76,9 +86,25 @@ class FeatureEngineer:
         keep_mask = ~clean_type.isin(EXCLUDED_DISASTER_TYPES)
         df = df[keep_mask].copy()
 
-        df = df[df[c.affected_col] > 1000].copy()
+        # Inclusive threshold: the thesis (Sec. 3.3.2) and this notebook both state
+        # ">= 1000 affected". The previous strict ">" silently disagreed with the
+        # filter described everywhere else in the project.
+        df = df[df[c.affected_col] >= 1000].copy()
         df["log_financial_damage"] = np.log1p(df[c.damage_col].clip(lower=0))
         df["log_population_affected"] = np.log1p(df[c.affected_col].clip(lower=0))
+
+        # Pool types with too few events to support their own indicator. A one-hot
+        # column with a single positive case is a memorisation key: the model can
+        # isolate that one event perfectly in-sample, while out-of-sample the column
+        # is all zeros and contributes nothing. Pooling also gives those events a
+        # same-type partner for SMOGN, which otherwise skips them entirely.
+        # Threshold fixed a priori at 3, not tuned against any result.
+        type_counts = df[c.disaster_type_col].value_counts()
+        rare_types = type_counts[type_counts < 3].index
+        if len(rare_types) > 0:
+            df[c.disaster_type_col] = df[c.disaster_type_col].where(
+                ~df[c.disaster_type_col].isin(rare_types), "Other"
+            )
 
         one_hot = pd.get_dummies(df[c.disaster_type_col], prefix="disaster", dtype=float)
         return pd.concat([df, one_hot], axis=1)
@@ -119,8 +145,14 @@ class FeatureEngineer:
             if recovered.empty:
                 y3 = c.max_recovery_days
             else:
-                recovery_date = recovered.iloc[0][c.date_col]
-                y3 = min((recovery_date - market.iloc[pos][c.date_col]).days, c.max_recovery_days)
+                # TRADING days, per thesis Sec. 3.2.2 -- the positional distance within
+                # the market calendar. The previous version returned the calendar-day
+                # difference (recovery_date - event_date).days while searching a window
+                # of 91 trading ROWS, so the 90 cap actually bit at roughly 62 trading
+                # days and any event recovering after that was indistinguishable from
+                # one that never recovered at all.
+                recovery_pos = market.index.get_loc(recovered.index[0])
+                y3 = min(recovery_pos - pos, c.max_recovery_days)
 
             rows.append({
                 c.disaster_date_col: event_date,
