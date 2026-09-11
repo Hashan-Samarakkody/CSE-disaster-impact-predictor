@@ -109,3 +109,50 @@ def test_verification_tests_agree_on_an_obvious_win_and_an_obvious_tie():
 
     a, b = truth + rng.normal(0, 0.5, 150), truth + rng.normal(0, 0.5, 150)
     assert not paired_bootstrap_delta(truth, a, b)["significant"]
+
+
+def test_labels_propagate_missing_targets_instead_of_asserting_the_negative_class():
+    """A missing target must produce NaN, never 0.0.
+
+    `(series > 0).astype(float)` maps NaN to 0.0, which asserts "no volume spike" for an
+    event whose volume was never recorded. The caller drops labels on `notna()`, so the
+    fabricated zeros pass straight through the mask and get scored as true negatives.
+    This was live: extending the sample past 2023 added events with no volume data at
+    all, and six of them entered the C2 test set as confirmed non-spikes.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from src.models.classifiers import LABELS
+
+    y = pd.DataFrame({
+        "Y1_aspi_log_return": [0.01, -0.01, 0.02, -0.02],
+        "Y2_abnormal_volume": [0.5, -0.3, np.nan, np.nan],
+        "Y3_recovery_days": [0.0, 90.0, 5.0, 90.0],
+    })
+    train_idx = np.arange(4)
+
+    volume = LABELS["C2_volume_spike"](y, train_idx, None)
+    assert volume.isna().sum() == 2, list(volume)
+    assert list(volume.iloc[:2]) == [1.0, 0.0]
+
+    # Y1 and Y3 are complete here, so those labels must be unaffected.
+    for name in ("C1_negative_return", "C1b_adverse_move", "C3_recovers_in_90"):
+        assert LABELS[name](y, train_idx, None).isna().sum() == 0, name
+
+
+def test_missing_labels_are_dropped_by_a_notna_mask():
+    """The downstream contract: masking on notna() must actually remove those rows."""
+    import numpy as np
+    import pandas as pd
+
+    from src.models.classifiers import LABELS
+
+    y = pd.DataFrame({
+        "Y1_aspi_log_return": [0.01] * 6,
+        "Y2_abnormal_volume": [0.5, -0.3, np.nan, 0.2, np.nan, -0.1],
+        "Y3_recovery_days": [0.0] * 6,
+    })
+    labels = LABELS["C2_volume_spike"](y, np.arange(6), None)
+    kept = np.arange(6)[labels.notna().to_numpy()]
+    assert list(kept) == [0, 1, 3, 5]

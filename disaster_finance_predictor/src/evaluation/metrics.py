@@ -56,23 +56,36 @@ def pooled_frame(results, model, target, splits, dataset, y=None, date_col="even
     silently wrong:
 
     1. Predictions were recorded AFTER a per-target NaN mask, so fold i's rows are
-       `test_index[y[target].iloc[test_index].notna()]`, not `test_index`. Y2 loses 3
-       events this way, and ignoring it shifts every later row by up to three events.
+       `test_index[y[target].iloc[test_index].notna()]`, not `test_index`. Y2 loses
+       events this way, and ignoring it shifts every later row.
     2. The stacked model forfeits fold 0 to its meta-learner, so it stores one fewer
-       fold than `splits` has. The offset is inferred rather than assumed.
+       fold than `splits` has.
+    3. A (fold, target) pair whose NaN mask leaves nothing to fit is skipped entirely.
+       Y2 has no observations at all for the post-2023 events, so a short test window
+       can land a fold inside an all-NaN stretch.
 
-    A length assertion at the end turns either mistake into a hard failure instead of a
-    plausible-looking but misaligned scatter plot.
+    Case 3 is why the fold indices are read from the store when present rather than
+    inferred: a skipped fold in the MIDDLE of the sequence breaks any offset arithmetic
+    silently, producing a plausible-looking but wrong mapping. The subtract-from-the-end
+    inference is kept only as a fallback for results recorded before folds were tracked.
+
+    A length assertion at the end turns any of these into a hard failure instead of a
+    misaligned scatter plot.
     """
     import pandas as pd
 
     store = results[model][target]
     n_stored = len(store["y_true"])
-    offset = len(splits) - n_stored  # 0 for normal models, 1 for the stacked model
+    recorded = [f for f in store.get("folds", []) if f is not None]
+    if len(recorded) == n_stored:
+        fold_ids = recorded
+    else:
+        offset = len(splits) - n_stored  # 0 for normal models, 1 for the stacked model
+        fold_ids = [offset + i for i in range(n_stored)]
 
     rows = []
-    for i in range(n_stored):
-        split = splits[offset + i]
+    for i, fold_id in enumerate(fold_ids):
+        split = splits[fold_id]
         idx = np.asarray(split.test_index)
         if y is not None and target in getattr(y, "columns", []):
             idx = idx[y[target].iloc[idx].notna().to_numpy()]
@@ -86,7 +99,7 @@ def pooled_frame(results, model, target, splits, dataset, y=None, date_col="even
                 f"reconstructed here.")
 
         for row_index, true_v, pred_v in zip(idx, yt, yp):
-            rec = {"fold": offset + i, "row_index": int(row_index),
+            rec = {"fold": fold_id, "row_index": int(row_index),
                    "y_true": float(true_v), "y_pred": float(pred_v),
                    "resid": float(pred_v - true_v), "abs_resid": abs(float(pred_v - true_v))}
             if date_col in dataset.columns:

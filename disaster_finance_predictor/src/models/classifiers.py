@@ -32,10 +32,24 @@ XGB_CLF_GRID = {"n_estimators": [100, 300], "max_depth": [2, 3],
 LOGIT_CS = np.logspace(-3, 3, 13)
 
 
+def _binarise(values, mask):
+    """Boolean condition -> {0.0, 1.0}, but NaN wherever the source target is missing.
+
+    `(series > 0).astype(float)` silently maps NaN to 0.0, which asserts the negative
+    class for an event that was never observed. That is a fabricated label, and it is
+    invisible downstream because the caller's `notna()` mask then finds nothing to drop.
+    It bit C2_volume_spike once the sample was extended past 2023: the post-2023 events
+    have no volume data at all, and six of them were being scored as confirmed
+    non-spikes. Every label below routes through here so the failure cannot recur.
+    """
+    return np.asarray(values, dtype=float) * 1.0 + np.where(np.asarray(mask), 0.0, np.nan)
+
+
 def label_negative_return(y, train_idx=None, dataset=None):
     """C1: Y1 < 0. The sign split, kept for continuity with the directional-accuracy
     section. No free parameter."""
-    return (y["Y1_aspi_log_return"] < 0).astype(float)
+    v = y["Y1_aspi_log_return"]
+    return pd.Series(_binarise(v < 0, v.notna()), index=v.index)
 
 
 def label_adverse_move(y, train_idx, dataset=None):
@@ -52,7 +66,7 @@ def label_adverse_move(y, train_idx, dataset=None):
     """
     v = y["Y1_aspi_log_return"]
     cut = float(np.nanquantile(v.iloc[train_idx], 1 / 3))
-    return (v < cut).astype(float)
+    return pd.Series(_binarise(v < cut, v.notna()), index=v.index)
 
 
 def label_volume_spike(y, train_idx=None, dataset=None):
@@ -61,7 +75,11 @@ def label_volume_spike(y, train_idx=None, dataset=None):
     Zero is where the target is centred by construction (Y2 = V/V_bar - 1), so this is the
     natural cut rather than a chosen one.
     """
-    return (y["Y2_abnormal_volume"] > 0).astype(float)
+    # Y2 is unobserved for the 2000 archive year and for every post-2023 event
+    # (countryeconomy publishes the index level, not volume). Those events must be
+    # dropped, never scored as non-spikes -- see _binarise.
+    v = y["Y2_abnormal_volume"]
+    return pd.Series(_binarise(v > 0, v.notna()), index=v.index)
 
 
 def label_recovers_in_90(y, train_idx=None, dataset=None):
@@ -72,7 +90,8 @@ def label_recovers_in_90(y, train_idx=None, dataset=None):
     minority class is about 3 events in a 30-point test set and the estimate is
     underpowered by construction.
     """
-    return (y["Y3_recovery_days"] < 90).astype(float)
+    v = y["Y3_recovery_days"]
+    return pd.Series(_binarise(v < 90, v.notna()), index=v.index)
 
 
 def label_adverse_move_sigma(y, train_idx=None, dataset=None):
@@ -83,7 +102,7 @@ def label_adverse_move_sigma(y, train_idx=None, dataset=None):
     """
     v = y["Y1_aspi_log_return"]
     sigma = dataset["rolling_std_30"].replace(0, np.nan)
-    return (v < -sigma).fillna(False).astype(float)
+    return pd.Series(_binarise(v < -sigma, v.notna() & sigma.notna()), index=v.index)
 
 
 LABELS = {

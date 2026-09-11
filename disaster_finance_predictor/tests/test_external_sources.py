@@ -206,3 +206,53 @@ def test_declared_blocks_match_the_builders(power, desinventar, fx, polls):
         built |= set(frame.columns) - {"event_date"}
     declared = {c for cols in EXTERNAL_FEATURE_BLOCKS.values() for c in cols}
     assert built == declared
+
+
+# --------------------------------------- pooled_frame alignment under skipped folds
+
+def test_pooled_frame_uses_recorded_folds_when_one_is_skipped():
+    """A skipped fold in the MIDDLE must not shift the event mapping.
+
+    Offset arithmetic (`len(splits) - n_stored`) assumes skipped folds sit at the front,
+    which is true for the stacked model but false once a (fold, target) pair is dropped
+    for having no non-missing rows. Getting this wrong produces a plausible-looking
+    scatter plot against the wrong events, which is why it is asserted rather than
+    trusted.
+    """
+    from types import SimpleNamespace
+
+    from src.evaluation.metrics import pooled_frame
+
+    splits = [SimpleNamespace(train_index=np.arange(3), test_index=np.array([3, 4])),
+              SimpleNamespace(train_index=np.arange(5), test_index=np.array([5, 6])),
+              SimpleNamespace(train_index=np.arange(7), test_index=np.array([7, 8]))]
+    dataset = pd.DataFrame({"event_date": pd.date_range("2020-01-01", periods=9),
+                            "disaster_type": ["Flood"] * 9})
+
+    # Fold 1 was skipped; folds 0 and 2 were stored.
+    results = {"m": {"t": {"y_true": [np.array([1.0, 2.0]), np.array([7.0, 8.0])],
+                           "y_pred": [np.array([1.1, 2.1]), np.array([7.1, 8.1])],
+                           "folds": [0, 2]}}}
+    frame = pooled_frame(results, "m", "t", splits, dataset)
+
+    assert list(frame.fold) == [0, 0, 2, 2]
+    assert list(frame.row_index) == [3, 4, 7, 8]
+    # The last two rows must map to fold 2's events, not fold 1's.
+    assert frame.event_date.iloc[-1] == pd.Timestamp("2020-01-09")
+
+
+def test_pooled_frame_falls_back_to_offset_without_recorded_folds():
+    """Results pickled before fold tracking existed must still map correctly."""
+    from types import SimpleNamespace
+
+    from src.evaluation.metrics import pooled_frame
+
+    splits = [SimpleNamespace(train_index=np.arange(3), test_index=np.array([3, 4])),
+              SimpleNamespace(train_index=np.arange(5), test_index=np.array([5, 6]))]
+    dataset = pd.DataFrame({"event_date": pd.date_range("2020-01-01", periods=7),
+                            "disaster_type": ["Flood"] * 7})
+    # One fold stored, none recorded -> the stacked-model case, fold 0 forfeited.
+    results = {"m": {"t": {"y_true": [np.array([5.0, 6.0])],
+                           "y_pred": [np.array([5.1, 6.1])]}}}
+    frame = pooled_frame(results, "m", "t", splits, dataset)
+    assert list(frame.row_index) == [5, 6]
