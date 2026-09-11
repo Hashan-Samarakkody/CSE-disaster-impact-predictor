@@ -5,3 +5,6 @@ __pycache__/
 # Regenerable artifact cache (stage 01 rebuilds it). Figures in docs/figures ARE tracked,
 # so the thesis can cite them by a stable path.
 disaster_finance_predictor/artifacts/
+
+# nbconvert stderr logs
+disaster_finance_predictor/notebooks/err_*.txt

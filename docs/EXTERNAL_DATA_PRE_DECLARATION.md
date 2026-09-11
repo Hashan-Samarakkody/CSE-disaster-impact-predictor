@@ -196,3 +196,52 @@ So that no outcome can be presented as a success after the fact:
 - It does not add news sentiment. Thesis §3.3.1 is amended rather than satisfied.
 - It does not route around the refusal to target R² ≥ 0.65. No threshold, window, model
   or feature below was chosen to reach a number.
+
+---
+
+# 6. Ablation outcome, measured (run 2026-09-11 19:07)
+
+Six configurations, identical folds, 40 pooled out-of-fold points (34 for Y2). Each
+block's contribution is `RMSE(full-without-block) - RMSE(full)`, so **positive means the
+block helps**, with a 95% paired event-level bootstrap CI.
+
+**5 of 45 (target, model, block) combinations have a CI excluding zero. All five are on
+Y2.**
+
+| Target | Model | Block | ΔRMSE | 95% CI |
+|---|---|---|---|---|
+| Y2 | xgboost | **all external** | +0.1418 | [0.0135, 0.2652] |
+| Y2 | xgboost | **fx** | +0.1315 | [0.0595, 0.2031] |
+| Y2 | random forest | **all external** | +0.0769 | [0.0176, 0.1390] |
+| Y2 | random forest | **fx** | +0.0437 | [0.0129, 0.0808] |
+| Y2 | xgboost | election | +0.0300 | [0.0004, 0.0689] |
+
+Pooled R² on Y2 moves from **−0.0890 without the external blocks to +0.1912 with them**
+(random forest), and from **−0.3624 to +0.1878** (xgboost).
+
+## Where the pre-declaration was wrong
+
+Section 4 committed five expectations in advance. Scored honestly:
+
+| # | Expectation | Outcome |
+|---|---|---|
+| 1 | Sample extension helps most | **Partly right.** It delivered 40 test points instead of 30 and tightened every interval, but it is not separable in this ablation — it changes the rows, not the columns. |
+| 2 | Hazard helps Y2/Y3 more than Y1 | **Right in direction, not significant.** Y2 ridge +0.0678, Y1 negative on all three models. No CI excludes zero. |
+| 3 | DesInventar acts through `di_available`/`di_districts_hit` | **Not supported.** The whole block is indistinguishable from zero on every target and model; it is *negative* on Y2 for two of three. |
+| 4 | **FX "expected to do little on its own"** | **WRONG, and wrong in the useful direction.** FX is the single strongest block measured: +0.1315 on Y2/xgboost and +0.0437 on Y2/random forest, both CIs excluding zero. It was adopted as a correctness fix and turned out to be the only block that independently earns its place. |
+| 5 | Y1 still unpredictable | **Right.** No block helps Y1 on any model; 0 of 15 Y1 combinations are significant. |
+
+Expectation 4 is recorded as a failed prediction rather than quietly rewritten. That is
+the entire point of writing section 4 before the run: had the expectations been written
+afterwards, "daily exchange-rate dynamics predict abnormal trading volume" would read as
+a designed finding instead of a surprise.
+
+## The distinction that must not be blurred
+
+The external data **significantly improves the model relative to a model without it**.
+It does **not** make Y2 beat a naive baseline: the best Y2 model (ensemble) still sits at
+ΔRMSE +0.0651, CI [−0.0101, +0.1333] against the constant-zero null.
+
+Both statements are true simultaneously and must be reported together. "Adding exchange
+rate data measurably improves abnormal-volume prediction" is supportable. "Abnormal
+volume is predictable" is not.
