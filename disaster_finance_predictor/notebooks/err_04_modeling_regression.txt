@@ -1,3 +1,162 @@
 [NbConvertApp] Converting notebook 04_modeling_regression.ipynb to notebook
 C:\Users\hasha\AppData\Roaming\Python\Python312\site-packages\zmq\_future.py:724: RuntimeWarning: Proactor event loop does not implement add_reader family of methods required for zmq. Registering an additional selector thread for add_reader support via tornado. Use `asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())` to avoid this warning.
   self._get_loop()
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Scripts\jupyter-nbconvert.EXE\__main__.py", line 5, in <module>
+  File "C:\Users\hasha\AppData\Roaming\Python\Python312\site-packages\jupyter_core\application.py", line 283, in launch_instance
+    super().launch_instance(argv=argv, **kwargs)
+  File "C:\Users\hasha\AppData\Roaming\Python\Python312\site-packages\traitlets\config\application.py", line 1075, in launch_instance
+    app.start()
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\nbconvertapp.py", line 420, in start
+    self.convert_notebooks()
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\nbconvertapp.py", line 597, in convert_notebooks
+    self.convert_single_notebook(notebook_filename)
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\nbconvertapp.py", line 563, in convert_single_notebook
+    output, resources = self.export_single_notebook(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\nbconvertapp.py", line 487, in export_single_notebook
+    output, resources = self.exporter.from_filename(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\exporters\exporter.py", line 201, in from_filename
+    return self.from_file(f, resources=resources, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\exporters\exporter.py", line 220, in from_file
+    return self.from_notebook_node(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\exporters\notebook.py", line 36, in from_notebook_node
+    nb_copy, resources = super().from_notebook_node(nb, resources, **kw)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\exporters\exporter.py", line 154, in from_notebook_node
+    nb_copy, resources = self._preprocess(nb_copy, resources)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\exporters\exporter.py", line 353, in _preprocess
+    nbc, resc = preprocessor(nbc, resc)
+                ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\preprocessors\base.py", line 48, in __call__
+    return self.preprocess(nb, resources)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\preprocessors\execute.py", line 103, in preprocess
+    self.preprocess_cell(cell, resources, index)
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbconvert\preprocessors\execute.py", line 124, in preprocess_cell
+    cell = self.execute_cell(cell, index, store_history=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Roaming\Python\Python312\site-packages\jupyter_core\utils\__init__.py", line 165, in wrapped
+    return loop.run_until_complete(inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbclient\client.py", line 1062, in async_execute_cell
+    await self._check_raise_for_error(cell, cell_index, exec_reply)
+  File "C:\Users\hasha\AppData\Local\Programs\Python\Python312\Lib\site-packages\nbclient\client.py", line 918, in _check_raise_for_error
+    raise CellExecutionError.from_cell_and_msg(cell, exec_reply_content)
+nbclient.exceptions.CellExecutionError: An error occurred while executing the following cell:
+------------------
+splits_dense = list(generate_walk_forward_splits(len(X), train_window=20, test_window=5, step=5))
+print(f"Dense config folds: {len(splits_dense)} (vs {len(splits)} for the primary 30/10/10 config)")
+
+results_dense, _, _ = run_walk_forward(
+    splits_dense, X, y, dataset["event_date"], gdp_all=dataset["gdp_current_usd"], verbose=False)
+
+rows = []
+for name, targets_m in results_dense.items():
+    for t in TARGET_COLS:
+        m = targets_m[t]
+        rows.append({
+            "model": name, "target": t,
+            "rmse": np.mean(m["rmse"]), "mae": np.mean(m["mae"]),
+            "r2_per_fold_mean": np.mean(m["r2"]), "r2_pooled": m["pooled_r2"],
+        })
+summary_dense = pd.DataFrame(rows).sort_values(["target", "model"]).reset_index(drop=True)
+summary_dense
+
+------------------
+
+----- stdout -----
+Dense config folds: 10 (vs 4 for the primary 30/10/10 config)
+------------------
+
+[1;31m---------------------------------------------------------------------------[0m
+[1;31mValueError[0m                                Traceback (most recent call last)
+Cell [1;32mIn[8], line 4[0m
+[0;32m      1[0m splits_dense [38;5;241m=[39m [38;5;28mlist[39m(generate_walk_forward_splits([38;5;28mlen[39m(X), train_window[38;5;241m=[39m[38;5;241m20[39m, test_window[38;5;241m=[39m[38;5;241m5[39m, step[38;5;241m=[39m[38;5;241m5[39m))
+[0;32m      2[0m [38;5;28mprint[39m([38;5;124mf[39m[38;5;124m"[39m[38;5;124mDense config folds: [39m[38;5;132;01m{[39;00m[38;5;28mlen[39m(splits_dense)[38;5;132;01m}[39;00m[38;5;124m (vs [39m[38;5;132;01m{[39;00m[38;5;28mlen[39m(splits)[38;5;132;01m}[39;00m[38;5;124m for the primary 30/10/10 config)[39m[38;5;124m"[39m)
+[1;32m----> 4[0m results_dense, _, _ [38;5;241m=[39m [43mrun_walk_forward[49m[43m([49m
+[0;32m      5[0m [43m    [49m[43msplits_dense[49m[43m,[49m[43m [49m[43mX[49m[43m,[49m[43m [49m[43my[49m[43m,[49m[43m [49m[43mdataset[49m[43m[[49m[38;5;124;43m"[39;49m[38;5;124;43mevent_date[39;49m[38;5;124;43m"[39;49m[43m][49m[43m,[49m[43m [49m[43mgdp_all[49m[38;5;241;43m=[39;49m[43mdataset[49m[43m[[49m[38;5;124;43m"[39;49m[38;5;124;43mgdp_current_usd[39;49m[38;5;124;43m"[39;49m[43m][49m[43m,[49m[43m [49m[43mverbose[49m[38;5;241;43m=[39;49m[38;5;28;43;01mFalse[39;49;00m[43m)[49m
+[0;32m      7[0m rows [38;5;241m=[39m []
+[0;32m      8[0m [38;5;28;01mfor[39;00m name, targets_m [38;5;129;01min[39;00m results_dense[38;5;241m.[39mitems():
+
+Cell [1;32mIn[3], line 192[0m, in [0;36mrun_walk_forward[1;34m(splits, X_all, y_all, dates_all, gdp_all, k_features, verbose)[0m
+[0;32m    187[0m ridge [38;5;241m=[39m make_pipeline(
+[0;32m    188[0m     StandardScaler(),
+[0;32m    189[0m     Ridge(alpha[38;5;241m=[39m[38;5;28mfloat[39m(alpha_search[38;5;241m.[39mnamed_steps[[38;5;124m"[39m[38;5;124mridgecv[39m[38;5;124m"[39m][38;5;241m.[39malpha_)),
+[0;32m    190[0m )
+[0;32m    191[0m ridge[38;5;241m.[39mfit(X_tr_sel, y_tr_fit)
+[1;32m--> 192[0m score_and_record(y_te_t, [43m_finish[49m[43m([49m[43mridge[49m[43m)[49m, results[[38;5;124m"[39m[38;5;124mridge[39m[38;5;124m"[39m][target])
+[0;32m    194[0m rf_search [38;5;241m=[39m GridSearchCV(
+[0;32m    195[0m     RandomForestRegressor(random_state[38;5;241m=[39mRANDOM_STATE), RF_PARAM_GRID,
+[0;32m    196[0m     cv[38;5;241m=[39mcv_real, scoring[38;5;241m=[39m[38;5;124m"[39m[38;5;124mneg_root_mean_squared_error[39m[38;5;124m"[39m, n_jobs[38;5;241m=[39m[38;5;241m1[39m, refit[38;5;241m=[39m[38;5;28;01mFalse[39;00m,
+[0;32m    197[0m )
+[0;32m    198[0m rf_search[38;5;241m.[39mfit(X_sel_real, y_fit_real)
+
+Cell [1;32mIn[3], line 173[0m, in [0;36mrun_walk_forward.<locals>._finish[1;34m(model)[0m
+[0;32m    172[0m [38;5;28;01mdef[39;00m [38;5;21m_finish[39m(model):
+[1;32m--> 173[0m     p [38;5;241m=[39m [43mmodel[49m[38;5;241;43m.[39;49m[43mpredict[49m[43m([49m[43mX_te_sel[49m[43m)[49m
+[0;32m    174[0m     [38;5;28;01mif[39;00m use_log:
+[0;32m    175[0m         p [38;5;241m=[39m np[38;5;241m.[39mexpm1(p)
+
+File [1;32m~\AppData\Local\Programs\Python\Python312\Lib\site-packages\sklearn\pipeline.py:600[0m, in [0;36mPipeline.predict[1;34m(self, X, **params)[0m
+[0;32m    598[0m [38;5;28;01mif[39;00m [38;5;129;01mnot[39;00m _routing_enabled():
+[0;32m    599[0m     [38;5;28;01mfor[39;00m _, name, transform [38;5;129;01min[39;00m [38;5;28mself[39m[38;5;241m.[39m_iter(with_final[38;5;241m=[39m[38;5;28;01mFalse[39;00m):
+[1;32m--> 600[0m         Xt [38;5;241m=[39m [43mtransform[49m[38;5;241;43m.[39;49m[43mtransform[49m[43m([49m[43mXt[49m[43m)[49m
+[0;32m    601[0m     [38;5;28;01mreturn[39;00m [38;5;28mself[39m[38;5;241m.[39msteps[[38;5;241m-[39m[38;5;241m1[39m][[38;5;241m1[39m][38;5;241m.[39mpredict(Xt, [38;5;241m*[39m[38;5;241m*[39mparams)
+[0;32m    603[0m [38;5;66;03m# metadata routing enabled[39;00m
+
+File [1;32m~\AppData\Local\Programs\Python\Python312\Lib\site-packages\sklearn\utils\_set_output.py:316[0m, in [0;36m_wrap_method_output.<locals>.wrapped[1;34m(self, X, *args, **kwargs)[0m
+[0;32m    314[0m [38;5;129m@wraps[39m(f)
+[0;32m    315[0m [38;5;28;01mdef[39;00m [38;5;21mwrapped[39m([38;5;28mself[39m, X, [38;5;241m*[39margs, [38;5;241m*[39m[38;5;241m*[39mkwargs):
+[1;32m--> 316[0m     data_to_wrap [38;5;241m=[39m [43mf[49m[43m([49m[38;5;28;43mself[39;49m[43m,[49m[43m [49m[43mX[49m[43m,[49m[43m [49m[38;5;241;43m*[39;49m[43margs[49m[43m,[49m[43m [49m[38;5;241;43m*[39;49m[38;5;241;43m*[39;49m[43mkwargs[49m[43m)[49m
+[0;32m    317[0m     [38;5;28;01mif[39;00m [38;5;28misinstance[39m(data_to_wrap, [38;5;28mtuple[39m):
+[0;32m    318[0m         [38;5;66;03m# only wrap the first output for cross decomposition[39;00m
+[0;32m    319[0m         return_tuple [38;5;241m=[39m (
+[0;32m    320[0m             _wrap_data_with_container(method, data_to_wrap[[38;5;241m0[39m], X, [38;5;28mself[39m),
+[0;32m    321[0m             [38;5;241m*[39mdata_to_wrap[[38;5;241m1[39m:],
+[0;32m    322[0m         )
+
+File [1;32m~\AppData\Local\Programs\Python\Python312\Lib\site-packages\sklearn\preprocessing\_data.py:1045[0m, in [0;36mStandardScaler.transform[1;34m(self, X, copy)[0m
+[0;32m   1042[0m check_is_fitted([38;5;28mself[39m)
+[0;32m   1044[0m copy [38;5;241m=[39m copy [38;5;28;01mif[39;00m copy [38;5;129;01mis[39;00m [38;5;129;01mnot[39;00m [38;5;28;01mNone[39;00m [38;5;28;01melse[39;00m [38;5;28mself[39m[38;5;241m.[39mcopy
+[1;32m-> 1045[0m X [38;5;241m=[39m [38;5;28;43mself[39;49m[38;5;241;43m.[39;49m[43m_validate_data[49m[43m([49m
+[0;32m   1046[0m [43m    [49m[43mX[49m[43m,[49m
+[0;32m   1047[0m [43m    [49m[43mreset[49m[38;5;241;43m=[39;49m[38;5;28;43;01mFalse[39;49;00m[43m,[49m
+[0;32m   1048[0m [43m    [49m[43maccept_sparse[49m[38;5;241;43m=[39;49m[38;5;124;43m"[39;49m[38;5;124;43mcsr[39;49m[38;5;124;43m"[39;49m[43m,[49m
+[0;32m   1049[0m [43m    [49m[43mcopy[49m[38;5;241;43m=[39;49m[43mcopy[49m[43m,[49m
+[0;32m   1050[0m [43m    [49m[43mdtype[49m[38;5;241;43m=[39;49m[43mFLOAT_DTYPES[49m[43m,[49m
+[0;32m   1051[0m [43m    [49m[43mforce_writeable[49m[38;5;241;43m=[39;49m[38;5;28;43;01mTrue[39;49;00m[43m,[49m
+[0;32m   1052[0m [43m    [49m[43mforce_all_finite[49m[38;5;241;43m=[39;49m[38;5;124;43m"[39;49m[38;5;124;43mallow-nan[39;49m[38;5;124;43m"[39;49m[43m,[49m
+[0;32m   1053[0m [43m[49m[43m)[49m
+[0;32m   1055[0m [38;5;28;01mif[39;00m sparse[38;5;241m.[39missparse(X):
+[0;32m   1056[0m     [38;5;28;01mif[39;00m [38;5;28mself[39m[38;5;241m.[39mwith_mean:
+
+File [1;32m~\AppData\Local\Programs\Python\Python312\Lib\site-packages\sklearn\base.py:633[0m, in [0;36mBaseEstimator._validate_data[1;34m(self, X, y, reset, validate_separately, cast_to_ndarray, **check_params)[0m
+[0;32m    631[0m         out [38;5;241m=[39m X, y
+[0;32m    632[0m [38;5;28;01melif[39;00m [38;5;129;01mnot[39;00m no_val_X [38;5;129;01mand[39;00m no_val_y:
+[1;32m--> 633[0m     out [38;5;241m=[39m [43mcheck_array[49m[43m([49m[43mX[49m[43m,[49m[43m [49m[43minput_name[49m[38;5;241;43m=[39;49m[38;5;124;43m"[39;49m[38;5;124;43mX[39;49m[38;5;124;43m"[39;49m[43m,[49m[43m [49m[38;5;241;43m*[39;49m[38;5;241;43m*[39;49m[43mcheck_params[49m[43m)[49m
+[0;32m    634[0m [38;5;28;01melif[39;00m no_val_X [38;5;129;01mand[39;00m [38;5;129;01mnot[39;00m no_val_y:
+[0;32m    635[0m     out [38;5;241m=[39m _check_y(y, [38;5;241m*[39m[38;5;241m*[39mcheck_params)
+
+File [1;32m~\AppData\Local\Programs\Python\Python312\Lib\site-packages\sklearn\utils\validation.py:1087[0m, in [0;36mcheck_array[1;34m(array, accept_sparse, accept_large_sparse, dtype, order, copy, force_writeable, force_all_finite, ensure_2d, allow_nd, ensure_min_samples, ensure_min_features, estimator, input_name)[0m
+[0;32m   1085[0m     n_samples [38;5;241m=[39m _num_samples(array)
+[0;32m   1086[0m     [38;5;28;01mif[39;00m n_samples [38;5;241m<[39m ensure_min_samples:
+[1;32m-> 1087[0m         [38;5;28;01mraise[39;00m [38;5;167;01mValueError[39;00m(
+[0;32m   1088[0m             [38;5;124m"[39m[38;5;124mFound array with [39m[38;5;132;01m%d[39;00m[38;5;124m sample(s) (shape=[39m[38;5;132;01m%s[39;00m[38;5;124m) while a[39m[38;5;124m"[39m
+[0;32m   1089[0m             [38;5;124m"[39m[38;5;124m minimum of [39m[38;5;132;01m%d[39;00m[38;5;124m is required[39m[38;5;132;01m%s[39;00m[38;5;124m.[39m[38;5;124m"[39m
+[0;32m   1090[0m             [38;5;241m%[39m (n_samples, array[38;5;241m.[39mshape, ensure_min_samples, context)
+[0;32m   1091[0m         )
+[0;32m   1093[0m [38;5;28;01mif[39;00m ensure_min_features [38;5;241m>[39m [38;5;241m0[39m [38;5;129;01mand[39;00m array[38;5;241m.[39mndim [38;5;241m==[39m [38;5;241m2[39m:
+[0;32m   1094[0m     n_features [38;5;241m=[39m array[38;5;241m.[39mshape[[38;5;241m1[39m]
+
+[1;31mValueError[0m: Found array with 0 sample(s) (shape=(0, 20)) while a minimum of 1 is required by StandardScaler.
+
