@@ -1,0 +1,1040 @@
+# 10-Expert Methodology Audit — CSE Disaster-Impact Prediction Model
+
+**Subject:** "A Machine Learning Approach to Predicting the Impact of Natural Disasters on the Colombo Stock Exchange" (S.D.S.H. Samarakkodi, IM/2021/007, University of Kelaniya; supervisor Dr. Thilini Mahanama)
+
+**Audit basis:** Direct inspection of `disaster_finance_predictor/` source and `notebooks/CSE_Disaster_Impact_Pipeline.ipynb`, plus executed outputs from complete pipeline runs. **Every number in this document is copied from an actual execution.** Nothing is estimated, extrapolated, or invented. Where a figure is unavailable, it is marked "not measured".
+
+**Authoritative methodology:** the thesis (July 2026). The April 2026 proposal is historical context only.
+
+---
+
+## 1. Research Understanding
+
+The study asks: *how does the Colombo Stock Exchange respond to natural disasters, and can that response be predicted?* It is operationalised as a supervised multi-target regression over disaster events, not over trading days.
+
+Three continuous targets per event:
+
+| Target                | Definition as implemented                              | Range observed      |
+| --------------------- | ------------------------------------------------------ | ------------------- |
+| Y1`aspi_log_return` | `ln(P_t / P_{t-1})` on the event's first trading day | −0.0753 to +0.0394 |
+| Y2`abnormal_volume` | `V_t / mean(V_{t-30..t-1}) − 1`                     | −0.87 to +1.94     |
+| Y3`recovery_days`   | Days until ASPI regains`P_{t-1}`, capped at 90       | 0 to 90, median 0   |
+
+Unit of analysis: **one qualifying disaster event**. N = 64 modelled events (2000-01 to 2023-06).
+
+---
+
+## 2. Proposal → Thesis → Implementation Evolution
+
+| Component     | Proposal (Apr 2026)                                 | Thesis (Jul 2026)                                              | Implementation                                        | Verdict                                                                                        |
+| ------------- | --------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Validation    | Stratified 5-fold CV inside 80% train block (§7.5) | Chronological walk-forward; k-fold explicitly banned (§3.7.1) | Walk-forward outer;**k-fold was running inner** | Thesis correct; implementation violated it — now fixed                                        |
+| Target Y1     | "ASPI percentage change"                            | §3.2.2: raw log return                                        | Raw log return                                        | Terminology should be corrected to "log return"                                                |
+| Oversampling  | SMOTE                                               | Time-Aware SMOGN                                               | Custom SmoteR-style implementation                    | Thesis correct                                                                                 |
+| Recovery      | Trading days, cap 90                                | Trading days, cap 90                                           | **Calendar days**, cap 90                       | Implementation deviated — now fixed                                                           |
+| Models        | +Logistic Regression                                | OLS/Ridge, SVR, RF, XGBoost, MLP                               | Ridge, RF, XGBoost, MLP                               | Logistic Regression correctly dropped (targets are continuous);**SVR never implemented** |
+| Sentiment/NLP | Aggregated news sentiment listed (§3.3.1)          | Explicitly excluded (Table 4 note)                             | Not implemented                                       | Thesis correct; proposal wording superseded                                                    |
+| Epidemics     | Included in scope (§4.5)                           | Excluded from acute-shock architecture                         | Excluded                                              | Thesis correct                                                                                 |
+
+**Unresolved internal contradiction:** thesis §3.3.1 states "aggregated sentiment scores from financial news were used", while Table 4's note says textual NLP sentiment was "explicitly excluded". The implementation excludes it. §3.3.1 must be corrected.
+
+---
+
+## 3. Existing Implementation Reconstruction
+
+```
+EM-DAT xlsx (86 records)          07Market Indices-Daily.xls        Yearly per-security .xls (3 schema eras)
+        |                                    |                                    |
+   emdat_loader                      cse_raw_loaders                     cse_raw_loaders
+        |                              ASPI close                        summed share volume
+        v                                    v                                    v
+  filter: non-biological, affected >= 1000  -->  forward-fill (never zero-fill)  <--
+        | 74 qualifying                              |
+        v                                            v
+  in-scope filter: event within archive coverage (<= 2023-06-28)  --> 64 events
+        |
+        v
+  FeatureEngineer.engineer_market_features   (lags t-1/2/3/5, sma/ema 5/10/20 on shifted price,
+        |                                     rolling_std 5/10/20/30 on shifted returns, squared_return)
+        v
+  FeatureEngineer.build_targets  --> Y1, Y2, Y3
+        |
+        v
+  merge_asof(backward) on asof_date = event_date - 1d  <-- market features
+                                                       <-- World Bank macro (annual, wbgapi, LIVE)
+                                                       <-- S&P 500 (yfinance, LIVE)
+        |
+        v
+  event table: 64 rows x 32 features  (recency features, damage_to_gdp, log_damage_x_flood added here)
+        |
+        v
+  generate_walk_forward_splits(len(X), 30, 10, 10)  --> 3 folds, ROLLING window
+        |
+        v
+  per fold:  augment_fold -> time_aware_smogn(minority = Y3 > 30, +/-5y window)   [TRAIN ROWS ONLY]
+        |
+        v
+  per target: select_top_features(RF importance, k=20)  [fit on augmented train only]
+        |
+        v
+  Ridge(alpha=1.0) | RF+GridSearchCV(cv=3) | XGBoost+GridSearchCV(cv=3)
+  MLP: separate loop, subprocess (Windows torch DLL workaround), y-StandardScaler, weights (1.0,0.1,0.5)
+        |
+        v
+  ensemble (inverse-RMSE blend) | stacked (expanding-window non-negative LinearRegression meta-learner)
+        |
+        v
+  RMSE / MAE / R2 per-fold + POOLED  --> summary table
+  directional accuracy, precision/recall/F1, AUC  (Y1 thresholded at 0)
+  rolling conformal prediction intervals
+        |
+        v
+  SHAP (global summary + local waterfall on largest real ASPI drop)
+```
+
+**Differences from the thesis's stated pipeline:**
+
+| Component            | Thesis says                                          | Code did                                                               | Severity     | Action                                          |
+| -------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------- | ------------ | ----------------------------------------------- |
+| Inner CV             | No k-fold anywhere (§3.7.1)                         | `GridSearchCV(cv=3)` = `KFold(shuffle=False)`                      | **P0** | Replaced with`TimeSeriesSplit` on real rows   |
+| Walk-forward         | "Training set to grow over time" (§3.7.1)           | **Rolling** window — train start advances, early events dropped | **P1** | Expanding option added; both reported           |
+| Y3 unit              | Consecutive trading days                             | Calendar days                                                          | **P1** | Fixed to positional trading-day distance        |
+| Macro alignment      | "as-of-date alignment... mandatory" (§3.3.1 spirit) | Annual value dated 1 January of its own year                           | **P0** | Re-dated to Y+1-07-01                           |
+| Ridge                | Baseline model                                       | Fit on**unstandardised** features, alpha never tuned             | **P0** | `StandardScaler` + in-fold `RidgeCV`        |
+| Stationarity         | ADF/KPSS, difference failures (§3.5.1)              | Tested`log_return` only; 6 price-level features untested             | **P0** | All features tested; unit-root columns excluded |
+| Missing targets      | 100% real data claim                                 | `y.fillna(0.0)` fabricated 3 Y2 values                               | **P0** | NaN preserved, masked per target                |
+| Affected threshold   | `>= 1000`                                          | `> 1000`                                                             | P3           | Fixed                                           |
+| Overlapping events   | Truncation protocol (§3.3.2)                        | `truncate_overlapping_windows()` defined, **never called**     | **P1** | Contamination now quantified and disclosed      |
+| SVR                  | Listed as model (§3.6.1)                            | Not implemented                                                        | P2           | Either implement or remove from methodology     |
+| MultiOutputRegressor | Described (§3.6.4)                                  | Not used — separate per-target fits                                   | P2           | Correct the description (see §18)              |
+
+---
+
+## 4. Methodology vs Code Audit
+
+Covered in the table above. The single most damaging mismatch is the **inner k-fold**: §8 of the notebook and §3.7.1 of the thesis both state, in bold, that no k-fold is used anywhere, while two lines of code ran `KFold(shuffle=False)` inside every walk-forward fold — training on later events to select hyperparameters for earlier ones. This was compounded because SMOGN appends synthetic rows at the tail of the training frame, so the last inner validation block was disproportionately synthetic: the model was partly selected on its ability to predict its own interpolated output.
+
+---
+
+## 5. Unit-of-Analysis Audit
+
+**One training sample = one disaster event.** Not one trading day.
+
+- Raw EM-DAT records: 86
+- After excluding biological and applying `affected >= 1000`: 74
+- After restricting to events inside real archive coverage: **64**
+- Effective N for Y2: **61** (3 events have no volume data — the 2000 workbook failed to parse)
+
+There is no pseudo-replication: each event contributes exactly one row. The daily market series is used only to *construct* event-level features and targets, never as independent observations. The thesis is correct not to claim thousands of samples.
+
+**Consequence for model complexity:** with 64 events and a 30/10/10 geometry, each fold trains on 30 rows. Against 32 features this is p > n before selection. This single fact should govern every capacity decision in the study.
+
+**Residual dependence:** events are not fully independent. Y3 windows look forward up to 90 days, and Sri Lanka's monsoon clustering means some windows contain a subsequent qualifying event. This is quantified in the notebook rather than assumed away.
+
+---
+
+## 6. Target Audit
+
+### Y1 — ASPI market impact
+
+**Decision: KEEP, rename.**
+
+Implemented as the raw continuously-compounded log return, which matches thesis §3.2.2/Table 4. The thesis's prose label "ASPI Percentage Change" is inaccurate: a log return is not a percentage change (they diverge as magnitude grows). Rename to **"ASPI log return"** throughout.
+
+Should it be an abnormal return (AR) instead? **No.** §2.2.3's market-model AR/CAR formulation is presented in the thesis as literature-review background that the thesis explicitly critiques and moves away from. More decisively: computing AR requires a market model `E(R_i,t) = α + β·R_m,t`, which needs a *market* index distinct from the asset. Here the asset **is** the market index. There is no valid benchmark to regress against, so AR is not identified. The raw log return is the correct operationalisation.
+
+### Y2 — Abnormal trading volume
+
+**Decision: KEEP formula, correct the terminology.**
+
+Implemented as `V_t / V̄_pre − 1`, which is the standard normalised abnormal-volume form and is preferable to the raw ratio (it is centred at zero, so "no abnormality" is 0).
+
+**The name is wrong.** The thesis calls this "trading volume crash magnitude". The variable measures *deviation in either direction*, and its observed maximum is **+1.94** — nearly triple baseline volume. A large positive value is a volume **spike**, which the thesis's own literature review (§2.3.2) correctly identifies as the signature of panic selling. Calling it a "crash" inverts the meaning. Rename to **"abnormal trading volume"** and describe it as a liquidity-disturbance magnitude, not a crash.
+
+### Y3 — Market recovery time
+
+**Decision: MODIFY.**
+
+Three distinct defects:
+
+1. **Unit deviation (fixed).** The search window was 91 trading rows but the returned value was a calendar-day difference. The 90-day cap therefore bit at roughly 62 trading days, and an event recovering after that was indistinguishable from one that never recovered.
+2. **Right-censoring is real and currently ignored.** For a non-recovering event we know `T > 90`, not `T = 90`. Assigning 90 is a biased point estimate.
+3. **Y3 is not an independent target.** The recovery window includes the event day itself and the baseline is `P_{t-1}`, so whenever `P_t >= P_{t-1}` — that is, whenever **Y1 >= 0** — the event day satisfies the recovery condition and **Y3 = 0 exactly**. `Y3 = 0` and `Y1 >= 0` are the same event by construction. This is why Y3's median is 0 and its 25th percentile is 0.
+
+**Censoring treatment — recommendation:** Approach C (two-stage hurdle), not Approach D (survival).
+
+- Approach A (regression with cap) — current, biased.
+- Approach B (recovered events only) — discards the most severe events. Rejected.
+- **Approach C (hurdle): P(recovery within 90) × E[duration | recovered].** Matches the actual distribution (a point mass at 0, a right tail, a point mass at the cap). Stage 1 is a classifier, which at N=64 is far better supported than a survival model.
+- Approach D (Cox / AFT / Random Survival Forest) — methodologically the "textbook" answer for censoring, but at 64 events with a censoring point that is itself an artefact of the 90-day design choice, a survival forest would be fitting hazard curves to a handful of tail points. **Rejected on sample-size grounds, per the master prompt's own caution.**
+
+Because of the Y1↔Y3 identity, Stage 1 of the hurdle model is *almost* a restatement of predicting the sign of Y1. That must be stated openly rather than presented as a second independent finding.
+
+---
+
+## 7. Information-Availability Audit
+
+This is the most consequential section of the audit.
+
+| Feature                                | Available at disaster onset? | Publication delay | Leakage risk       | Keep/Remove              |
+| -------------------------------------- | ---------------------------- | ----------------- | ------------------ | ------------------------ |
+| `financial_damage`                   | **No**                 | Weeks–months     | **CRITICAL** | Remove for ex-ante model |
+| `log_financial_damage`               | **No**                 | Weeks–months     | **CRITICAL** | Remove for ex-ante       |
+| `population_affected`                | **No** (final figure)  | Days–weeks       | **CRITICAL** | Remove for ex-ante       |
+| `log_population_affected`            | **No**                 | Days–weeks       | **CRITICAL** | Remove for ex-ante       |
+| `damage_to_gdp`                      | **No** (both parts)    | Months            | **CRITICAL** | Remove for ex-ante       |
+| `log_damage_x_flood`                 | **No** (damage half)   | Weeks–months     | **CRITICAL** | Remove for ex-ante       |
+| `disaster_Flood/Storm/...`           | Yes                          | None              | None               | Keep                     |
+| `days_since_last_disaster`           | Yes                          | None              | None               | Keep                     |
+| `disasters_trailing_365d`            | Yes                          | None              | None               | Keep                     |
+| `log_return`, `lag_return_t-*`     | Yes (t−1 close)             | None              | None               | Keep                     |
+| `sma_*`, `ema_*`                   | Yes but non-stationary       | None              | Extrapolation      | Replaced by ratios       |
+| `price_to_sma_*`, `price_to_ema_*` | Yes                          | None              | None               | Keep                     |
+| `rolling_std_*`, `squared_return`  | Yes                          | None              | None               | Keep                     |
+| `gdp_growth_pct`                     | **No** as dated        | ~6–18 months     | **HIGH**     | Re-date (done)           |
+| `inflation_cpi_pct`                  | **No** as dated        | ~6–18 months     | **HIGH**     | Re-date (done)           |
+| `gdp_current_usd`                    | **No** as dated        | ~6–18 months     | **HIGH**     | Re-date (done)           |
+| `sp500_log_return`                   | Yes                          | None              | None               | Keep                     |
+
+**Verdict: the thesis currently supports retrospective (ex-post) prediction, not real-time early warning.**
+
+Six of 32 features are EM-DAT post-hoc assessments. On the day before a flood, its eventual total damage and total affected are unknown. The README, thesis §1.2.3 and §4.4 all describe an "early-warning tool"; that claim is **NOT SUPPORTED** by the current feature set.
+
+**Recommendation — two models, explicitly separated:**
+
+- **Model A (ex-ante / event-onset):** disaster type, season, trailing disaster count, days since last disaster, historical type-average severity, all market features, macro with correct publication lag. Answers *"a flood has just begun — what happens?"*
+- **Model B (ex-post / attribution):** the current feature set including realised damage. Answers *"given a disaster of this measured severity, what was the market response?"*
+
+Model B is the study as it stands and is a legitimate research object. Model A is the one that would justify the early-warning language. Reporting both, and labelling which is which, converts a fatal framing problem into a genuine two-experiment contribution.
+
+---
+
+## 8. Data-Leakage Audit
+
+| Source                                                | Type                      | Severity           | Status                                                                                                                   |
+| ----------------------------------------------------- | ------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Global SMOGN before fold split                        | Temporal                  | CRITICAL           | Fixed earlier in development (documented in §8 of the notebook)                                                         |
+| Walk-forward boundaries computed on post-SMOGN length | Temporal                  | CRITICAL           | Fixed — folds now cut on real`len(X)`                                                                                 |
+| `GridSearchCV(cv=3)` = KFold inside each fold       | Temporal                  | **CRITICAL** | Fixed —`TimeSeriesSplit` on real rows only                                                                            |
+| Hyperparameters selected partly on synthetic rows     | Target                    | HIGH               | Fixed — selection on real rows, refit on augmented                                                                      |
+| Annual macro dated 1 January of its own year          | Availability              | **CRITICAL** | Fixed — re-dated Y+1-07-01                                                                                              |
+| Ex-post damage features as onset predictors           | Availability              | **CRITICAL** | Disclosed; requires reframing or Model A                                                                                 |
+| SMA/EMA computed on unshifted price                   | Temporal                  | CRITICAL           | Fixed earlier (`.shift(1)`)                                                                                            |
+| Feature selection inside fold on training rows        | —                        | NONE               | Correct as implemented                                                                                                   |
+| Scalers fit inside fold                               | —                        | NONE               | Correct as implemented                                                                                                   |
+| ADF/KPSS run on the full series                       | Temporal                  | LOW                | Stationarity is a structural property, not a fitted parameter; the test does not transfer target information. Disclosed. |
+| SMOGN minority quantile thresholds                    | —                        | NONE               | Computed on training rows only                                                                                           |
+| Y3 window overlapping a later event                   | Target                    | MODERATE           | Quantified and disclosed; truncation function still uncalled                                                             |
+| Model/config selection on reported folds              | **Optimistic bias** | HIGH               | Disclosed in a dedicated subsection (see §29)                                                                           |
+
+**On the last row — this is the one that cannot be fixed by code.** The SMOGN configuration was reverted after its held-out scores were seen. K, the split geometry, and the primary-model choice were all evaluated against the same folds that are reported. This is disclosed explicitly rather than concealed, and the pre-registered 25% synthetic-share cap now provides a score-independent justification for the SMOGN revert.
+
+---
+
+## 9. Event-Window and Overlapping-Event Audit
+
+**30-day pre / 90-day post: KEEP.** Justified a priori by the thesis's own argument (delayed price discovery in a semi-strong-inefficient frontier market) and, critically, **not tuned against test performance**. Systematically searching [-5,+20], [-10,+30], [-20,+60] and picking the best would be window-shopping on the test set. The current single pre-registered window is the more defensible choice, and this audit recommends against the window sweep the master prompt offers as an option.
+
+The three roles of the pre-event window must be separated in the write-up, because they currently blur:
+
+- **Baseline window** — the 30-day volume mean that defines Y2, and `P_{t-1}` that defines Y1 and Y3.
+- **Feature window** — the lags, moving averages and volatility measures, all halted at t−1.
+- **Estimation window** — *does not exist here*, because no market model is estimated (see §6, Y1). The thesis should stop calling it an estimation window.
+
+**Overlapping events — recommendation: Option C + D over Option A.**
+
+`truncate_overlapping_windows()` exists in `preprocessor.py` and is never called. Rather than wire in Option A (truncation), which shortens Y3 for exactly the events most likely to be severe and introduces a second censoring mechanism on top of the 90-day cap, the better treatment at this N is:
+
+- **Option C:** add a `concurrent_disaster_in_window` indicator (already partly available via `disasters_trailing_365d`).
+- **Option D:** the existing `disasters_trailing_365d` already encodes cumulative intensity.
+
+Option B (exclude overlapping events) would drop a substantial fraction of a 64-event sample. Option E (event clusters) would reduce N further. Both rejected on sample-size grounds.
+
+---
+
+## 10. Time-Aware SMOGN Audit
+
+### What is actually imbalanced?
+
+Y3 has 10 minority events (`Y3 > 30`) out of 64 — **15.6%**. Y1 and Y2 are roughly symmetric and have no rare-event structure in the same sense.
+
+### Is the implementation genuinely "time-aware"? — Yes, with corrections.
+
+| Property                                              | Status                                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Neighbours restricted temporally                      | **Yes** — ±5 year window, enforced                                                                                                                                                                                                                                                                               |
+| Future disasters can seed historical synthetic events | **Yes within a fold's training rows** — the window is symmetric, not backward-only. Since all rows are training rows this does not leak into test, but it does mean a 2010 event can be interpolated with a 2013 event. Defensible (both are past data at prediction time) and disclosed.                         |
+| Runs after fold creation, training rows only          | **Yes** — verified                                                                                                                                                                                                                                                                                                |
+| Disaster categories mixed unrealistically             | **Was yes — now fixed.** Previously a Flood could interpolate with a Drought, producing rows like `disaster_Flood=0.6, disaster_Storm=0.4`. Now same-type only, with the one-hot block copied verbatim.                                                                                                         |
+| Synthetic damage/population combinations plausible    | **Was no — now fixed.** Derived features (`log_financial_damage`, `damage_to_gdp`, `squared_return`, `log_damage_x_flood`) were interpolated *independently of their parents*, so `log_financial_damage != log1p(financial_damage)` on every synthetic row. Now recomputed from interpolated parents. |
+| Categorical types preserved                           | **Now yes**                                                                                                                                                                                                                                                                                                        |
+| Synthetic rows violate real financial relationships   | **Partly, unavoidably.** `rolling_std_*` is a convex functional of the price path, so interpolating two rows over-states volatility. Documented as an unfixable limitation.                                                                                                                                      |
+| Gaussian-noise level                                  | **Branch deleted.** It applied `N(0, 0.01)` *absolute* noise to columns measured in millions (producing near-duplicate rows) while that same 0.01 is ~70% of Y1's standard deviation — capable of flipping Y1's sign while leaving Y3 at 90, a combination that cannot occur given `Y3 = 0 ⟺ Y1 >= 0`.     |
+| Relevance function φ(y)                              | **Not implemented — deliberately.** Canonical SMOGN's φ is a PCHIP curve through boxplot control points. Y3's median and 25th percentile are both 0, so the boxplot construction is degenerate. The binary `Y3 > 30` threshold is the step-function instantiation of φ and should be described as such.       |
+| Majority under-sampling                               | **Not implemented — deliberately.** At 30 training rows, discarding real observations to balance a ratio is the most expensive available action and contradicts the study's 100%-real-data claim. This is a supported configuration of canonical SMOGN (`under_samp=False`), not a deviation.                   |
+
+### Verdict
+
+**KEEP + OPTIMIZE.** The label "Time-Aware SMOGN" is now honest. Prior to these corrections it was SmoteR-with-a-cutoff producing physically impossible events.
+
+---
+
+## 11. Preprocessing Audit
+
+**Scaling — MODIFY (done).** The thesis says scaling is applied within each training fold, which is leakage-safe and correct. But scaling was applied *inconsistently across models*: the MLP scaled X and y, while **Ridge received unstandardised features**. Since L2 is not scale-equivariant and the design matrix mixed ASPI price levels (~1e4), raw USD damage (~1e9) and 0/1 flags, `alpha=1.0` applied almost no shrinkage to the damage columns and crushed the binary ones. Random Forest and XGBoost correctly need no scaling. Model-specific pipelines are now used.
+
+**Stationarity — MODIFY (done).** The thesis (§3.5.1) mandates ADF/KPSS with differencing of failures. The implementation tested `log_return` alone and reported "stationary", while six engineered price-level columns went untested. All engineered market features are now tested.
+
+The exclusion rule matters and this audit corrects an error made during remediation: **gate on the ADF unit-root result only.** The volatility columns (`rolling_std_*`, `squared_return`) reject the ADF unit-root null decisively (p ≈ 1e-11 and smaller) while failing KPSS level-stationarity — the ordinary signature of persistent, mean-reverting volatility clustering, not of a trending level. Requiring both tests to agree discarded 11 of 22 features including the thesis's own mandated 30-day panic proxy. A unit root is what creates extrapolation risk under a chronological split; KPSS-persistence does not.
+
+**Imputation — MODIFY (done).** `y = dataset[TARGET_COLS].fillna(0.0)` fabricated three Y2 observations, asserting "volume exactly at its 30-day baseline" for events whose source workbook failed to parse. This is the same zero-fill the notebook's §3 explicitly rejects for volume itself. Targets now keep their NaNs and are masked per target; Y2's effective N is reported as 61.
+
+`X = dataset[FEATURE_COLS].fillna(0.0)` remains and is a weaker but real concern: 0.0 in `damage_to_gdp` reads as "no damage" rather than "unknown". Recommend an explicit missingness indicator.
+
+---
+
+## 12. Feature Engineering Audit
+
+**Collinearity is severe and largely unaddressed.** `sma_5/10/20` and `ema_5/10/20` are six smoothed versions of the same price series and are mutually ~99% correlated; `financial_damage`, `log_financial_damage`, `damage_to_gdp` and `log_damage_x_flood` are four transforms of one quantity. This is why K=20 → K=10 barely moved Random Forest (−0.322 → −0.298) but moved Ridge substantially (−1.634 → −0.803): the binding problem was collinearity and non-stationarity, not the feature count.
+
+**A concrete consequence found in the SMOGN neighbour search:** the standardised distance metric included `financial_damage` *and* its three derived children, so four of 32 columns were the same underlying quantity and neighbour selection was dominated by damage similarity. Derived columns are now excluded from the distance metric.
+
+**What the damage features actually measure.** EM-DAT records no damage estimate for the large majority of Sri Lankan events, and the loader zero-fills those. The damage features therefore behave substantially as an **indicator of EM-DAT reporting coverage**, which is itself correlated with severity and recency. The `log_damage_x_flood` interaction was justified on the grounds that Flood is 51/74 of the qualifying set — but the relevant denominator is *floods that have a damage figure*, which is far smaller. This must be stated in the limitations.
+
+**Recommended additions — none.** With 64 events, the correct direction is fewer features, not more. Deaths, injured, homeless, duration and geographic spread are all available in EM-DAT but every one of them is (a) ex-post and (b) collinear with the severity measures already present. Adding them would worsen both the p/n ratio and the information-availability problem.
+
+**Recommended removals:** the six raw price-level moving averages (done — replaced by stationary `price_to_sma_*` / `price_to_ema_*` ratios).
+
+---
+
+## 13. Baseline Evaluation
+
+**This was the single largest reporting gap and it is now closed.**
+
+Before this audit the study compared machine-learning models against Ridge and against nothing else. Two deployable nulls have been added, computed on exactly the same folds:
+
+- `naive_zero` — predict 0 for every event. The **economic** null: "the disaster had no measurable effect". All three targets are defined so that 0 is the meaningful no-effect value.
+- `naive_train_mean` — predict the training fold's mean (never the test mean). The **statistical** null that makes R² interpretable.
+
+**Measured result (Phase D run, calendar-day Y3):**
+
+| Target | `naive_zero` RMSE | Models beating it                                                     |
+| ------ | ------------------- | --------------------------------------------------------------------- |
+| Y1     | 0.0084              | **0 of 6**                                                      |
+| Y2     | 0.5142              | 3 of 6 (ridge, mlp, ensemble)                                         |
+| Y3     | 30.17               | 6 of 6 —**but `naive_train_mean` (27.95) beats every model** |
+
+**This corrects an earlier claim.** A full-sample approximation had suggested every model beat the no-effect null on Y1. Computed fold-wise on the actual test folds, that is false. The honest statement is: **no model beats a naive baseline on Y1; only Ridge clears both nulls on Y2; on Y3 no model beats the training-mean predictor.**
+
+---
+
+## 14–17. Model Evaluations
+
+### 14. Random Forest — KEEP + OPTIMIZE
+
+Best or near-best across targets in early configurations, and the most stable. But: train-fit R² of **0.883** on Y3 against a held-out **−0.146** is a 1.03-point gap — the model is memorising. Grids permitted `max_depth=None` with `min_samples_leaf=1` on 33-row folds, i.e. trees isolating individual events. Recommend bounding capacity a priori by fold size (`min_samples_leaf >= 3`, `max_depth <= 4`) rather than by test score.
+
+### 15. XGBoost — KEEP + OPTIMIZE
+
+Was the worst-behaved model before the stationarity fix (Y1 pooled R² −1.617), and improved most from it (−0.236). That pattern is diagnostic: boosting was extrapolating hardest off the end of the training price range. Same capacity-bounding recommendation.
+
+### 16. SVR — **REPLACE (with nothing)**
+
+Specified in thesis §3.6.1 and **never implemented**. Either implement it or delete it from the methodology. Given that Ridge (linear), RF and XGBoost (trees) and MLP (network) already span the model-family space, and that SVR adds a kernel and two hyperparameters to tune on 30 rows, this audit recommends **removing it from the thesis** rather than adding it to the code. State the removal and the reason.
+
+### 17. MLP — KEEP + OPTIMIZE
+
+Architecture (one hidden layer, 64 units, dropout 0.5, three heads) is appropriately constrained for the sample size. Correctly rejects LSTM/Transformer.
+
+Two real issues:
+
+1. **No early stopping, no validation split.** 200 fixed full-batch epochs. On 33 rows this is a capacity risk, though dropout 0.5 mitigates it.
+2. **The loss-weight rationale is now wrong.** The notebook states the weights `(1.0, 0.1, 0.5)` are the thesis's eq.(4) mechanism for the scale gap. Since y is standardised per fold *before* the loss is applied, all three per-target MSE terms are already unit-variance and the ~1000× raw-scale gap is gone before the weights act. The weights now express **task priority** (Y1 primary), not scale equalisation. This is a defensible position — but it must be described accurately. Do not re-tune them; that would be an untuned hyperparameter change with no a-priori basis.
+
+**Y3 transform:** `log1p` is now applied to Y3 inside the MLP before the y-scaler, matching the tree/linear models. This is not redundant with standardisation: standardisation is affine and fixes *scale*; log1p is monotone-nonlinear and fixes *shape*. Y3 after standardisation is still majority-zero, right-skewed and hard-capped.
+
+---
+
+## 18. Multi-Output vs Multi-Task Learning
+
+**The thesis's description is wrong and must be corrected.**
+
+Thesis §3.6.4 states that a `MultiOutputRegressor` wrapper is used for the tree models. The code does not use `MultiOutputRegressor` at all — it fits an entirely separate estimator per target inside the fold loop, each with its own feature selection and its own hyperparameter search.
+
+More importantly, **neither is multi-task learning.** Fitting `f1(X)→Y1`, `f2(X)→Y2`, `f3(X)→Y3` independently is *multi-output prediction*. There is no shared representation and no cross-target information transfer. §12's cross-check table also claims a "custom weighted-RMSE scorer averaged across all 3 targets (thesis eq.(4) weights)" — the code uses `neg_root_mean_squared_error` on one target at a time.
+
+**Only the MLP is genuinely multi-task**, via its shared hidden layer.
+
+Required wording change: describe the tree pipeline as **per-target independent models**, and reserve "multi-task learning" for the MLP alone.
+
+**Is joint learning justified?** The MLP is not the best model on any target in the measured results. There is no evidence of positive transfer. State this plainly rather than retaining MTL because it was proposed.
+
+---
+
+## 19. Recovery Survival-Analysis Decision
+
+Covered in §6. **Recommendation: two-stage hurdle (Approach C), not survival (Approach D).** Rationale: N=64 with ~10 tail events cannot support hazard estimation; the censoring point is a design artefact rather than a natural end-of-observation; and the hurdle's first stage matches the actual point-mass-at-zero structure. Disclose that stage 1 is near-equivalent to predicting `sign(Y1)`.
+
+---
+
+## 20. Validation Redesign
+
+**Recommended final design:**
+
+1. **Outer:** chronological walk-forward, **expanding** window (thesis §3.7.1 says "the training set to grow over time"; the code rolls). Test indices are identical under both, so the comparison is exactly like-for-like — nothing is added to or removed from the evaluation set.
+2. **Inner:** `TimeSeriesSplit` on the fold's **real** training rows for all hyperparameter selection; refit the winner on real + synthetic.
+3. **Report both** the primary 30/10/10 and the dense 20/5/5 geometry at equal prominence.
+
+**Leave-One-Disaster-Out:** rejected. It breaks chronology (training on later events to predict earlier ones) — the exact failure the thesis bans.
+
+**Leave-One-Disaster-Type-Out:** worth reporting **descriptively** as a stress test, not as a statistical claim. With Drought n=5 and the singletons pooled, per-type inference is not supportable.
+
+**Embargo/purging:** the honest position is that Y3's 90-day forward window can overlap a subsequent event that falls in a later fold. Purging would cost folds the study cannot spare. Recommend **disclosing** the overlap count rather than implementing an embargo — and stating that as a limitation.
+
+---
+
+## 21. Hyperparameter Optimization
+
+**KEEP + OPTIMIZE.** Grid search is correct here; the master prompt's alternatives (Optuna/TPE, Bayesian) would search a *larger* space on 30 rows, which increases selection overfitting. The thesis's own §3.7.2 justification for tuning ("using default values will result in severe overfitting") is sound but was applied inconsistently — RF and XGBoost were tuned while Ridge sat at its library default `alpha=1.0`. Now fixed.
+
+Grids are deliberately small (8 combinations each) because a larger grid made the search itself the bottleneck (>900 s per fold). This is a real, disclosed constraint.
+
+**Nested selection:** full nested CV is not supportable at this N. The implemented compromise — inner `TimeSeriesSplit` on real training rows, outer walk-forward for reporting — is the most defensible available, and its limitation (inner folds of 9/16/23 rows are genuinely noisy) is stated. The correct response to noisy inner selection is to *shrink the search space* so that any pick is acceptable, not to search harder.
+
+---
+
+## 22. Metric Framework
+
+| Target | Primary                      | Secondary                                                                                  | Baseline it must beat                       |
+| ------ | ---------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| Y1     | RMSE                         | MAE, pooled R², directional accuracy**vs majority baseline**, AUC **with CI** | `naive_zero`, `naive_train_mean`, Ridge |
+| Y2     | RMSE                         | MAE, pooled R²                                                                            | `naive_zero`, `naive_train_mean`, Ridge |
+| Y3     | MAE**in trading days** | RMSE, median AE, pooled R²                                                                | `naive_zero`, `naive_train_mean`, Ridge |
+
+**Pooled R² is the correct R² to report** (concatenate all out-of-fold predictions, compute once) — per-fold R² on a 10-point window is numerically unstable. Both are shown, with pooled designated primary.
+
+**Two definitional corrections required in the thesis:**
+
+- §3.8.1 states "RMSE measures the total variation in the actual data explained by the ML algorithm." **This is wrong.** RMSE = √(mean squared error); it is an error magnitude in the target's units. R² is the explained-variance measure. Correct the sentence.
+- The claim that pooled R² is computed over "N≈64-74 real points" is wrong: it is computed over **30** pooled out-of-fold test points (20 for the stacked model). Corrected in the notebook.
+
+---
+
+## 23. Rare-Event Evaluation
+
+**Not yet measured.** The pipeline does not currently report performance separately for severe versus ordinary events. This is a genuine gap and is listed in the next-experiments section. The required table:
+
+| Target | Overall | Common events | Rare events (top decile severity) | Worst event |
+| ------ | ------- | ------------- | --------------------------------- | ----------- |
+
+Given that the study exists to predict catastrophic impacts, a model with acceptable overall RMSE and poor performance on the 2004 tsunami and the 2005-11-21 event would not meet the research objective. This must be measured before any performance claim is made.
+
+---
+
+## 24. Ablation Study
+
+**Measured — the stationarity ablation (Phase C → Phase D), pooled R²:**
+
+| Model / target | Before (non-stationary price levels in) | After (stationary ratios) |
+| -------------- | --------------------------------------- | ------------------------- |
+| ridge Y1       | −0.407                                 | **−0.278**         |
+| ridge Y2       | −0.015                                 | **+0.053**          |
+| ridge Y3       | −0.187                                 | **−0.122**         |
+| xgboost Y1     | −1.617                                 | **−0.236**         |
+| xgboost Y2     | −0.977                                 | **−0.613**         |
+| mlp Y1         | −1.547                                 | **−0.299**         |
+| mlp Y2         | −0.234                                 | **−0.025**         |
+| stacked Y1     | −0.775                                 | **−0.134**         |
+| RF Y1          | −0.315                                 | −0.412 (worse)           |
+
+**Measured — the SMOGN over-augmentation ablation:** widening the minority mask to the union of Y1/Y2/Y3 quintile tails with 2 draws per row produced 26–28 synthetic rows against 30 real per fold and made **every model on every target worse** (RF Y1 pooled R² −0.32 → −1.39; Ridge Y3 RMSE 36.6 → 62.9). Reverted. This variant is also rejected independently by the pre-registered 25% synthetic-share cap (it reaches 46–48%), so the revert does not rest on having seen its scores.
+
+**Measured — feature count (K=20 vs K=10), pooled R²:** K=10 better on 6 of 9 model-target cells (ridge Y1 −1.634 → −0.803; ridge Y2 −3.539 → −1.250; RF Y2 −0.120 → −0.057) but **destroys the study's only positive R²** (ridge Y3 +0.038 → −0.079). K=20 retained; both reported.
+
+**Not yet measured — the study's central ablation.** Market-only vs disaster-only vs market+disaster vs +macro. This directly answers *"do disaster variables add predictive information beyond ordinary market history?"* — the question the entire thesis exists to answer — and it has never been run. **This is the single most important missing experiment.**
+
+**Not yet measured:** SMOGN on/off. The augmentation's worth has never been isolated.
+
+---
+
+## 25. Robustness Analysis
+
+Measured: split geometry (30/10/10 vs 20/5/5), feature count (20 vs 10), augmentation ratio (1× vs 2× with widened mask), stationarity treatment, Y3 response transform (raw vs log1p).
+
+Not measured: random seed sensitivity, recovery-definition sensitivity (exact vs 1–2% tolerance vs stable-for-k-sessions), removal of the two extreme events (2004-12-26, 2005-11-21).
+
+**Note on split sensitivity — a result that must be reported.** The dense 20/5/5 configuration produces the best number anywhere in the study (RF Y1 pooled R² **+0.151** against −0.322 primary) *and* the worst (Ridge Y3 pooled R² −229 before prediction clipping). Both directions are the same finding: **at this N, results are highly sensitive to split geometry.** That is itself the most important robustness conclusion.
+
+---
+
+## 26. Error Analysis
+
+**Why pooled R² is negative — the quantitative explanation.**
+
+R² = 1 − SSE/SST, where SST is computed against the *pooled test* mean. But every model can only ever centre on its *training-fold* mean. The chronological split compounds this: the two largest shocks in the dataset — **2004-12-26 (Earthquake/tsunami, Y1 = −0.0443)** and **2005-11-21 (Flood, Y1 = −0.0753)** — fall permanently inside fold 0's **training** window. The held-out folds therefore contain the calmer events and carry only a fraction of full-sample variance:
+
+| Target | Full-sample σ | σ of pooled test folds | Ratio |
+| ------ | -------------- | ----------------------- | ----- |
+| Y1     | 0.01403        | 0.00880                 | 0.63  |
+| Y2     | 0.5799         | 0.4954                  | 0.85  |
+| Y3     | 30.64          | 28.54                   | 0.93  |
+
+A negative pooled R² here means "worse than an oracle that already knows the test set's mean" — which is **not** the same as "worse than a usable baseline". The `beats_null_rmse` column answers the second, more meaningful question. This explanation is now in the notebook, along with the `n` and `sigma_y_test` columns that let a reader verify it.
+
+**A caution on the 2005-11-21 event:** Sri Lanka's presidential election was 17 November 2005, four days before the largest ASPI drop in the dataset. There is **no event-window contamination screen anywhere in the pipeline** — no filter for concurrent elections, policy announcements or macro shocks. This is the core identification threat in any event study and the thesis does not address it.
+
+---
+
+## 27. Explainability / SHAP
+
+Implemented: global summary plot and a local waterfall for the largest real ASPI drop, on real data only.
+
+**Two requirements:**
+
+1. **SHAP under correlated predictors is unstable.** With six ~99%-correlated moving averages and four damage transforms, attribution splits arbitrarily among collinear columns. Any SHAP ranking must be reported as *model attribution under collinearity*, not as a stable importance ordering. Recommend re-running SHAP after the collinearity reduction and reporting whether the ranking changed.
+2. **SHAP is not causal.** The thesis must not describe high-SHAP features as drivers of market impact. Replace any causal phrasing with "predictive association".
+
+---
+
+## 28. Ten-Expert Initial Scores
+
+Scoring the framework **as it stood before this audit's remediation**, 0–10 per criterion, 12 criteria, /120.
+
+| Expert                                | Score /120 | Main strength                                                            | Main weakness                                                                                 | Highest-priority fix               |
+| ------------------------------------- | ---------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 1. Financial Econometrician           | 58         | Correct rejection of market-model AR (no valid benchmark for an index)   | Y1 mislabelled "percentage change"; no contamination screen for concurrent events             | Event-window contamination screen  |
+| 2. Frontier-Market Specialist         | 64         | Genuine understanding of CSE illiquidity and delayed price discovery     | Y2 mislabelled "volume crash" when max is +1.94 (a spike)                                     | Correct Y2 terminology             |
+| 3. Time-Series ML                     | 41         | Walk-forward outer loop, per-fold scaling and selection                  | **Inner k-fold contradicting the stated method**; rolling instead of expanding window   | Replace inner`cv=3`              |
+| 4. Rare-Event / Imbalanced Regression | 55         | Real SmoteR interpolation with temporal constraint                       | Fractional one-hots, incoherent derived features, scale-blind noise fallback                  | SMOGN fidelity rewrite             |
+| 5. Tree Ensembles                     | 62         | Appropriate family for small tabular data; grids kept small deliberately | `max_depth=None`/`min_samples_leaf=1` on 33 rows; train-fit R² 0.883 vs held-out −0.146 | Bound capacity by fold size        |
+| 6. Neural Networks                    | 66         | Correctly constrained shallow MTL; LSTM rightly rejected                 | No early stopping; loss-weight rationale invalidated by y-standardisation                     | Correct the weight rationale       |
+| 7. Disaster-Risk / Climate Finance    | 44         | Correct EM-DAT filtering and epidemic exclusion                          | Damage features are largely a reporting-coverage indicator; used as onset predictors          | Information-availability reframing |
+| 8. Statistical Validation             | 38         | Pooled R² correctly preferred over per-fold mean                        | **No naive baselines at all**; directional accuracy reported against nothing; no CIs    | Add naive baselines                |
+| 9. XAI / Feature Engineering          | 57         | SHAP global + local implemented on real data                             | Severe collinearity unaddressed; SHAP instability unacknowledged                              | Collinearity reduction             |
+| 10. Critical Thesis Examiner          | 35         | Unusually honest documentation of found-and-fixed bugs                   | Early-warning claim unsupported; several §-level claims contradicted by the code             | Resolve early-warning framing      |
+
+**Mean: 52/120.** The framework was conceptually well-designed and substantially mis-implemented.
+
+---
+
+## 29. Critical Problems Ranked P0–P3
+
+### P0 — Could invalidate results
+
+| #    | Problem                                                                           | Status                                                       |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| P0-1 | `GridSearchCV(cv=3)` = k-fold inside walk-forward, contradicting §3.7.1        | **Fixed**                                              |
+| P0-2 | Ex-post damage features used as onset predictors; early-warning claim unsupported | **Disclosed; requires Model A or permanent reframing** |
+| P0-3 | Annual macro dated 1 Jan of its own year → 6–18 month look-ahead on 4 features  | **Fixed**                                              |
+| P0-4 | Ridge (the H1 baseline) fit unstandardised → H1 comparison meaningless           | **Fixed**                                              |
+| P0-5 | `y.fillna(0.0)` fabricated 3 Y2 observations                                    | **Fixed**                                              |
+| P0-6 | Non-stationary price levels in a chronological split                              | **Fixed**                                              |
+| P0-7 | Model/config choices made on the reported folds                                   | **Disclosed — cannot be undone**                      |
+
+### P1 — Major methodological improvement
+
+| #    | Problem                                                                                     | Status                                             |
+| ---- | ------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| P1-1 | Y3 in calendar days while thesis specifies trading days                                     | **Fixed**                                    |
+| P1-2 | Y3 right-censoring ignored (cap treated as observed)                                        | **Open — hurdle model recommended**         |
+| P1-3 | `Y3 = 0 ⟺ Y1 >= 0` by construction; targets not independent                              | **Documented**                               |
+| P1-4 | Directional accuracy reported without its majority baseline                                 | **Fixed**                                    |
+| P1-5 | No naive baselines                                                                          | **Fixed**                                    |
+| P1-6 | Rolling rather than expanding walk-forward, contradicting §3.7.1                           | **Option added; both reported**              |
+| P1-7 | Central market-vs-disaster ablation never run                                               | **Open — highest-value missing experiment** |
+| P1-8 | `truncate_overlapping_windows()` defined and never called while SWOT implies it is in use | **Quantified and disclosed**                 |
+| P1-9 | Predictions violate definitional bounds (Ridge Y3 RMSE 157 on dense config)                 | **Fixed by clipping**                        |
+
+### P2 — Performance / robustness
+
+P2-1 SVR specified but never implemented · P2-2 RF/XGB capacity unbounded relative to fold size · P2-3 Severe collinearity unaddressed · P2-4 SHAP instability under collinearity unacknowledged · P2-5 Rare-event performance never measured separately · P2-6 SMOGN on/off never ablated · P2-7 `X.fillna(0.0)` conflates "zero damage" with "unknown" · P2-8 Live unpinned API pulls make Table 10 non-reproducible
+
+### P3 — Optional
+
+P3-1 `> 1000` vs `>= 1000` (fixed) · P3-2 Singleton disaster types as memorisation keys (fixed by pooling) · P3-3 `forward_fill_missing_values` also ffills provenance columns · P3-4 EM-DAT missing month/day filled to 1 January, count unreported
+
+---
+
+## 30. KEEP / OPTIMIZE / MODIFY / REPLACE
+
+| Component                      | Decision                    | Reason                                                                                  |
+| ------------------------------ | --------------------------- | --------------------------------------------------------------------------------------- |
+| 30/90 event window             | **KEEP**              | Justified a priori by frontier-market price discovery; not tuned on test                |
+| ASPI log-return target         | **KEEP** (rename)     | Correct operationalisation; AR not identified for an index. Label is wrong              |
+| ATV target                     | **KEEP** (rename)     | `V/V̄ − 1` is the right form; "volume crash" inverts its meaning                    |
+| 90-day recovery cap            | **MODIFY**            | Right-censoring must be modelled, not assigned. Hurdle model                            |
+| `>= 1000` affected threshold | **KEEP**              | Thesis-mandated; code now matches                                                       |
+| Lag structure (t−1,2,3,5)     | **KEEP**              | Stationary, available at prediction time, low-dimensional                               |
+| SMA/EMA                        | **REPLACE**           | Non-stationary levels → stationary price-relative ratios                               |
+| ADF/KPSS                       | **MODIFY**            | Must cover all features; gate exclusion on ADF unit root, not on both tests             |
+| Macroeconomic controls         | **MODIFY**            | Publication lag mandatory; annual frequency against daily events is a stated limitation |
+| S&P 500 control                | **KEEP**              | Available same-day, genuinely exogenous, separates global from local shocks             |
+| Time-Aware SMOGN               | **KEEP + OPTIMIZE**   | Concept sound and thesis-mandated; implementation required fidelity corrections         |
+| OLS/Ridge                      | **KEEP + OPTIMIZE**   | Correct H1 baseline; needed standardisation and in-fold alpha                           |
+| SVR                            | **REPLACE (remove)**  | Never implemented; adds tuning burden without spanning new model-family space           |
+| Random Forest                  | **KEEP + OPTIMIZE**   | Right family; capacity must be bounded by fold size                                     |
+| XGBoost                        | **KEEP + OPTIMIZE**   | Right family; same capacity bound                                                       |
+| Shallow MLP                    | **KEEP + OPTIMIZE**   | Appropriately constrained; needs early stopping and corrected weight rationale          |
+| MultiOutputRegressor           | **REPLACE (in text)** | Not used by the code; description must be corrected                                     |
+| MTL MLP                        | **KEEP** (reframe)    | Only genuine MTL component; no measured positive transfer — say so                     |
+| Weighted MSE                   | **KEEP** (reframe)    | Weights now express task priority, not scale equalisation                               |
+| Walk-forward CV                | **KEEP + OPTIMIZE**   | Correct choice; make expanding, fix inner CV                                            |
+| Grid/Bayesian tuning           | **KEEP + OPTIMIZE**   | Grid is right at this N; must run on real rows chronologically                          |
+| RMSE/MAE/R²                   | **KEEP + OPTIMIZE**   | Correct core; add naive baselines, CIs, and per-target secondary metrics                |
+| SHAP                           | **KEEP + OPTIMIZE**   | Correct tool; must acknowledge collinearity instability and drop causal language        |
+
+---
+
+## 31–33. Recommended Target-Specific Pipelines
+
+### Pipeline A — Y1 (ASPI log return)
+
+```
+Ex-ante features (Model A) OR ex-post features (Model B) — labelled, never mixed silently
+   -> per-fold: SMOGN (train rows only, same-type, derived recomputed)
+   -> per-fold: RF-importance top-K feature selection (train rows only)
+   -> StandardScaler (Ridge/MLP only; not for trees)
+   -> Ridge(alpha via in-fold TimeSeriesSplit RidgeCV) | RF | XGBoost | MLP
+   -> expanding walk-forward, outer
+   -> RMSE (primary), MAE, pooled R², directional accuracy vs majority baseline, AUC + CI
+   -> vs naive_zero, naive_train_mean, Ridge
+   -> SHAP global + local
+```
+
+### Pipeline B — Y2 (abnormal trading volume)
+
+Identical, with two differences: **N = 61** (three events have no volume data — reported, not imputed), and predictions clipped to `>= −1` (volume cannot be negative).
+
+### Pipeline C — Y3 (recovery, trading days)
+
+```
+... same preprocessing ...
+   -> STAGE 1: classifier, P(recovery within 90 trading days)
+        [disclose: near-equivalent to predicting sign(Y1) by construction]
+   -> STAGE 2: regressor on log1p(duration | recovered), expm1-inverted, clipped to [0, 90]
+   -> combined expectation = P(recover) * E[duration | recover] + (1 - P(recover)) * 90
+   -> MAE in trading days (primary), median AE, RMSE, pooled R²
+   -> vs naive_zero, naive_train_mean
+```
+
+---
+
+## 34. Experiment Matrix
+
+| ID            | Research question                          | Features           | Rare treatment   | Model                         | Validation                                 | Target             |
+| ------------- | ------------------------------------------ | ------------------ | ---------------- | ----------------------------- | ------------------------------------------ | ------------------ |
+| E01           | Economic null                              | —                 | None             | predict 0                     | Walk-forward                               | All 3              |
+| E02           | Statistical null                           | —                 | None             | train mean                    | Walk-forward                               | All 3              |
+| E03           | Linear baseline                            | Market             | None             | Ridge (scaled, tuned)         | Walk-forward                               | All 3              |
+| **E04** | **Do disaster variables add value?** | Market only        | None             | RF                            | Walk-forward                               | All 3              |
+| **E05** | **Do disaster variables add value?** | Disaster only      | None             | RF                            | Walk-forward                               | All 3              |
+| **E06** | **Do disaster variables add value?** | Market + disaster  | None             | RF                            | Walk-forward                               | All 3              |
+| E07           | Do macro controls add value?               | + macro (lagged)   | None             | RF                            | Walk-forward                               | All 3              |
+| E08           | Does SMOGN add value?                      | Full               | **None**   | RF                            | Walk-forward                               | All 3              |
+| E09           | Does SMOGN add value?                      | Full               | SMOGN            | RF                            | Walk-forward                               | All 3              |
+| E10           | Does sample weighting beat resampling?     | Full               | Sample weights   | RF                            | Walk-forward                               | All 3              |
+| E11           | Which model class wins?                    | Full               | Best of E08–E10 | Ridge/RF/XGB/MLP              | Walk-forward                               | All 3              |
+| E12           | Does MTL add value?                        | Full               | "                | MLP-MTL vs 3 single-task MLPs | Walk-forward                               | All 3              |
+| E13           | Does ensembling add value?                 | Full               | "                | blend + stack                 | Walk-forward                               | All 3              |
+| E14           | Ex-ante vs ex-post                         | Model A vs Model B | "                | Best of E11                   | Walk-forward                               | All 3              |
+| E15           | Does Y3 need a hurdle model?               | Full               | "                | Regression vs hurdle          | Walk-forward                               | Y3                 |
+| E16           | Are severe events predictable?             | Full               | "                | Best of E11                   | Walk-forward, stratified report            | All 3              |
+| E17           | Is performance stable?                     | Full               | "                | Best of E11                   | 30/10/10 and 20/5/5, rolling and expanding | All 3              |
+| E18           | Recovery-definition robustness             | Full               | "                | Best of E11                   | Walk-forward                               | Y3 (3 definitions) |
+
+E04–E06 are the study's central experiment and have never been run.
+
+---
+
+## 35. Expected Performance Improvements
+
+**No numerical predictions are given** — the master prompt forbids fabricating them, and this audit has already produced one case where an estimate (the naive-baseline comparison) turned out to be wrong when actually computed.
+
+Qualitative expectations, ordered by confidence:
+
+- **Prediction clipping to definitional bounds:** *provably* non-worsening. Clipping is Euclidean projection onto the target's support, and every true value already lies inside it, so absolute error cannot increase on any point. RMSE and MAE non-increasing, pooled R² non-decreasing, conformal coverage exactly unchanged with non-increasing width. This is the only change in the entire audit with a guarantee attached.
+- **Ridge standardisation:** large effect on Ridge, already measured. Direction on other models: none (they are scale-invariant).
+- **Stationary feature replacement:** already measured; largest single improvement observed, concentrated in the models that extrapolate (XGBoost, MLP, Ridge).
+- **Capacity bounding (RF/XGB):** expected to move R² *toward* zero from below — "less wrong", not "predictive". Say so.
+- **Hurdle model for Y3:** unknown. Better matched to the distribution, but adds a second model to fit on 30 rows.
+- **Macro publication-lag fix:** expected to make results *slightly worse*. Do it anyway and report it.
+- **Ex-ante feature set (Model A):** expected to be substantially worse than Model B. That gap is itself the finding.
+
+---
+
+## 36. Recommended Final Architecture
+
+```
+EM-DAT (86) --> non-biological, affected >= 1000 --> 74 --> within archive coverage --> 64 events
+                                                                    |
+CSE ASPI + volume --> forward-fill --> stationary feature engineering               |
+   (lags, price_to_sma/ema ratios, rolling_std, squared_return)                     |
+                                                                    |               |
+World Bank macro --> re-dated to Y+1-07-01 (publication lag) -------+               |
+S&P 500 (same-day) -------------------------------------------------+               |
+                                                                    v               v
+                                    merge_asof(backward, asof = event_date - 1 day)
+                                                    |
+                        +---------------------------+---------------------------+
+                        |                                                       |
+                 MODEL A (ex-ante)                                      MODEL B (ex-post)
+        type, season, trailing counts, market,                  Model A features + realised
+        macro, historical type-average severity                 damage / affected / damage_to_gdp
+                        |                                                       |
+                        +---------------------------+---------------------------+
+                                                    |
+                              EXPANDING chronological walk-forward (outer)
+                                                    |
+                        per fold, per target:  SMOGN on TRAIN REAL rows only
+                                               (same-type, derived recomputed, <=25% synthetic)
+                                                    |
+                                       RF-importance top-K on train rows
+                                                    |
+                              inner TimeSeriesSplit on REAL rows -> hyperparameters
+                                          refit winner on real + synthetic
+                                                    |
+              +------------------+------------------+------------------+
+              |                  |                  |                  |
+        Ridge (scaled,     Random Forest        XGBoost           MLP (MTL,
+        RidgeCV alpha)     (depth<=4,           (depth<=3)        log1p Y3,
+                            leaf>=3)                              early stopping)
+              |                  |                  |                  |
+              +------------------+--------+---------+------------------+
+                                          |
+                          Y3 only: two-stage hurdle wrapper
+                                          |
+                        clip predictions to definitional bounds
+                                          |
+              +---------------------------+---------------------------+
+              |                                                       |
+   POINT METRICS vs naive_zero / naive_train_mean / Ridge      ROLLING CONFORMAL INTERVALS
+   RMSE (primary), MAE, pooled R² (+ n, sigma_y_test)          finite-sample quantile,
+   Y1: directional accuracy vs majority baseline, AUC + CI     Wilson CI, vs marginal interval
+   stratified: common vs rare vs worst events
+              |
+              v
+        SHAP (post-collinearity-reduction), attribution not causation
+```
+
+---
+
+## 37. Methodology Amendments Required in the Thesis
+
+| #  | Current statement                                  | Problem                                                                       | Replacement                                                                    | Section                            |
+| -- | -------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------- |
+| 1  | "ASPI Percentage Change"                           | A log return is not a percentage change                                       | "ASPI log return, ln(P_t/P_{t−1})"                                            | §3.2.2, Table 4, abstract, RQ1–4 |
+| 2  | "Trading volume crash magnitude"                   | Variable measures deviation in both directions; observed max +1.94 is a spike | "Abnormal trading volume (ATV)"                                                | §3.2.2, Table 4, abstract, RQ1    |
+| 3  | "Consecutive trading days" (Y3)                    | Code returned calendar days                                                   | Retain the trading-day definition; state that the implementation was corrected | §3.2.2                            |
+| 4  | Recovery capped at 90 with no censoring discussion | `T > 90` is not `T = 90`                                                  | Add right-censoring discussion + hurdle model                                  | §3.2.2                            |
+| 5  | "No k-fold anywhere"                               | Inner`cv=3` was a k-fold                                                    | Retain the principle; document the inner`TimeSeriesSplit`                    | §3.7.1                            |
+| 6  | "The training set to grow over time"               | Implementation used a rolling window                                          | Report both; state which is primary                                            | §3.7.1                            |
+| 7  | `MultiOutputRegressor` wrapper described         | Not used; separate per-target fits                                            | "Independent per-target estimators"                                            | §3.6.4                            |
+| 8  | "Multi-task learning" for tree models              | Multi-output ≠ multi-task                                                    | Reserve MTL for the MLP                                                        | §3.6.4, abstract                  |
+| 9  | "RMSE measures the total variation explained"      | Wrong — that is R²                                                          | "RMSE is the root of the mean squared error, in the target's own units"        | §3.8.1                            |
+| 10 | "Explainable early-warning system"                 | Six features are ex-post                                                      | "Ex-post impact-attribution framework"; add Model A as future work             | Abstract, §1.2.3, §4.4, README   |
+| 11 | "Aggregated sentiment scores... were used"         | Contradicts Table 4 and the code                                              | Delete; state sentiment was excluded and why                                   | §3.3.1                            |
+| 12 | SVR listed as a model                              | Never implemented                                                             | Remove, with a stated reason                                                   | §3.6.1                            |
+| 13 | Loss weights as eq.(4) scale mechanism             | y is standardised first, so scale gap is already gone                         | Weights express task priority                                                  | §3.6.4                            |
+| 14 | Macro variables with no publication-lag treatment  | Look-ahead                                                                    | Add as-of-date alignment                                                       | §3.3.1                            |
+| 15 | ADF/KPSS "confirm log_return is stationary"        | Only one feature tested                                                       | All features tested; unit-root columns excluded                                | §3.5.1                            |
+| 16 | Overlapping-window truncation described            | Function never called                                                         | Either wire it in or state it was not applied and quantify overlap             | §3.3.2                            |
+| 17 | No statement of Y1↔Y3 dependence                  | `Y3 = 0 ⟺ Y1 >= 0` by construction                                         | Add explicitly before any Y3 result                                            | §3.2.2                            |
+| 18 | 100% real data                                     | 3 Y2 values were zero-filled                                                  | Now true; report Y2 N = 61                                                     | §3.4.1                            |
+| 19 | "First-ever" framework                             | Unverifiable superlative                                                      | "To our knowledge, the first..."                                               | §1.2.3                            |
+| 20 | Feature-importance language implying causation     | SHAP is attribution                                                           | "Predictive association"                                                       | §3.8.2                            |
+
+---
+
+## 38. Research Contribution After Improvement
+
+Stated honestly, the contribution is **not** a working predictor. It is four things, and they are real:
+
+1. **A well-evidenced null result.** Across five model families, two validation geometries, two feature counts and with/without augmentation, index-level CSE response to qualifying natural disasters is not predictable at this sample size. Median Y1 is +0.000003 and median Y3 is 0 — more than half of qualifying disasters produce no measurable day-0 index reaction. For a market the thesis itself characterises as thin and semi-strong-inefficient, that is a genuine, interpretable finding: index-level aggregation and low liquidity absorb localised physical shocks. Consistency across specifications is what makes a null credible, and most undergraduate theses cannot offer a robustness surface at all.
+2. **A methodological contribution on multi-task regression with heterogeneously-scaled targets.** The finding that loss weights of (1.0, 0.1, 0.5) cannot compensate a ~1000× raw-scale gap, and that target standardisation is a necessary complement, is transferable and was not documented anywhere the student found it. (Before the fix, MLP Y1 R² was ≈ −390.)
+3. **A negative-results register that saves the next researcher real time.** Yahoo's `^CSE` feed verified dead three ways; the market-cap CSV rejected for having no historical join key; the widened-SMOGN variant tried, measured and reverted; SMOGN's own defects found and corrected. In frontier-market data work this is the scarcest material in the literature.
+4. **Reusable data infrastructure.** A parser handling three distinct CSE report layouts across 23 years via header-text detection, and a validated 64-event CSE-disaster panel that does not exist elsewhere.
+
+**One-sentence statement of contribution:** *the first end-to-end, leakage-audited multi-target ML framework for disaster impact on a frontier exchange, applied to a complete real 64-event panel, which establishes — robustly across five model families and two validation geometries — that index-level CSE response to qualifying natural disasters is not predictable at this sample size, and which documents the specific data, leakage and target-construction obstacles any future attempt must overcome.*
+
+---
+
+## 39. Limitations Remaining
+
+1. **N = 64.** The binding constraint. No technique overcomes it.
+2. **Ex-post features.** Until Model A is built, the framework cannot support prospective claims.
+3. **Annual macro against event-level timing.** CBSL monthly CCPI, daily LKR/USD and policy rates were not accessible; World Bank annual series are a coarse proxy even after the lag correction.
+4. **Archive ends Jun-2023 (price) / Mar-2023 (volume).** Storm Ditwah (Nov 2025), the thesis's own flagship example, is outside the modelled set.
+5. **EM-DAT reporting bias.** Most Sri Lankan records carry no damage estimate; damage features partly measure reporting coverage.
+6. **Y3 censoring and its dependence on Y1.**
+7. **No event-window contamination screen.** Concurrent elections and policy shocks are not controlled — note the 2005 presidential election four days before the largest observed drop.
+8. **Optimistic bias from configuration choices made on the reported folds.** Disclosed, unquantifiable.
+9. **Interpolated volatility is convexity-biased high** in synthetic rows and cannot be corrected without the price path.
+10. **Live unpinned API pulls** make the exact table non-reproducible until cached.
+11. **Inner-CV noise.** Chronological inner folds of 9/16/23 rows are close to uninformative; the response is a deliberately small search space, not a better search.
+
+---
+
+## 40. Viva Defence
+
+**"Nine of your twelve R² values are negative. Why should we believe anything here?"**
+Because a negative pooled R² is a statement about the pooled test mean, not about usefulness. R² penalises against an oracle that already knows the test set's mean; our chronological split places the two largest shocks permanently in fold 0's training window, leaving the held-out folds with 63% of full-sample variance on Y1. The question that matters is whether the model beats a *deployable* baseline, so we computed two — a constant-zero economic null and a training-mean statistical null — on identical folds. The honest answer is that on Y1 no model beats them, on Y2 only the corrected Ridge does, and on Y3 the training-mean predictor wins. We report that rather than the R² framing because it is the more meaningful comparison, and because it is less flattering.
+
+**"On the day before the flood, how do you know its total damage?"**
+We do not. Six of our features are EM-DAT post-hoc assessments, so this framework answers the attribution question — given a disaster of measured severity, what was the market response — and not the forecasting question. We corrected the early-warning language in the README and thesis when we found this, and specified an ex-ante feature set as the separate experiment it actually requires.
+
+**"Section 3.7.1 bans k-fold. What was `cv=3`?"**
+A k-fold, inside every walk-forward fold, selecting hyperparameters by training on later events to validate earlier ones. We found it during audit and replaced it with a chronological `TimeSeriesSplit` restricted to each fold's real rows, with the winner refit on real plus synthetic. We report it because the contradiction between our stated method and our code is exactly the kind of thing an audit exists to catch.
+
+**"Your best directional accuracy is 65%. What does 'always predict no crash' score?"**
+Also 65%. No model beats the trivial rule, and several score below it. That is why the notebook now prints the majority baseline beside every accuracy figure and reports AUC with a Hanley–McNeil interval that includes 0.5 in every case.
+
+**"Why should a Random Forest work on 64 events?"**
+It largely does not, and we quantify it: train-fit R² of 0.883 on Y3 against a held-out −0.146. We report that 1.03-point gap as an overfitting diagnostic rather than as a performance figure.
+
+**"Is Y3 = 0 the same as Y1 ≥ 0?"**
+Yes, by construction — the recovery window includes the event day and the baseline is the prior close. Over half our Y3 values are therefore mechanically determined by the sign of Y1. We state this before reporting any Y3 result, and it is why we recommend a hurdle model whose first stage is acknowledged to be close to a sign classifier.
+
+**"You chose 30/10/10. What happens at 20/5/5?"**
+Random Forest Y1 pooled R² goes from −0.322 to +0.151 — the best number anywhere in our study. We do not promote it, because it was evaluated on the same folds we report and adopting it would be selection on the test set. We report it at equal prominence as an upper bound on what this pipeline can be made to appear to achieve.
+
+---
+
+## 41. Final Ten-Expert Verdict
+
+Assessed against the **remediated** framework, assuming the open items in §29 are completed.
+
+| Expert                        | Verdict                         | Condition                                                                     |
+| ----------------------------- | ------------------------------- | ----------------------------------------------------------------------------- |
+| 1. Financial Econometrician   | PASS WITH CORRECTIONS           | Add event-window contamination screen; rename Y1                              |
+| 2. Frontier-Market Specialist | PASS WITH CORRECTIONS           | Rename Y2                                                                     |
+| 3. Time-Series ML             | PASS                            | Inner k-fold removed; expanding window reported                               |
+| 4. Rare-Event Specialist      | PASS WITH CORRECTIONS           | Run the SMOGN on/off ablation (E08/E09)                                       |
+| 5. Tree Ensembles             | PASS WITH CORRECTIONS           | Bound capacity by fold size                                                   |
+| 6. Neural Networks            | PASS WITH CORRECTIONS           | Add early stopping; correct the loss-weight rationale                         |
+| 7. Disaster-Risk Specialist   | PASS WITH CORRECTIONS           | Report in-scope damage-provenance breakdown                                   |
+| 8. Statistical Validation     | PASS WITH CORRECTIONS           | Add bootstrap CIs and the rare-event stratified table                         |
+| 9. XAI / Feature Engineering  | PASS WITH CORRECTIONS           | Re-run SHAP post-collinearity-reduction; remove causal language               |
+| 10. Critical Thesis Examiner  | **PASS WITH CORRECTIONS** | **Blocking: resolve the early-warning framing (P0-2) and run E04–E06** |
+
+**No unresolved P0 remains in the code.** Two P0-class items are documentation/experiment obligations rather than defects: the early-warning reframing (P0-2) and the disclosure of configuration selection on reported folds (P0-7, disclosed and unquantifiable).
+
+**Overall: PASS WITH CORRECTIONS.** The architecture may be labelled recommended once P0-2 is resolved in the text and E04–E06 have been run.
+
+---
+
+# TOP 10 CHANGES TO IMPLEMENT FIRST
+
+Ranked by (research value × defensibility) / (complexity × overfitting risk). Status reflects work already completed during this audit.
+
+### 1. Run the market-vs-disaster ablation (E04–E06) — **NOT YET DONE**
+
+- **Current problem:** the thesis exists to answer "do disaster characteristics add predictive information beyond ordinary market history?" and that experiment has never been run.
+- **Exact change:** three additional `run_walk_forward` calls with `FEATURE_COLS` restricted to (a) market-only, (b) disaster-only, (c) market+disaster; report `ΔRMSE = RMSE_market_only − RMSE_market+disaster` per target.
+- **Why:** without it the study cannot claim disaster data contributes anything. It is the central research question.
+- **Affected target:** all three.
+- **Files/cells:** notebook cell `15d59212` (feature subsets), new cell after `c8445d58`.
+- **Experiment:** E04, E05, E06.
+- **Success metric:** ΔRMSE with a paired bootstrap CI over pooled out-of-fold squared errors.
+- **Reject if:** ΔRMSE CI straddles zero — in which case report honestly that disaster features add nothing measurable, which is itself a publishable finding.
+
+### 2. Resolve the early-warning framing (P0-2) — **PARTLY DONE**
+
+- **Current problem:** six features are EM-DAT post-hoc assessments; the README and thesis claim an early-warning system.
+- **Exact change:** README and notebook §15 corrected to "ex-post impact attribution" (done). Remaining: build Model A (ex-ante feature set) and report both.
+- **Why:** the claim as written is unsupportable and is the first thing an examiner will attack.
+- **Affected target:** all three.
+- **Files/cells:** `README.md` (done), notebook `e62f629a` (done), `c868f959` (done); Model A requires a new feature-subset cell.
+- **Experiment:** E14.
+- **Success metric:** two labelled models reported; no prospective claim attached to Model B.
+- **Reject if:** never — the reframing is mandatory regardless of results.
+
+### 3. Fix the inner k-fold — **DONE**
+
+- **Problem:** `GridSearchCV(cv=3)` = `KFold(shuffle=False)` inside every walk-forward fold, contradicting thesis §3.7.1; SMOGN's tail-appended synthetic rows made the last inner block up to ~45% synthetic.
+- **Change:** `TimeSeriesSplit(n_splits=3)` on each fold's **real** rows, `refit=False`, winner refit on real+synthetic.
+- **Files:** notebook `c5f83fcb`.
+- **Metric:** no k-fold present anywhere; the results change is incidental, correctness is the point.
+- **Reject if:** never.
+
+### 4. Standardise Ridge and tune alpha in-fold — **DONE**
+
+- **Problem:** the H1 baseline was fit on unstandardised features mixing 1e4 price levels, 1e9 USD damage and 0/1 flags, with `alpha` left at its library default.
+- **Change:** `make_pipeline(StandardScaler(), Ridge(alpha=RidgeCV-selected on real rows))`.
+- **Measured effect:** Ridge Y1 −1.634 → −0.407 → −0.278 (after stationarity fix); Y2 −3.539 → −0.015 → **+0.053**.
+- **Reject if:** never — a mis-specified baseline invalidates the H1 comparison in either direction.
+
+### 5. Replace non-stationary price levels — **DONE**
+
+- **Problem:** `sma_*`/`ema_*` are raw ASPI levels (574 → 10,000+); under a chronological split the test fold sits outside training support.
+- **Change:** stationary `price_to_sma_w = P_{t−1}/sma_w − 1` ratios; ADF/KPSS on all features; exclude on ADF unit root only.
+- **Measured effect:** largest single improvement in the study — XGBoost Y1 −1.617 → −0.236, MLP Y1 −1.547 → −0.299, stacked Y1 −0.775 → −0.134.
+- **Reject if:** never — thesis §3.5.1 mandates stationarity.
+
+### 6. Add naive baselines and the majority baseline — **DONE**
+
+- **Problem:** no null to compare against; directional accuracy reported against nothing (65% against a 65% majority baseline).
+- **Change:** `naive_zero` and `naive_train_mean` rows in the summary table with a `beats_null_rmse` column; majority baseline printed beside every accuracy; Hanley–McNeil CI on AUC.
+- **Measured effect:** revealed that **0 of 6 models beat the no-effect null on Y1**.
+- **Reject if:** never — this is a reporting-integrity fix, not a performance change.
+
+### 7. Clip predictions to definitional bounds — **DONE**
+
+- **Problem:** Ridge produced Y3 RMSE 157 on the dense config (target capped at 90) and a 182-day conformal interval on a 90-day-capped target.
+- **Change:** `clip_to_bounds` — Y3 to [0, 90], Y2 to ≥ −1 — applied at every prediction site including ensemble, stack and interval endpoints.
+- **Why:** uses only target definitions from §3.2.2; provably cannot increase absolute error on any point.
+- **Reject if:** never — it carries a mathematical guarantee.
+
+### 8. Stop imputing missing targets — **DONE**
+
+- **Problem:** `y.fillna(0.0)` asserted "volume exactly at baseline" for 3 events, in a study claiming 100% real data, using the same zero-fill §3 explicitly rejects for volume.
+- **Change:** NaNs preserved, masked per target; Y2 effective N reported as 61.
+- **Reject if:** never.
+
+### 9. Bound RF/XGBoost capacity by fold size — **NOT YET DONE**
+
+- **Current problem:** grids allow `max_depth=None`, `min_samples_leaf=1` on 33-row folds; RF train-fit R² 0.883 vs held-out −0.146 on Y3.
+- **Exact change:** `RF_PARAM_GRID = {"n_estimators":[300], "max_depth":[2,3,4], "min_samples_leaf":[3,5]}`; `XGB_PARAM_GRID = {"n_estimators":[100,300], "max_depth":[2,3], "learning_rate":[0.03,0.1], "subsample":[0.8], "colsample_bytree":[0.8]}`.
+- **Why:** bounded a priori by fold size (leaf ≥ 3 means every leaf rests on ~10% of the fold), not by test score.
+- **Affected target:** all three.
+- **Files/cells:** notebook `c5f83fcb` grid definitions.
+- **Metric:** the train-fit-to-held-out R² gap should narrow; held-out R² expected to move toward 0 from below.
+- **Reject if:** held-out RMSE worsens materially on two or more targets.
+
+### 10. Implement the Y3 hurdle model — **NOT YET DONE**
+
+- **Current problem:** the 90-day cap is treated as an observed value; `T > 90` is not `T = 90`.
+- **Exact change:** stage 1 classifier for P(recovery ≤ 90 trading days); stage 2 regressor on `log1p(duration | recovered)`; combine as `P·E[d|recover] + (1−P)·90`.
+- **Why:** matches the zero-inflated, right-censored structure; avoids a survival model the sample cannot support.
+- **Affected target:** Y3 only.
+- **Files/cells:** notebook `c5f83fcb`, Y3 branch.
+- **Experiment:** E15.
+- **Metric:** MAE in trading days vs the current single-stage regressor and vs `naive_train_mean`.
+- **Reject if:** MAE does not improve over single-stage — report the negative result and keep the simpler model (parsimony).
+
+---
+
+# NEXT 5 EXPERIMENTS, IN ORDER
+
+### Experiment 1 — Do disaster variables add predictive value? (E04–E06)
+
+- **Hypothesis:** adding EM-DAT disaster severity features to a market-history baseline reduces out-of-sample RMSE on at least one target.
+- **Current configuration:** all 27 features together; no decomposition.
+- **Modified configuration:** three runs — market-only, disaster-only, market+disaster — identical folds, identical model (RF), identical SMOGN.
+- **Validation:** expanding chronological walk-forward, 30/10/10.
+- **Metrics:** ΔRMSE, ΔMAE, Δpooled R² per target, with paired bootstrap CI on pooled squared errors.
+- **Expected interpretation:** if the ΔRMSE CI straddles zero on all three targets, the study's central premise is not supported at this N — report that as the primary finding. If disaster-only beats market-only on Y3, that is the strongest positive result available.
+
+### Experiment 2 — Does SMOGN add value? (E08–E10)
+
+- **Hypothesis:** time-aware SMOGN improves prediction of rare high-impact events without degrading overall performance.
+- **Current configuration:** SMOGN always on; never ablated.
+- **Modified configuration:** (a) no oversampling, (b) current SMOGN, (c) sample weighting by target rarity instead of resampling.
+- **Validation:** as above.
+- **Metrics:** overall RMSE **and** RMSE restricted to the rare subset (`Y3 > 30`), reported separately.
+- **Expected interpretation:** with 3 synthetic rows against 30 real, the honest expectation is no measurable difference. Publishing that is a legitimate contribution — the thesis proposes SMOGN, so it owes the reader evidence either way.
+
+### Experiment 3 — Rare-event stratified performance (E16)
+
+- **Hypothesis:** models that perform acceptably overall fail on the catastrophic events the study exists to predict.
+- **Current configuration:** aggregate metrics only.
+- **Modified configuration:** partition pooled out-of-fold predictions into common / rare (top-decile severity) / worst single event; report per stratum.
+- **Validation:** no re-run required — computed from the stored `results` arrays.
+- **Metrics:** RMSE and MAE per stratum; the 2004-12-26 and 2005-11-21 events named individually.
+- **Expected interpretation:** if rare-event error is much worse than overall error, the research objective is not met regardless of aggregate numbers. This must be known before any performance claim is made.
+
+### Experiment 4 — Ex-ante vs ex-post (E14)
+
+- **Hypothesis:** a feature set restricted to information available at disaster onset performs materially worse than one including realised damage.
+- **Current configuration:** ex-post only (Model B).
+- **Modified configuration:** Model A — disaster type, month/season, `days_since_last_disaster`, `disasters_trailing_365d`, historical type-average severity computed from prior events only, all market features, lag-corrected macro.
+- **Validation:** as above, identical folds.
+- **Metrics:** RMSE per target for A vs B.
+- **Expected interpretation:** B is expected to beat A. **The size of that gap is the quantified value of post-event information** — the number that tells a policymaker how much better an assessment-based tool is than a forecast. This converts the framing problem into a finding.
+
+### Experiment 5 — Recovery-definition robustness (E18)
+
+- **Hypothesis:** conclusions about Y3 do not depend on the specific recovery definition.
+- **Current configuration:** exact recovery (ASPI ≥ pre-event baseline), single definition.
+- **Modified configuration:** (a) exact, (b) tolerance — within 1% of baseline, (c) stable — at or above baseline for 3 consecutive sessions.
+- **Validation:** as above.
+- **Metrics:** MAE in trading days per definition; correlation between the three Y3 vectors; whether model ranking changes.
+- **Expected interpretation:** if conclusions flip across definitions, Y3 results are definition-artefacts and must be heavily qualified. Do **not** adopt whichever definition scores best — report all three and keep the pre-registered exact definition as primary.
+
+---
+
+## Rules Observed in This Audit
+
+No performance value in this document was fabricated, estimated or extrapolated. Every figure was copied from an executed run; unmeasured quantities are marked "not measured". No modification is described as working before experimental evidence demonstrated it — where a change was measured, the measurement is shown, including the cases where it made results worse (the widened SMOGN variant) or destroyed a favourable number (K=10 removing the only positive R²). Where an earlier estimate was contradicted by later measurement, the correction is stated explicitly (the naive-baseline comparison).
+
+---
+
+## 42. Visualization and Diagnostics
+
+This section did not exist in the original audit, and its absence was itself a defect: the
+pipeline produced **two images across 59 notebook cells**, both SHAP, neither exported to
+disk, so nothing in the study could be cited as a figure. More importantly, three findings
+recorded here in prose had no visual evidence at all, and two of them are exactly the kind
+of claim a reader will not accept on assertion.
+
+Figures now live in `src/evaluation/figures.py` and export to `docs/figures/` at 300 dpi
+under stable filenames. Two conventions are enforced in code rather than left to the
+caller, and both exist because the underlying results are weak:
+
+- **Every evaluation figure carries its sample size on its face** (`stamp()`). A ROC curve
+  drawn from 30 points looks identical to one drawn from 30,000. Printing "n = 30 pooled
+  out-of-fold points" in the corner is what stops the figure being over-read.
+- **Nothing is encoded by hue alone.** Every categorical series carries colour *and*
+  marker *and* linestyle; magnitude heatmaps use a monotonic-lightness colormap. The
+  figures survive greyscale printing.
+
+Where a figure could imply performance the numbers do not support, the honest reference is
+drawn in: chance diagonals on ROC, prevalence lines on precision-recall, naive-baseline
+rules across every metric bar, and the marginal-interval comparison on every conformal
+plot.
+
+### Which audit finding each figure evidences
+
+| Figure | Evidences |
+|---|---|
+| `fig_02_target_distributions` | Y3's zero-inflation and censoring (P1-2) — the ECDF panel shows the point masses at 0 and 90 that a histogram hides |
+| `fig_03_target_dependence_y1_y3` | **P1-3**, `Y3 = 0 ⟺ Y1 ≥ 0`. The contingency inset shows the *Y1 ≥ 0 and Y3 > 0* cell is empty |
+| `fig_04_feature_correlation_heatmap` | **P2-3**, severe collinearity. Spearman, clustered, with cells below the n=64 significance threshold greyed out |
+| `fig_06_collinearity_vif` | **P2-3** quantified — VIF on a log axis plus the condition-index panel |
+| `fig_09_walk_forward_folds` | §26, the variance-compression artefact: both extreme events sit permanently in fold 0's *training* window |
+| `fig_11_conformal_coverage` | The model-vs-marginal interval comparison — coverage is meaningless without width |
+| `fig_14_roc_with_ci` | Directional performance, with the chance diagonal and an automatic "includes 0.5" flag on any CI covering chance |
+| `fig_17` / `fig_18` | §13, the baseline comparison. The skill forest is the decisive one: a whisker crossing zero is not a win |
+| `fig_19_pred_vs_actual` | What a negative R² actually looks like — predictions collapsing into a narrow band off the identity line |
+| `fig_24_overfitting_gap` | **P2-2**, the memorisation gap between in-sample refit and held-out R² |
+| `fig_31_sector_response_and_skill` | The sector extension — response and predictability per sector |
+
+### Measured by the new diagnostics
+
+The collinearity figures immediately produced numbers the audit had only characterised
+qualitatively:
+
+- **Condition number ≈ 2.3 × 10¹⁷.** The usual threshold for concern is 30.
+- **Three feature pairs at Spearman exactly 1.000**: `financial_damage` /
+  `log_financial_damage`, `population_affected` / `log_population_affected`, and
+  `vol_ratio_10_30` / `vol_trend_10_30`.
+- The pre-declared redundancy rule (within any group correlated above |ρ| = 0.95, keep the
+  least-derived member) removes **8 of 37** features.
+
+The third pair was a defect in the new volume block introduced during this remediation —
+a 10-day mean over a 30-day mean is by definition the 10/30 ratio, and the first version
+shipped both. The diagnostic caught it before it reached a model, which is the argument
+for building the diagnostic.
+
+### Deliberately not built
+
+- **A classification reliability diagram over the regression outputs.** The regression
+  reframing scores with `−ŷ`, which is not a probability, and fitting a calibration map on
+  the same 30 out-of-fold points used to evaluate it would be test-set fitting. A
+  regression-calibration slope is the defensible substitute.
+- **Boxplots of per-fold metrics.** Quartiles from three observations. A slope plot across
+  folds shows the same dispersion without implying quantiles the sample cannot support.
+- **Impurity-based `feature_importances_` charts.** Maximally unstable under exactly the
+  ρ ≈ 1.00 collinearity documented above, and they would visually contradict the SHAP
+  figures. Grouped SHAP supersedes them.
+- **Per-fold ROC curves.** Ten test points per fold is a ten-step staircase; overplotting
+  three of them is noise.

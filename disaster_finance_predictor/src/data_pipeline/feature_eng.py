@@ -74,6 +74,45 @@ class FeatureEngineer:
         df["rolling_std_30"] = shifted_returns.rolling(window=30, min_periods=30).std()
 
         df["squared_return"] = df["log_return"] ** 2
+
+        # Pre-event volume block. Until this was added the feature table contained no
+        # volume-derived column at all: trading_volume was touched only inside
+        # build_targets, to construct Y2 itself. Y2 -- the one target where a model beats
+        # both naive baselines -- was therefore being predicted with no information about
+        # its own driving series.
+        #
+        # These are not a search over candidate features. Y2 is DEFINED as
+        # V_t / mean(V_{t-30..t-1}) - 1, so the same functional evaluated one trading day
+        # earlier is its natural autoregressive predictor: the target's own construction,
+        # lagged. Volume persistence and mean reversion are among the most robustly
+        # documented regularities in the abnormal-volume event-study literature
+        # (Ajinkya & Jain 1989; Campbell, Lo & MacKinlay ch. 4).
+        #
+        # Every term is a ratio or a log difference, so all are stationary by construction
+        # and the ADF gate will confirm it; no volume LEVEL enters the model, which is the
+        # same discipline applied to price in the sma_/ema_ block above.
+        if c.volume_col in df.columns:
+            shifted_vol = df[c.volume_col].shift(1)
+            vol_mean_30 = shifted_vol.rolling(window=30, min_periods=30).mean()
+            for window in (1, 5, 10):
+                numer = (shifted_vol if window == 1
+                         else shifted_vol.rolling(window=window, min_periods=window).mean())
+                df[f"vol_ratio_{window}_30"] = numer / vol_mean_30 - 1.0
+            # Dispersion of recent volume: a market already trading erratically responds
+            # differently from a quiet one, and this is scale-free.
+            vol_std_30 = shifted_vol.rolling(window=30, min_periods=30).std()
+            df["vol_cv_30"] = vol_std_30 / vol_mean_30
+            df["log_vol_change_1"] = np.log(shifted_vol / shifted_vol.shift(1))
+            # No vol_trend_10_30 here: a 10-day mean over the 30-day mean is exactly
+            # vol_ratio_10_30, and the first version of this block shipped both. The
+            # collinearity diagnostic caught them at Spearman 1.000.
+            # Volume is zero on a handful of illiquid sessions and missing for all of 2000
+            # (that workbook failed to parse). Both make the ratios inf; leave them NaN so
+            # the downstream missingness handling sees them rather than a fabricated value.
+            vol_cols = [col for col in df.columns
+                        if col.startswith(("vol_ratio_", "vol_cv_", "log_vol_change_"))]
+            df[vol_cols] = df[vol_cols].replace([np.inf, -np.inf], np.nan)
+
         return df
 
     def engineer_disaster_features(self, disaster_df: pd.DataFrame) -> pd.DataFrame:
@@ -134,10 +173,17 @@ class FeatureEngineer:
             price_tm1 = market.iloc[pos - 1][c.price_col]
             y1 = float(np.log(price_t / price_tm1))
 
-            baseline_start = max(0, pos - 30)
-            baseline_mean = market.iloc[baseline_start:pos][c.volume_col].mean()
-            volume_t = market.iloc[pos][c.volume_col]
-            y2 = float((volume_t / baseline_mean) - 1.0) if baseline_mean and not np.isnan(baseline_mean) else np.nan
+            # Y2 needs a volume series. A sector index has none -- the CSE publishes
+            # volume market-wide, not per sector -- so the sector panel calls this with
+            # no volume column and gets NaN rather than a fabricated ratio.
+            if c.volume_col in market.columns:
+                baseline_start = max(0, pos - 30)
+                baseline_mean = market.iloc[baseline_start:pos][c.volume_col].mean()
+                volume_t = market.iloc[pos][c.volume_col]
+                y2 = (float((volume_t / baseline_mean) - 1.0)
+                      if baseline_mean and not np.isnan(baseline_mean) else np.nan)
+            else:
+                y2 = np.nan
 
             pre_disaster_baseline = price_tm1
             recovery_window = market.iloc[pos : pos + c.max_recovery_days + 1]

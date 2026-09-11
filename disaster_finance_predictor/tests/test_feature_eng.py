@@ -21,6 +21,46 @@ def test_engineer_market_features_generates_lags_and_no_lookahead_rolling_std():
     assert np.isclose(out.loc[idx, "rolling_std_5"], expected, equal_nan=True)
 
 
+def test_volume_features_use_only_information_available_before_the_row():
+    # The whole point of the volume block is that it is the Y2 functional evaluated one
+    # trading day early. If any term touched row t's own volume it would leak the target,
+    # so the test perturbs the LAST row's volume and asserts nothing before it moves.
+    dates = pd.date_range("2024-01-01", periods=60, freq="B")
+    prices = np.linspace(100.0, 160.0, 60)
+    volumes = np.linspace(1000.0, 5000.0, 60)
+    df = pd.DataFrame({"date": dates, "aspi_close": prices, "trading_volume": volumes})
+
+    fe = FeatureEngineer()
+    out = fe.engineer_market_features(df)
+
+    vol_cols = ["vol_ratio_1_30", "vol_ratio_5_30", "vol_ratio_10_30",
+                "vol_cv_30", "log_vol_change_1"]
+    assert set(vol_cols).issubset(out.columns)
+
+    bumped = df.copy()
+    bumped.loc[bumped.index[-1], "trading_volume"] *= 100.0
+    out_bumped = fe.engineer_market_features(bumped)
+
+    # Every row is unchanged -- including the last one, whose features look back to t-1.
+    pd.testing.assert_frame_equal(out[vol_cols], out_bumped[vol_cols])
+
+    # And the ratio is the real quantity, not a placeholder: at row t it compares the
+    # t-1 volume against the mean of the 30 sessions ending at t-1.
+    idx = 45
+    shifted = df["trading_volume"].shift(1)
+    expected = shifted.iloc[idx] / shifted.iloc[idx - 29 : idx + 1].mean() - 1.0
+    assert np.isclose(out.loc[idx, "vol_ratio_1_30"], expected)
+
+
+def test_volume_features_are_absent_when_no_volume_column_is_supplied():
+    dates = pd.date_range("2024-01-01", periods=40, freq="B")
+    df = pd.DataFrame({"date": dates, "aspi_close": np.linspace(100.0, 140.0, 40)})
+
+    out = FeatureEngineer().engineer_market_features(df)
+
+    assert not [c for c in out.columns if c.startswith("vol_")]
+
+
 def test_engineer_disaster_features_filters_biological_and_low_impact_events():
     # Three Floods so the surviving type clears the rare-type pooling threshold and this
     # test keeps testing what it is named for: the Epidemic row is dropped as biological,
