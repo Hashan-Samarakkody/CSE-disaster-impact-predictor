@@ -34,7 +34,18 @@ FEATURE_GROUPS = {
                    "squared_return"],
     "volume": ["vol_ratio_1_30", "vol_ratio_5_30", "vol_ratio_10_30", "vol_cv_30",
                "log_vol_change_1"],
-    "macro/global": ["gdp_growth_pct", "inflation_cpi_pct", "sp500_log_return"],
+    "macro/global": ["gdp_growth_pct", "inflation_cpi_pct", "sp500_log_return",
+                     "fx_logret_1", "fx_logret_5", "fx_vol_30"],
+    # External blocks A, B and D (docs/EXTERNAL_DATA_PRE_DECLARATION.md). Hazard is kept
+    # separate from damage/severity deliberately: it is instrument-measured intensity,
+    # whereas the damage columns are post-hoc assessments that are absent for most
+    # events, and grouping them would hide exactly that distinction in the heatmap.
+    "hazard (measured)": ["hz_precip_max3d", "hz_precip_mean3d", "hz_precip_spread3d",
+                          "hz_districts_wet", "hz_wind_max3d", "hz_precip_anom"],
+    "physical severity": ["di_districts_hit", "di_affected_log", "di_houses_destroyed_log",
+                          "di_houses_damaged_log", "di_deaths_log", "di_records",
+                          "di_available"],
+    "confounder": ["days_to_election", "election_within_5d"],
 }
 
 # How many derivation steps separate a column from a raw measurement. The drop rule
@@ -45,6 +56,16 @@ _DERIVATION_DEPTH = {
     "log_financial_damage": 1, "log_population_affected": 1,
     "damage_to_gdp": 1, "log_damage_x_flood": 2,
     "log_return": 0, "squared_return": 1,
+    # External blocks. The raw measurements are the per-district accumulations and the
+    # DesInventar counts; everything else is one or two transforms off them, so the
+    # "keep the least-derived member" rule stays deterministic across the new columns.
+    "hz_precip_max3d": 1, "hz_precip_mean3d": 1, "hz_wind_max3d": 1,
+    "hz_precip_spread3d": 2, "hz_districts_wet": 2, "hz_precip_anom": 2,
+    "di_records": 0, "di_available": 0, "di_districts_hit": 1,
+    "di_affected_log": 1, "di_deaths_log": 1,
+    "di_houses_destroyed_log": 1, "di_houses_damaged_log": 1,
+    "fx_logret_1": 1, "fx_logret_5": 1, "fx_vol_30": 2,
+    "days_to_election": 0, "election_within_5d": 1,
 }
 
 
