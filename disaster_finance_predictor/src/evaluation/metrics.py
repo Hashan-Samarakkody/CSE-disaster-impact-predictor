@@ -31,6 +31,8 @@ TARGET_BOUNDS = {
     "Y1_aspi_log_return": (None, None),
     "Y2_abnormal_volume": (-1.0, None),
     "Y3_recovery_days": (0.0, 90.0),
+    "Y1_car_5": (None, None),
+    "Y1_car_10": (None, None),
 }
 
 

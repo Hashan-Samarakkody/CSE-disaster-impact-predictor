@@ -105,11 +105,48 @@ def label_adverse_move_sigma(y, train_idx=None, dataset=None):
     return pd.Series(_binarise(v < -sigma, v.notna() & sigma.notna()), index=v.index)
 
 
+def label_car5_negative(y, train_idx=None, dataset=None):
+    """C4: the 5-trading-day cumulative return is negative.
+
+    The same sign question as C1, asked of a less noisy measurement. A single day's
+    return is the noisiest possible read on an event's effect; accumulating over the
+    conventional 5-day event window raises signal-to-noise without using any information
+    the study does not already have. Pre-declared in
+    docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.3.
+    """
+    v = y["Y1_car_5"]
+    return pd.Series(_binarise(v < 0, v.notna()), index=v.index)
+
+
+def label_slow_recovery(y, train_idx, dataset=None):
+    """C3b: recovery slower than the median of THIS fold's training window.
+
+    C3_recovers_in_90 is broken as a classification target and that is a defect, not a
+    result: prevalence is 0.90, so the always-predict-"recovers" rule scores 0.900
+    accuracy while every model scores below chance on AUC. An accuracy of 0.9 there
+    measures the class imbalance, not the model.
+
+    A median split gives ~50% prevalence by construction, which makes accuracy and AUC
+    informative instead of gameable. The cut is computed on training rows only -- the
+    same discipline as label_adverse_move's tercile -- so no test information reaches
+    the label, and the RULE is fixed in advance even though the number it produces moves
+    per fold.
+
+    C3_recovers_in_90 is retained and still reported beside this. Dropping a label after
+    seeing it fail would be exactly the selection the pre-declaration exists to prevent.
+    """
+    v = y["Y3_recovery_days"]
+    cut = float(np.nanmedian(v.iloc[train_idx]))
+    return pd.Series(_binarise(v > cut, v.notna()), index=v.index)
+
+
 LABELS = {
     "C1_negative_return": label_negative_return,
     "C1b_adverse_move": label_adverse_move,
     "C2_volume_spike": label_volume_spike,
     "C3_recovers_in_90": label_recovers_in_90,
+    "C3b_slow_recovery": label_slow_recovery,
+    "C4_car5_negative": label_car5_negative,
 }
 
 

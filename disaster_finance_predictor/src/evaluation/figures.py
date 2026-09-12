@@ -59,6 +59,8 @@ TARGET_LABELS = {
     "Y1_aspi_log_return": "Y1 · ASPI log return, event day",
     "Y2_abnormal_volume": "Y2 · abnormal volume (V / 30-day mean − 1)",
     "Y3_recovery_days": "Y3 · recovery time (trading days, capped 90)",
+    "Y1_car_5": "CAR[0,+5] · cumulative return, 5 trading days",
+    "Y1_car_10": "CAR[0,+10] · cumulative return, 10 trading days",
 }
 # Short forms for multi-panel figures, where the full labels collide.
 SHORT_TARGET_LABELS = {
@@ -67,6 +69,8 @@ SHORT_TARGET_LABELS = {
     "Y3_recovery_days": "Y3 · recovery days",
     "Y1_sector_log_return": "Y1 · sector log return",
     "Y3_sector_recovery_days": "Y3 · sector recovery",
+    "Y1_car_5": "CAR[0,+5]",
+    "Y1_car_10": "CAR[0,+10]",
 }
 
 MODEL_LABELS = {

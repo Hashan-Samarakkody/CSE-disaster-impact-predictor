@@ -16,6 +16,11 @@ def _targets(n=64, seed=0):
         "Y1_aspi_log_return": rng.normal(0, 0.014, n),
         "Y2_abnormal_volume": rng.normal(-0.13, 0.58, n),
         "Y3_recovery_days": np.where(rng.random(n) < 0.14, 90.0, rng.exponential(6, n).round()),
+        # Cumulative event-window returns, added 2026-09-12. The shared fixture must
+        # carry every column any label reads, otherwise a new label silently breaks the
+        # "all labels" sweep below rather than being exercised by it.
+        "Y1_car_5": rng.normal(0, 0.03, n),
+        "Y1_car_10": rng.normal(0, 0.04, n),
     })
 
 
@@ -156,3 +161,74 @@ def test_missing_labels_are_dropped_by_a_notna_mask():
     labels = LABELS["C2_volume_spike"](y, np.arange(6), None)
     kept = np.arange(6)[labels.notna().to_numpy()]
     assert list(kept) == [0, 1, 3, 5]
+
+
+def test_new_labels_are_registered_and_balanced():
+    """C3b and C4, pre-declared in EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.3."""
+    import numpy as np
+    import pandas as pd
+
+    from src.models.classifiers import LABELS
+
+    assert "C3b_slow_recovery" in LABELS
+    assert "C4_car5_negative" in LABELS
+
+    rng = np.random.default_rng(0)
+    n = 40
+    y = pd.DataFrame({
+        "Y1_aspi_log_return": rng.normal(0, 0.014, n),
+        "Y2_abnormal_volume": rng.normal(0, 0.5, n),
+        "Y3_recovery_days": np.arange(n, dtype=float),      # 0..39, median 19.5
+        "Y1_car_5": rng.normal(0, 0.03, n),
+        "Y1_car_10": rng.normal(0, 0.04, n),
+    })
+    train_idx = np.arange(n)
+
+    slow = LABELS["C3b_slow_recovery"](y, train_idx)
+    # A median split is ~50% by construction -- the whole point, versus C3's 0.90.
+    assert 0.45 <= slow.mean() <= 0.55, slow.mean()
+    # And it must actually be the median cut, not the 90-day cap.
+    assert slow.iloc[0] == 0.0 and slow.iloc[-1] == 1.0
+
+    car = LABELS["C4_car5_negative"](y, train_idx)
+    assert set(np.unique(car)) <= {0.0, 1.0}
+    assert (car == (y["Y1_car_5"] < 0).astype(float)).all()
+
+
+def test_slow_recovery_cut_comes_from_training_rows_only():
+    """No test information may reach the label, exactly as for C1b's tercile."""
+    import numpy as np
+    import pandas as pd
+
+    from src.models.classifiers import LABELS
+
+    # Training window is all small values; the test tail is huge. A cut computed on the
+    # full column would sit far above the training median and mislabel the training rows.
+    y = pd.DataFrame({
+        "Y1_aspi_log_return": np.zeros(20),
+        "Y2_abnormal_volume": np.zeros(20),
+        "Y3_recovery_days": np.concatenate([np.arange(10, dtype=float),
+                                            np.full(10, 500.0)]),
+        "Y1_car_5": np.zeros(20),
+        "Y1_car_10": np.zeros(20),
+    })
+    lab = LABELS["C3b_slow_recovery"](y, np.arange(10))   # train on the first 10 only
+    assert lab.iloc[:10].mean() == pytest.approx(0.5)      # median of 0..9 is 4.5
+    assert (lab.iloc[10:] == 1.0).all()                    # every 500 is "slow"
+
+
+def test_new_labels_propagate_missing_targets():
+    import numpy as np
+    import pandas as pd
+
+    from src.models.classifiers import LABELS
+
+    y = pd.DataFrame({
+        "Y1_aspi_log_return": [0.01] * 4,
+        "Y2_abnormal_volume": [0.1] * 4,
+        "Y3_recovery_days": [1.0, 2.0, np.nan, 4.0],
+        "Y1_car_5": [0.01, -0.01, 0.02, np.nan],
+        "Y1_car_10": [0.0] * 4,
+    })
+    assert LABELS["C4_car5_negative"](y, np.arange(4)).isna().sum() == 1
+    assert LABELS["C3b_slow_recovery"](y, np.arange(4)).isna().sum() == 1

@@ -245,3 +245,127 @@ It does **not** make Y2 beat a naive baseline: the best Y2 model (ensemble) stil
 Both statements are true simultaneously and must be reported together. "Adding exchange
 rate data measurably improves abnormal-volume prediction" is supportable. "Abnormal
 volume is predictable" is not.
+
+---
+
+# 7. Second pre-declaration: sample widening and target reformulation (2026-09-12)
+
+**Written before any model is fitted on these.** Same rule as sections 1-5: every
+definition, window and threshold below is fixed here, in advance. Whatever the paired
+bootstrap says afterwards is reported unchanged.
+
+Prompted by the author's instruction to (a) use the 1986-2025 EM-DAT export, (b) lower the
+inclusion threshold to 700 affected, (c) use any available technique, and (d) reach >0.6 on
+accuracy/predictability for every target.
+
+## 7.1 What the instruction can and cannot buy
+
+Stated plainly, before the run, so no outcome can be spun afterwards:
+
+| Instruction | Measured consequence |
+|---|---|
+| EM-DAT 1986-2025 (110 records, was 86) | **+0 modellable events.** The 24 extra records are all pre-2000. ASPI starts 2000-01-03 and a day-0 event study needs the index on the event day plus 90 trading days after it. 6 of the 20 qualifying pre-2000 events additionally have no Start Day at all. They are loaded and then dropped by the scope filter, with the count printed. |
+| Threshold 1000 -> 700 affected | **+2 events** (2021-05-16 Storm, 2023-04-24 Storm). N 74 -> 76. Cannot rescue a result; recorded as a deviation from the thesis pre-registration, not as the original design. |
+| "Simulate disasters" | Already implemented as SMOGN inside training folds only, and already **measured to make every model worse on every target**. Synthetic rows in TEST would void every reported metric. No change. |
+| R2 > 0.6 on Y1/Y2/Y3 | **Not reachable.** Best in study is +0.199 (Y2). R2 0.6 on a day-0 index return means explaining 60% of market variance from disaster covariates, which contradicts the efficient-markets result the thesis itself argues. No technique below targets it. |
+| Accuracy / AUC / F1 > 0.6 | **Reachable, and already reached on one target** (`C2_volume_spike` random forest: AUC 0.764 [0.578, 0.929], balanced accuracy 0.629). Sections 7.2-7.3 are the honest attempt to extend that to the other targets. |
+
+## 7.2 New targets: cumulative event-window returns
+
+Y1 is a single day's log return -- the noisiest possible measurement of an event's market
+effect. Standard event-study practice accumulates over a window, which raises
+signal-to-noise without adding any information the study does not already have.
+
+Let `pos` be the first trading row on or after the event date (the existing anchoring in
+`build_targets`), and `P` the ASPI close.
+
+| Target | Definition | Justification |
+|---|---|---|
+| `Y1_car_5` | `ln(P[pos+5] / P[pos-1])` | Cumulative return over the event day plus 5 trading days. The conventional short event window. Verified: **76/76 events have >=5 trading rows after `pos`.** |
+| `Y1_car_10` | `ln(P[pos+10] / P[pos-1])` | Two-week window, the other conventional choice. Verified: **76/76 events have >=10 trading rows after `pos`.** |
+
+Both windows were fixed at 5 and 10 because those are the standard short-horizon event
+windows in the literature, not because either scored better. No other k is tried, and
+neither may be swapped for the other after seeing a result.
+
+**A reformulation considered and rejected before any fit:** market-model abnormal returns
+(regress ASPI on a benchmark over a pre-event estimation window, take the residual).
+`docs/METHODOLOGY_AUDIT.md` already rules this out on identification grounds -- the asset
+here **is** the market index, so there is no valid benchmark to regress it against, and
+`notebooks/09_synthesis.ipynb` records the same decision as a resolved audit item. It is
+not revived here. Using the S&P 500 as the benchmark would additionally be invalid because
+Colombo closes roughly ten hours before New York opens, so a same-date S&P return is not
+observable to a CSE participant on the event day.
+
+## 7.3 Reformulated classification labels
+
+`C3_recovers_in_90` is broken as a classification target and this is a defect, not a
+result: prevalence is **0.90**, so the always-predict-majority rule scores 0.900 accuracy
+while every model scores *below chance* on AUC (best 0.597, random forest 0.229). An
+"accuracy" of 0.9 there measures the class imbalance, not the model.
+
+| Label | Definition | Prevalence | Justification |
+|---|---|---|---|
+| `C3b_slow_recovery` | `Y3 > median(Y3 over THIS fold's training rows)` | ~0.50 by construction | Median split makes accuracy and AUC informative instead of gameable. The cut is computed on training rows only -- same discipline as the existing `C1b_adverse_move` tercile rule -- so no test information reaches the label. |
+| `C4_car5_negative` | `Y1_car_5 < 0` | measured, ~0.5 expected | Direction over the 5-day window rather than the single noisiest day. Same sign question as `C1_negative_return`, asked of a less noisy measurement. |
+
+`C1_negative_return`, `C1b_adverse_move` and `C2_volume_spike` are unchanged.
+`C3_recovers_in_90` is **retained and still reported** beside `C3b_slow_recovery`, because
+dropping it after seeing that it fails would be exactly the selection this document exists
+to prevent.
+
+## 7.4 Expected outcomes, fixed in advance
+
+1. **`Y1_car_5` / `Y1_car_10` will still not beat their nulls as regressions.** Widening
+   the window reduces noise but does not create predictability. Expect R2 to stay negative.
+2. **`C4_car5_negative` is the most likely of the new labels to clear 0.6**, because the
+   5-day sign is a less noisy question than the day-0 sign.
+3. **`C3b_slow_recovery` will score near 0.5.** Its value is diagnostic: it converts an
+   uninformative 0.90 into an honest number, and that is worth reporting even if the honest
+   number is "no signal".
+4. **`C2_volume_spike` remains the strongest result.** Nothing here is expected to displace it.
+5. **Y1 remains unpredictable at the index level.** Nothing in this section changes the
+   efficient-markets conclusion.
+
+None of these may be revised after seeing the scores.
+
+## 7.5 Sector-panel classification
+
+The index-level classification layer is scored on **40 pooled test points**. The sector
+panel carries **66 of the 76 events** (the sector workbook ends 2023-06-28) across 20
+sector indices, giving **~1,320 real (event, sector) rows** and, under
+`grouped_walk_forward(30, 10, 10)`, **3 folds = 30 independent test events ~ 600 pooled
+test rows**. That is 15x the index-level test set, entirely real, with no simulation.
+
+No classifier has ever been fitted on this panel; it has only been used for regression.
+Doing so is the largest genuine increase in evidence available to the study.
+
+The same six labels run unchanged, with two structural consequences fixed in advance:
+
+- **`C2_volume_spike` cannot run here.** The CSE publishes volume market-wide, not per
+  sector, so the panel carries no Y2. The label is all-NaN and is skipped automatically.
+  It is not replaced by a proxy.
+- **Effective N is the event count, not the row count.** 20 sectors move together on a
+  shock day. Every interval comes from `event_block_bootstrap`, which resamples whole
+  events; a row-level bootstrap would shrink intervals by roughly sqrt(20) and manufacture
+  significance out of the co-movement. `tests/test_integrity_invariants.py` asserts the
+  clustered interval is strictly wider than the naive one.
+
+**Expected outcome, fixed before the run:** the panel is where a genuine positive finding
+is most likely, because index-level aggregation is exactly what should wash out a
+localised flood. If sector response is also indistinguishable from its null, that is a
+stronger negative result than the index-level one alone -- it closes off the explanation
+the thesis currently offers for its own null finding.
+
+## 7.6 Success criterion, decided by the author 2026-09-12
+
+**Beat the majority rule, not raw accuracy.**
+
+Raw accuracy is not a criterion. Three labels already exceed 0.6 on it and it means
+nothing on an imbalanced target: `C3_recovers_in_90` scores 0.900 accuracy because
+prevalence is 0.900, and its models score *below* chance on AUC.
+
+The reported criterion is `beats_baseline` (`src/models/classifiers.py`): balanced
+accuracy > 0.5 **and** both AUC intervals excluding 0.5. It currently holds for **1 of 16**
+(label, model) pairs. Raw accuracy is still reported, always beside its prevalence and its
+majority-rule accuracy on the same row, so a reader can see which numbers are real.

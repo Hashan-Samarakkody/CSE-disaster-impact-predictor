@@ -327,7 +327,12 @@ def build_market_dataframe(
 #
 # The S&P Sri Lanka 20 column is deliberately excluded: it only starts in 2012 and is
 # ~51% populated over the study window, versus 87-100% for the sector columns.
-EXCLUDED_INDEX_COLUMNS = {"s&p sri lanka 20"}
+# Stored in NORMALISED form. The membership test below applies `_normalize`, which strips
+# everything outside [a-z0-9], so a human-readable "s&p sri lanka 20" written here would
+# never match and the guard would silently never fire. It did not: the column was being
+# dropped by the min_coverage gate instead, which happened to produce the same 20-sector
+# output and so hid the dead guard completely.
+EXCLUDED_INDEX_COLUMNS = {"spsrilanka20"}
 
 
 def load_sector_indices(path: Path, min_date: str = "2000-01-01",

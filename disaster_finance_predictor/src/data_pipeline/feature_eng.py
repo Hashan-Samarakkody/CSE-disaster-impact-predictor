@@ -21,6 +21,12 @@ class FeatureEngineeringConfig:
     disaster_type_col: str = "disaster_type"
     damage_col: str = "financial_damage"
     affected_col: str = "population_affected"
+    # Inclusion threshold on total affected. The thesis pre-registered >=1000; it was
+    # lowered to 700 on the author's instruction (2026-09-12), which admits 2 further
+    # events (2021-05-16 and 2023-04-24, both Storm). Declared here rather than buried
+    # at the call site so the deviation from the pre-registration is visible in the
+    # config that every stage reads. See docs/THESIS_AMENDMENTS.md.
+    min_affected: int = 700
     max_recovery_days: int = 90
 
 
@@ -125,10 +131,12 @@ class FeatureEngineer:
         keep_mask = ~clean_type.isin(EXCLUDED_DISASTER_TYPES)
         df = df[keep_mask].copy()
 
-        # Inclusive threshold: the thesis (Sec. 3.3.2) and this notebook both state
-        # ">= 1000 affected". The previous strict ">" silently disagreed with the
-        # filter described everywhere else in the project.
-        df = df[df[c.affected_col] >= 1000].copy()
+        # Inclusive threshold, now read from the config rather than hardcoded so the
+        # value is declared in one place. The thesis pre-registered >=1000; the config
+        # default is 700 per the author's instruction. Widening a pre-registered filter
+        # is a deviation and must be reported as one, not presented as the original
+        # design -- it admits exactly 2 extra events, so it cannot rescue a result.
+        df = df[df[c.affected_col] >= c.min_affected].copy()
         df["log_financial_damage"] = np.log1p(df[c.damage_col].clip(lower=0))
         df["log_population_affected"] = np.log1p(df[c.affected_col].clip(lower=0))
 
@@ -200,11 +208,28 @@ class FeatureEngineer:
                 recovery_pos = market.index.get_loc(recovered.index[0])
                 y3 = min(recovery_pos - pos, c.max_recovery_days)
 
+            # Cumulative event-window returns. Y1 is a single day's log return -- the
+            # noisiest possible measurement of an event's effect -- and standard
+            # event-study practice accumulates over a window to raise signal-to-noise.
+            # 5 and 10 trading days are the conventional short windows; they were fixed
+            # in docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2 before anything scored
+            # them, and neither may be swapped for the other afterwards.
+            #
+            # NaN rather than a truncated window when the series runs out, so a partial
+            # accumulation is never silently reported as a full one. Measured: all 76
+            # events have >=10 trading rows after `pos`, so in practice neither is NaN.
+            cars = {}
+            for k in (5, 10):
+                cars[f"Y1_car_{k}"] = (
+                    float(np.log(market.iloc[pos + k][c.price_col] / price_tm1))
+                    if pos + k < len(market) else np.nan)
+
             rows.append({
                 c.disaster_date_col: event_date,
                 "Y1_aspi_log_return": y1,
                 "Y2_abnormal_volume": y2,
                 "Y3_recovery_days": float(y3),
+                **cars,
             })
 
         return pd.DataFrame(rows)

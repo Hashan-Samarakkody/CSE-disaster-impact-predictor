@@ -47,7 +47,12 @@ if str(PACKAGE_ROOT) not in sys.path:
 
 RANDOM_STATE = 42
 
-TARGET_COLS = ["Y1_aspi_log_return", "Y2_abnormal_volume", "Y3_recovery_days"]
+# Y1_car_5 / Y1_car_10 are cumulative event-window returns, added 2026-09-12 and
+# pre-declared in docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2. They are modelled as
+# regression targets alongside the original three and also drive the C4 classification
+# label, so they must appear here -- stage 05 slices `dataset[TARGET_COLS]`.
+TARGET_COLS = ["Y1_aspi_log_return", "Y2_abnormal_volume", "Y3_recovery_days",
+               "Y1_car_5", "Y1_car_10"]
 
 # Definitional bounds from thesis Sec. 3.2.2. Y3 is capped at 90 by construction in
 # feature_eng.build_targets; Y2 = V/V_bar - 1 cannot fall below -1 because volume is
@@ -57,6 +62,9 @@ TARGET_BOUNDS = {
     "Y1_aspi_log_return": (None, None),
     "Y2_abnormal_volume": (-1.0, None),
     "Y3_recovery_days": (0.0, 90.0),
+    # Cumulative log returns are unbounded in both directions, exactly like Y1.
+    "Y1_car_5": (None, None),
+    "Y1_car_10": (None, None),
 }
 
 

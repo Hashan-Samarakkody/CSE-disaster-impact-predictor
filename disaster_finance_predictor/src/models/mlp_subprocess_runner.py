@@ -37,8 +37,16 @@ def main(input_path: str, output_path: str) -> None:
     Xte_t = torch.tensor(X_test, dtype=torch.float32)
     ytr_t = torch.tensor(y_train, dtype=torch.float32)
 
-    model = ShallowMultiTaskMLP(input_dim=X_train.shape[1], hidden_dim=64, dropout=0.5)
-    loss_fn = WeightedMultiTaskMSELoss(weights=(1.0, 0.1, 0.5))
+    n_targets = y_train.shape[1]
+    model = ShallowMultiTaskMLP(input_dim=X_train.shape[1], hidden_dim=64, dropout=0.5,
+                                n_targets=n_targets)
+    # Y1/Y2/Y3 keep their original relative weights; any further target (the cumulative
+    # event-window returns added 2026-09-12) is weighted like Y1, since CAR is the same
+    # quantity measured over a longer window.
+    base_weights = (1.0, 0.1, 0.5)
+    weights = tuple(base_weights[i] if i < len(base_weights) else 1.0
+                    for i in range(n_targets))
+    loss_fn = WeightedMultiTaskMSELoss(weights=weights)
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     model.train()

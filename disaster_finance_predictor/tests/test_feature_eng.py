@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
+import pytest
 
-from src.data_pipeline.feature_eng import FeatureEngineer
+from src.data_pipeline.feature_eng import FeatureEngineer, FeatureEngineeringConfig
 
 
 def test_engineer_market_features_generates_lags_and_no_lookahead_rolling_std():
@@ -74,7 +75,12 @@ def test_engineer_disaster_features_filters_biological_and_low_impact_events():
         }
     )
 
-    fe = FeatureEngineer()
+    # Pinned to the pre-registered >=1000 threshold. The config default moved to 700 on
+    # 2026-09-12, under which the 900-affected Cyclone row survives -- this test is named
+    # for the biological filter, so it keeps its original threshold rather than quietly
+    # changing what it asserts. The 700 default is covered by
+    # test_inclusion_threshold_is_read_from_config.
+    fe = FeatureEngineer(FeatureEngineeringConfig(min_affected=1000))
     out = fe.engineer_disaster_features(disaster_df)
 
     assert len(out) == 3
@@ -118,3 +124,68 @@ def test_build_targets_caps_recovery_days_at_90():
 
     assert len(targets) == 1
     assert targets.iloc[0]["Y3_recovery_days"] == 90.0
+
+
+# ------------------------------------------------- cumulative event-window returns
+
+def test_car_targets_accumulate_from_the_pre_event_close():
+    """Y1_car_k = ln(P[pos+k] / P[pos-1]) -- same denominator as Y1, later numerator.
+
+    Getting the denominator wrong (using P[pos] instead of P[pos-1]) would drop the
+    event day itself out of the window, which is the whole point of a [0,+k] window.
+    """
+    days = pd.bdate_range("2020-01-01", periods=60)
+    # A flat series with one known jump lets every target be computed by hand.
+    price = np.full(len(days), 100.0)
+    price[10:] = 110.0                      # event lands on index 10
+    market = pd.DataFrame({"date": days, "aspi_close": price, "trading_volume": 1e6})
+    events = pd.DataFrame({"event_date": [days[10]]})
+
+    fe = FeatureEngineer(FeatureEngineeringConfig())
+    t = fe.build_targets(market, events).iloc[0]
+
+    expected = float(np.log(110.0 / 100.0))
+    assert t.Y1_aspi_log_return == pytest.approx(expected)
+    # Price is flat at 110 after the jump, so 5- and 10-day CARs equal the day-0 return.
+    assert t.Y1_car_5 == pytest.approx(expected)
+    assert t.Y1_car_10 == pytest.approx(expected)
+
+
+def test_car_targets_capture_drift_the_day0_return_misses():
+    days = pd.bdate_range("2020-01-01", periods=60)
+    price = np.full(len(days), 100.0)
+    price[10] = 99.0            # small dip on the event day
+    price[11:] = 90.0           # the real damage shows up afterwards
+    market = pd.DataFrame({"date": days, "aspi_close": price, "trading_volume": 1e6})
+    events = pd.DataFrame({"event_date": [days[10]]})
+
+    t = FeatureEngineer(FeatureEngineeringConfig()).build_targets(market, events).iloc[0]
+    assert t.Y1_aspi_log_return == pytest.approx(np.log(99.0 / 100.0))
+    assert t.Y1_car_5 == pytest.approx(np.log(90.0 / 100.0))
+    # The window return is a much larger loss than the single day showed.
+    assert t.Y1_car_5 < t.Y1_aspi_log_return
+
+
+def test_car_is_nan_rather_than_a_truncated_window():
+    """A partial accumulation must never be reported as a full one."""
+    days = pd.bdate_range("2020-01-01", periods=14)
+    market = pd.DataFrame({"date": days, "aspi_close": np.linspace(100, 120, len(days)),
+                           "trading_volume": 1e6})
+    events = pd.DataFrame({"event_date": [days[10]]})   # only 3 rows remain after it
+    t = FeatureEngineer(FeatureEngineeringConfig()).build_targets(market, events).iloc[0]
+    assert np.isnan(t.Y1_car_5) and np.isnan(t.Y1_car_10)
+
+
+def test_inclusion_threshold_is_read_from_config():
+    """The 1000 -> 700 change must live in one declared place, not a literal."""
+    assert FeatureEngineeringConfig().min_affected == 700
+    events = pd.DataFrame({
+        "event_date": pd.to_datetime(["2020-01-01", "2020-02-01", "2020-03-01"]),
+        "disaster_type": ["Flood"] * 3,
+        "financial_damage": [0.0] * 3,
+        "population_affected": [650.0, 800.0, 1500.0],
+    })
+    kept = FeatureEngineer(FeatureEngineeringConfig()).engineer_disaster_features(events)
+    assert len(kept) == 2                       # 650 excluded, 800 and 1500 kept
+    strict = FeatureEngineer(FeatureEngineeringConfig(min_affected=1000))
+    assert len(strict.engineer_disaster_features(events)) == 1
