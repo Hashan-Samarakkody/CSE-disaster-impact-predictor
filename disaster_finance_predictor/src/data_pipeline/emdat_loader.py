@@ -33,6 +33,17 @@ def load_emdat(path: Path, sheet_name: str = "EM-DAT Data") -> pd.DataFrame:
     so both stages stay independently testable."""
     raw = pd.read_excel(path, sheet_name=sheet_name)
 
+    # EM-DAT leaves Start Day (and sometimes Start Month) blank for slow-onset events.
+    # Filling those with 1 invents a January-1st / first-of-month event date, which for a
+    # DAY-0 event study means scoring the market's response on a day the disaster did not
+    # begin. The fill is kept so the row survives, but the imprecision is recorded rather
+    # than hidden: 5 of the modelled events are droughts with no start day, and a drought
+    # has no meaningful day-0 at all.
+    date_precision = np.select(
+        [raw["Start Month"].isna(), raw["Start Day"].isna()],
+        ["year_only", "month_only"],
+        default="exact_day",
+    )
     event_date = pd.to_datetime(
         {
             "year": raw["Start Year"],
@@ -51,15 +62,46 @@ def load_emdat(path: Path, sheet_name: str = "EM-DAT Data") -> pd.DataFrame:
     )
     financial_damage = adjusted.fillna(raw_damage).fillna(0.0) * 1000.0  # EM-DAT reports in '000 US$
 
+    # EM-DAT's Magnitude column carries a PHYSICAL measure whose unit varies by hazard:
+    # inundated area in Km2 for floods, sustained wind in Kph for storms. Averaging those
+    # into one column would be meaningless, so they are split by scale and each gets its
+    # own missingness flag. This matters because Magnitude is populated for more events
+    # than Total Damage is, and unlike damage it is a measurement rather than a
+    # post-hoc financial assessment.
+    magnitude = pd.to_numeric(raw.get("Magnitude"), errors="coerce")
+    scale = raw.get("Magnitude Scale", pd.Series(index=raw.index, dtype=object)).astype(str)
+
+    def _by_scale(unit):
+        return magnitude.where(scale.str.strip().str.lower() == unit)
+
+    area_km2 = _by_scale("km2")
+    wind_kph = _by_scale("kph")
+
     out = pd.DataFrame(
         {
             "event_date": event_date,
+            "event_date_precision": date_precision,
+            "date_is_exact": (date_precision == "exact_day").astype(float),
             "disaster_type": raw["Disaster Type"],
             "disaster_group": raw["Disaster Group"],
             "disaster_subgroup": raw["Disaster Subgroup"],
             "financial_damage": financial_damage,
             "damage_source": damage_source,
             "population_affected": raw["Total Affected"],
+            # Every one of these gets an availability flag beside it. Downstream the
+            # feature table fills NaN with 0.0, and without the flag a zero reads as
+            # "nobody died" rather than "EM-DAT recorded no figure" -- the exact defect
+            # the audit found in financial_damage's 47 zero fills.
+            "total_deaths": pd.to_numeric(raw.get("Total Deaths"), errors="coerce"),
+            "deaths_available": pd.to_numeric(raw.get("Total Deaths"),
+                                              errors="coerce").notna().astype(float),
+            "no_homeless": pd.to_numeric(raw.get("No. Homeless"), errors="coerce"),
+            "homeless_available": pd.to_numeric(raw.get("No. Homeless"),
+                                                errors="coerce").notna().astype(float),
+            "mag_area_km2": area_km2,
+            "mag_wind_kph": wind_kph,
+            "mag_area_available": area_km2.notna().astype(float),
+            "mag_wind_available": wind_kph.notna().astype(float),
             "dis_no": raw["DisNo."],
             "event_name": raw["Event Name"],
         }

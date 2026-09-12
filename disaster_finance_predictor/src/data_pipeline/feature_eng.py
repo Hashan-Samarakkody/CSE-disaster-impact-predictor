@@ -21,6 +21,12 @@ class FeatureEngineeringConfig:
     disaster_type_col: str = "disaster_type"
     damage_col: str = "financial_damage"
     affected_col: str = "population_affected"
+    # Inclusion threshold on total affected. The thesis pre-registered >=1000; it was
+    # lowered to 700 on the author's instruction (2026-09-12), which admits 2 further
+    # events (2021-05-16 and 2023-04-24, both Storm). Declared here rather than buried
+    # at the call site so the deviation from the pre-registration is visible in the
+    # config that every stage reads. See docs/THESIS_AMENDMENTS.md.
+    min_affected: int = 700
     max_recovery_days: int = 90
 
 
@@ -74,6 +80,45 @@ class FeatureEngineer:
         df["rolling_std_30"] = shifted_returns.rolling(window=30, min_periods=30).std()
 
         df["squared_return"] = df["log_return"] ** 2
+
+        # Pre-event volume block. Until this was added the feature table contained no
+        # volume-derived column at all: trading_volume was touched only inside
+        # build_targets, to construct Y2 itself. Y2 -- the one target where a model beats
+        # both naive baselines -- was therefore being predicted with no information about
+        # its own driving series.
+        #
+        # These are not a search over candidate features. Y2 is DEFINED as
+        # V_t / mean(V_{t-30..t-1}) - 1, so the same functional evaluated one trading day
+        # earlier is its natural autoregressive predictor: the target's own construction,
+        # lagged. Volume persistence and mean reversion are among the most robustly
+        # documented regularities in the abnormal-volume event-study literature
+        # (Ajinkya & Jain 1989; Campbell, Lo & MacKinlay ch. 4).
+        #
+        # Every term is a ratio or a log difference, so all are stationary by construction
+        # and the ADF gate will confirm it; no volume LEVEL enters the model, which is the
+        # same discipline applied to price in the sma_/ema_ block above.
+        if c.volume_col in df.columns:
+            shifted_vol = df[c.volume_col].shift(1)
+            vol_mean_30 = shifted_vol.rolling(window=30, min_periods=30).mean()
+            for window in (1, 5, 10):
+                numer = (shifted_vol if window == 1
+                         else shifted_vol.rolling(window=window, min_periods=window).mean())
+                df[f"vol_ratio_{window}_30"] = numer / vol_mean_30 - 1.0
+            # Dispersion of recent volume: a market already trading erratically responds
+            # differently from a quiet one, and this is scale-free.
+            vol_std_30 = shifted_vol.rolling(window=30, min_periods=30).std()
+            df["vol_cv_30"] = vol_std_30 / vol_mean_30
+            df["log_vol_change_1"] = np.log(shifted_vol / shifted_vol.shift(1))
+            # No vol_trend_10_30 here: a 10-day mean over the 30-day mean is exactly
+            # vol_ratio_10_30, and the first version of this block shipped both. The
+            # collinearity diagnostic caught them at Spearman 1.000.
+            # Volume is zero on a handful of illiquid sessions and missing for all of 2000
+            # (that workbook failed to parse). Both make the ratios inf; leave them NaN so
+            # the downstream missingness handling sees them rather than a fabricated value.
+            vol_cols = [col for col in df.columns
+                        if col.startswith(("vol_ratio_", "vol_cv_", "log_vol_change_"))]
+            df[vol_cols] = df[vol_cols].replace([np.inf, -np.inf], np.nan)
+
         return df
 
     def engineer_disaster_features(self, disaster_df: pd.DataFrame) -> pd.DataFrame:
@@ -86,10 +131,12 @@ class FeatureEngineer:
         keep_mask = ~clean_type.isin(EXCLUDED_DISASTER_TYPES)
         df = df[keep_mask].copy()
 
-        # Inclusive threshold: the thesis (Sec. 3.3.2) and this notebook both state
-        # ">= 1000 affected". The previous strict ">" silently disagreed with the
-        # filter described everywhere else in the project.
-        df = df[df[c.affected_col] >= 1000].copy()
+        # Inclusive threshold, now read from the config rather than hardcoded so the
+        # value is declared in one place. The thesis pre-registered >=1000; the config
+        # default is 700 per the author's instruction. Widening a pre-registered filter
+        # is a deviation and must be reported as one, not presented as the original
+        # design -- it admits exactly 2 extra events, so it cannot rescue a result.
+        df = df[df[c.affected_col] >= c.min_affected].copy()
         df["log_financial_damage"] = np.log1p(df[c.damage_col].clip(lower=0))
         df["log_population_affected"] = np.log1p(df[c.affected_col].clip(lower=0))
 
@@ -134,10 +181,17 @@ class FeatureEngineer:
             price_tm1 = market.iloc[pos - 1][c.price_col]
             y1 = float(np.log(price_t / price_tm1))
 
-            baseline_start = max(0, pos - 30)
-            baseline_mean = market.iloc[baseline_start:pos][c.volume_col].mean()
-            volume_t = market.iloc[pos][c.volume_col]
-            y2 = float((volume_t / baseline_mean) - 1.0) if baseline_mean and not np.isnan(baseline_mean) else np.nan
+            # Y2 needs a volume series. A sector index has none -- the CSE publishes
+            # volume market-wide, not per sector -- so the sector panel calls this with
+            # no volume column and gets NaN rather than a fabricated ratio.
+            if c.volume_col in market.columns:
+                baseline_start = max(0, pos - 30)
+                baseline_mean = market.iloc[baseline_start:pos][c.volume_col].mean()
+                volume_t = market.iloc[pos][c.volume_col]
+                y2 = (float((volume_t / baseline_mean) - 1.0)
+                      if baseline_mean and not np.isnan(baseline_mean) else np.nan)
+            else:
+                y2 = np.nan
 
             pre_disaster_baseline = price_tm1
             recovery_window = market.iloc[pos : pos + c.max_recovery_days + 1]
@@ -154,11 +208,28 @@ class FeatureEngineer:
                 recovery_pos = market.index.get_loc(recovered.index[0])
                 y3 = min(recovery_pos - pos, c.max_recovery_days)
 
+            # Cumulative event-window returns. Y1 is a single day's log return -- the
+            # noisiest possible measurement of an event's effect -- and standard
+            # event-study practice accumulates over a window to raise signal-to-noise.
+            # 5 and 10 trading days are the conventional short windows; they were fixed
+            # in docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2 before anything scored
+            # them, and neither may be swapped for the other afterwards.
+            #
+            # NaN rather than a truncated window when the series runs out, so a partial
+            # accumulation is never silently reported as a full one. Measured: all 76
+            # events have >=10 trading rows after `pos`, so in practice neither is NaN.
+            cars = {}
+            for k in (5, 10):
+                cars[f"Y1_car_{k}"] = (
+                    float(np.log(market.iloc[pos + k][c.price_col] / price_tm1))
+                    if pos + k < len(market) else np.nan)
+
             rows.append({
                 c.disaster_date_col: event_date,
                 "Y1_aspi_log_return": y1,
                 "Y2_abnormal_volume": y2,
                 "Y3_recovery_days": float(y3),
+                **cars,
             })
 
         return pd.DataFrame(rows)

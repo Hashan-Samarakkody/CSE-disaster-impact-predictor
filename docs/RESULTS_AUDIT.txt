@@ -1,0 +1,231 @@
+
+====================================================================================================
+1. EVERY MODEL x EVERY TARGET -- regression metrics (pooled out-of-fold)
+====================================================================================================
+
+--- Y1_aspi_log_return (n=40 pooled test points) ---
+           model  n    RMSE     MAE  pooled_R2  RMSE_null_zero  skill_vs_zero
+             mlp 40 0.01378 0.00735   -0.04764         0.01434        0.03940
+         stacked 30 0.01563 0.00895   -0.06746         0.01603        0.02501
+   random_forest 40 0.01411 0.00815   -0.09871         0.01434        0.01626
+      naive_zero 40 0.01434 0.00811   -0.13533         0.01434        0.00000
+        ensemble 40 0.01449 0.00793   -0.15926         0.01434       -0.01048
+naive_train_mean 40 0.01471 0.00901   -0.19409         0.01434       -0.02555
+           ridge 40 0.01482 0.00837   -0.21287         0.01434       -0.03358
+         xgboost 40 0.01689 0.00946   -0.57581         0.01434       -0.17812
+
+--- Y2_abnormal_volume (n=34 pooled test points) ---
+           model  n    RMSE     MAE  pooled_R2  RMSE_null_zero  skill_vs_zero
+        ensemble 34 0.47714 0.38603    0.19893         0.54219        0.11998
+   random_forest 34 0.47944 0.38792    0.19118         0.54219        0.11574
+         xgboost 34 0.48044 0.38344    0.18780         0.54219        0.11389
+         stacked 24 0.59018 0.46809    0.02178         0.59685        0.01117
+             mlp 34 0.53362 0.41257   -0.00195         0.54219        0.01581
+      naive_zero 34 0.54219 0.44771   -0.03441         0.54219        0.00000
+naive_train_mean 34 0.54844 0.43425   -0.05838         0.54219       -0.01152
+           ridge 34 0.57952 0.46046   -0.18175         0.54219       -0.06885
+
+--- Y3_recovery_days (n=40 pooled test points) ---
+           model  n     RMSE      MAE  pooled_R2  RMSE_null_zero  skill_vs_zero
+naive_train_mean 40 29.09290 19.56833   -0.00831        31.84847        0.08652
+   random_forest 40 31.62195 14.18715   -0.19123        31.84847        0.00711
+           ridge 40 31.64377 14.57046   -0.19287        31.84847        0.00643
+      naive_zero 40 31.84847 13.22500   -0.20836        31.84847        0.00000
+        ensemble 40 32.39501 15.35346   -0.25019        31.84847       -0.01716
+         xgboost 40 33.45178 15.48839   -0.33308        31.84847       -0.05034
+             mlp 40 33.99425 16.19046   -0.37667        31.84847       -0.06737
+         stacked 30 35.85045 23.82735   -0.47136        32.89123       -0.08997
+
+====================================================================================================
+2. DID IT BEAT A NAIVE BASELINE? (paired event bootstrap + Diebold-Mariano)
+====================================================================================================
+            target         model         baseline  n  delta_rmse    ci_low  ci_high    dm_p                     verdict
+Y1_aspi_log_return         ridge       naive_zero 40    -0.00048  -0.00214  0.00067 0.46008         worse than baseline
+Y1_aspi_log_return         ridge naive_train_mean 40    -0.00012  -0.00125  0.00158 0.85650         worse than baseline
+Y1_aspi_log_return random_forest       naive_zero 40     0.00023  -0.00114  0.00120 0.72389 better, not distinguishable
+Y1_aspi_log_return random_forest naive_train_mean 40     0.00060  -0.00013  0.00168 0.11164 better, not distinguishable
+Y1_aspi_log_return       xgboost       naive_zero 40    -0.00255  -0.00648  0.00039 0.19483         worse than baseline
+Y1_aspi_log_return       xgboost naive_train_mean 40    -0.00219  -0.00574  0.00078 0.25728         worse than baseline
+Y1_aspi_log_return           mlp       naive_zero 40     0.00056  -0.00140  0.00186 0.47651 better, not distinguishable
+Y1_aspi_log_return           mlp naive_train_mean 40     0.00093  -0.00044  0.00293 0.18512 better, not distinguishable
+Y1_aspi_log_return      ensemble       naive_zero 40    -0.00015  -0.00193  0.00114 0.84930         worse than baseline
+Y1_aspi_log_return      ensemble naive_train_mean 40     0.00022  -0.00115  0.00202 0.74669 better, not distinguishable
+Y1_aspi_log_return       stacked       naive_zero 30     0.00040  -0.00239  0.00193 0.70821 better, not distinguishable
+Y1_aspi_log_return       stacked naive_train_mean 30    -0.00016  -0.00208  0.00100 0.81133         worse than baseline
+Y2_abnormal_volume         ridge       naive_zero 34    -0.03733  -0.14599  0.07056 0.51327         worse than baseline
+Y2_abnormal_volume         ridge naive_train_mean 34    -0.03108  -0.14967  0.07649 0.59379         worse than baseline
+Y2_abnormal_volume random_forest       naive_zero 34     0.06275  -0.00400  0.12870 0.08650 better, not distinguishable
+Y2_abnormal_volume random_forest naive_train_mean 34     0.06900  -0.01749  0.14691 0.14592 better, not distinguishable
+Y2_abnormal_volume       xgboost       naive_zero 34     0.06175  -0.04001  0.16220 0.24898 better, not distinguishable
+Y2_abnormal_volume       xgboost naive_train_mean 34     0.06800  -0.05251  0.18540 0.29693 better, not distinguishable
+Y2_abnormal_volume           mlp       naive_zero 34     0.00857  -0.07677  0.09187 0.84662 better, not distinguishable
+Y2_abnormal_volume           mlp naive_train_mean 34     0.01482  -0.07773  0.09762 0.74433 better, not distinguishable
+Y2_abnormal_volume      ensemble       naive_zero 34     0.06505  -0.01012  0.13327 0.09803 better, not distinguishable
+Y2_abnormal_volume      ensemble naive_train_mean 34     0.07130  -0.01456  0.15237 0.14213 better, not distinguishable
+Y2_abnormal_volume       stacked       naive_zero 24     0.00667  -0.11574  0.12724 0.91690 better, not distinguishable
+Y2_abnormal_volume       stacked naive_train_mean 24     0.03977  -0.05019  0.12697 0.40746 better, not distinguishable
+  Y3_recovery_days         ridge       naive_zero 40     0.20470  -0.72269  0.94028 0.62210 better, not distinguishable
+  Y3_recovery_days         ridge naive_train_mean 40    -2.55087  -4.54024  0.66199 0.13164         worse than baseline
+  Y3_recovery_days random_forest       naive_zero 40     0.22652  -0.22309  0.62903 0.32315 better, not distinguishable
+  Y3_recovery_days random_forest naive_train_mean 40    -2.52905  -4.60015  0.85210 0.15032         worse than baseline
+  Y3_recovery_days       xgboost       naive_zero 40    -1.60331  -5.99966  0.30580 0.34203         worse than baseline
+  Y3_recovery_days       xgboost naive_train_mean 40    -4.35888  -7.99618 -0.28935 0.07212         worse than baseline
+  Y3_recovery_days           mlp       naive_zero 40    -2.14578  -9.03080  1.35561 0.43692         worse than baseline
+  Y3_recovery_days           mlp naive_train_mean 40    -4.90135 -10.46783  0.05746 0.12557         worse than baseline
+  Y3_recovery_days      ensemble       naive_zero 40    -0.54654  -2.70594  0.63889 0.47570         worse than baseline
+  Y3_recovery_days      ensemble naive_train_mean 40    -3.30211  -5.48242 -0.12216 0.07140         worse than baseline
+  Y3_recovery_days       stacked       naive_zero 30    -2.95922 -12.45172  2.61019 0.43456         worse than baseline
+  Y3_recovery_days       stacked naive_train_mean 30    -6.20575 -14.07497 -1.12653 0.10833         worse than baseline
+
+>>> comparisons whose CI excludes zero: 0 of 36
+
+====================================================================================================
+3. CLASSIFICATION -- every label x every model
+====================================================================================================
+             label             model  n  n_pos  prevalence  accuracy  balanced_accuracy    mcc  precision  recall    f1  pr_auc   auc  auc_boot_lo  auc_boot_hi  beats_baseline
+C1_negative_return          logistic 40     13       0.325     0.550              0.467 -0.069      0.273   0.231 0.250   0.377 0.453        0.262        0.655           False
+C1_negative_return majority_baseline 40     13       0.325     0.675              0.500  0.000      0.000   0.000 0.000   0.325 0.500        0.500        0.500           False
+C1_negative_return            rf_clf 40     13       0.325     0.575              0.526  0.050      0.357   0.385 0.370   0.391 0.538        0.345        0.726           False
+C1_negative_return           xgb_clf 40     13       0.325     0.600              0.564  0.124      0.400   0.462 0.429   0.476 0.561        0.356        0.755           False
+  C1b_adverse_move          logistic 40      6       0.150     0.725              0.426 -0.159      0.000   0.000 0.000   0.123 0.309        0.098        0.554           False
+  C1b_adverse_move majority_baseline 40      6       0.150     0.850              0.500  0.000      0.000   0.000 0.000   0.150 0.500        0.500        0.500           False
+  C1b_adverse_move            rf_clf 40      6       0.150     0.775              0.456 -0.120      0.000   0.000 0.000   0.190 0.583        0.392        0.765           False
+  C1b_adverse_move           xgb_clf 40      6       0.150     0.825              0.485 -0.067      0.000   0.000 0.000   0.158 0.471        0.270        0.686           False
+   C2_volume_spike          logistic 34     14       0.412     0.676              0.682  0.359      0.588   0.714 0.645   0.618 0.664        0.454        0.857           False
+   C2_volume_spike majority_baseline 34     14       0.412     0.588              0.500  0.000      0.000   0.000 0.000   0.412 0.500        0.500        0.500           False
+   C2_volume_spike            rf_clf 34     14       0.412     0.676              0.629  0.313      0.714   0.357 0.476   0.735 0.764        0.578        0.929            True
+   C2_volume_spike           xgb_clf 34     14       0.412     0.588              0.532  0.083      0.500   0.214 0.300   0.609 0.657        0.464        0.836           False
+ C3_recovers_in_90          logistic 40     36       0.900     0.850              0.472 -0.076      0.895   0.944 0.919   0.946 0.597        0.389        0.799           False
+ C3_recovers_in_90 majority_baseline 40     36       0.900     0.900              0.500  0.000      0.900   1.000 0.947   0.900 0.500        0.500        0.500           False
+ C3_recovers_in_90            rf_clf 40     36       0.900     0.875              0.486 -0.053      0.897   0.972 0.933   0.834 0.229        0.035        0.472           False
+ C3_recovers_in_90           xgb_clf 40     36       0.900     0.900              0.500  0.000      0.900   1.000 0.947   0.869 0.271        0.111        0.451           False
+
+>>> model/label pairs clearing BOTH the majority rule and chance: 1
+
+====================================================================================================
+4. BEFORE vs AFTER -- pooled R2 against the pre-change baseline (commit 85590a8)
+====================================================================================================
+baseline: N=64, 31 features, 30 test points | now: N=74, 54 features, 40 test points (34 for Y2)
+
+            target         model  R2_before  R2_after  change direction
+Y1_aspi_log_return random_forest    -0.3151   -0.0987  0.2164    better
+Y1_aspi_log_return         ridge    -0.5338   -0.2129  0.3209    better
+Y1_aspi_log_return       xgboost    -1.7660   -0.5758  1.1902    better
+Y2_abnormal_volume random_forest    -0.1221    0.1912  0.3133    better
+Y2_abnormal_volume         ridge     0.1307   -0.1817 -0.3124     worse
+Y2_abnormal_volume       xgboost    -0.4630    0.1878  0.6508    better
+  Y3_recovery_days random_forest    -0.1608   -0.1912 -0.0304     worse
+  Y3_recovery_days         ridge    -0.1853   -0.1929 -0.0076     worse
+  Y3_recovery_days       xgboost    -0.1693   -0.3331 -0.1638     worse
+
+>>> improved: 5 of 9 model/target pairs
+
+====================================================================================================
+5. DECOMPOSITION -- was it the extra events, or the extra features?
+====================================================================================================
+The two changes landed together. The ablation separates them: `no_external` is
+N=74 with the ORIGINAL 31 features, so comparing it to the N=64 baseline
+isolates the sample extension, and comparing it to `full` isolates the data.
+
+            target         model  A_before (N=64, 31f)  B_more_events (N=74, 31f)  C_plus_external (N=74, 54f)  events_effect  external_effect
+Y1_aspi_log_return random_forest               -0.3151                    -0.1043                      -0.0987         0.2108           0.0056
+Y1_aspi_log_return         ridge               -0.5338                    -0.3471                      -0.2129         0.1867           0.1342
+Y1_aspi_log_return       xgboost               -1.7660                    -0.6778                      -0.5758         1.0882           0.1020
+Y2_abnormal_volume random_forest               -0.1221                    -0.0890                       0.1912         0.0331           0.2802
+Y2_abnormal_volume         ridge                0.1307                     0.0157                      -0.1817        -0.1150          -0.1974
+Y2_abnormal_volume       xgboost               -0.4630                    -0.3624                       0.1878         0.1006           0.5502
+  Y3_recovery_days random_forest               -0.1608                    -0.1907                      -0.1912        -0.0299          -0.0005
+  Y3_recovery_days         ridge               -0.1853                    -0.1955                      -0.1929        -0.0102           0.0026
+  Y3_recovery_days       xgboost               -0.1693                    -0.2022                      -0.3331        -0.0329          -0.1308
+
+>>> sample extension helped: 5/9
+>>> external features helped: 6/9
+
+CAVEAT, and it matters for how much weight the two columns carry:
+  `external_effect` (C - B) is a clean comparison -- identical events, identical
+  folds, identical test points, only the feature set differs. It is the column
+  the block ablation puts confidence intervals on.
+  `events_effect` (B - A) is NOT clean. A and B are scored on DIFFERENT test
+  sets (30 vs 40 points, different events), so an R2 difference there confounds
+  'the model got better' with 'the test set got easier or harder'. R2 is
+  normalised by the target's own variance, which changes with the sample.
+  Read it as directional only; no CI is computed for it and none should be.
+
+====================================================================================================
+6. WHICH EXTERNAL BLOCK EARNED ITS PLACE? (CI excluding zero)
+====================================================================================================
+model                           random_forest    ridge  xgboost
+target             block                                       
+Y1_aspi_log_return desinventar        0.00046  0.00029 -0.00061
+                   election           0.00013 -0.00010  0.00012
+                   external           0.00004  0.00080  0.00054
+                   fx                -0.00012 -0.00058 -0.00071
+                   hazard            -0.00026 -0.00074 -0.00087
+Y2_abnormal_volume desinventar       -0.01525 -0.01778  0.09644
+                   election          -0.00859 -0.00972  0.02995
+                   external           0.07688 -0.05061  0.14179
+                   fx                 0.04373 -0.04133  0.13152
+                   hazard             0.00857  0.06783  0.02069
+Y3_recovery_days   desinventar       -0.04306  0.03368  0.28620
+                   election          -0.05007  0.14799  0.20590
+                   external          -0.00688  0.03435 -1.68394
+                   fx                 0.06623  2.29028 -1.67792
+                   hazard            -0.03920  1.29615  0.03655
+
+>>> significant: 5 of 45
+            target         model    block  delta_rmse      lo      hi
+Y2_abnormal_volume random_forest       fx     0.04373 0.01293 0.08084
+Y2_abnormal_volume random_forest external     0.07688 0.01758 0.13897
+Y2_abnormal_volume       xgboost       fx     0.13152 0.05947 0.20305
+Y2_abnormal_volume       xgboost election     0.02995 0.00040 0.06889
+Y2_abnormal_volume       xgboost external     0.14179 0.01354 0.26521
+
+====================================================================================================
+7. CLASSIFICATION BEFORE vs AFTER -- C2_volume_spike, the one that works
+====================================================================================================
+BEFORE (N=64, 30 test points -- and 0 of them had missing volume):
+   model  n  balanced_accuracy  precision  recall    f1   auc  auc_boot_lo  auc_boot_hi  beats_baseline
+logistic 30              0.699      0.529   0.818 0.643 0.794        0.593        0.957            True
+  rf_clf 30              0.727      1.000   0.454 0.625 0.790        0.593        0.943            True
+ xgb_clf 30              0.538      0.500   0.182 0.267 0.708        0.478        0.919           False
+
+AFTER (N=74, 34 test points; 6 events with no volume data now correctly dropped):
+   model  n  balanced_accuracy  precision  recall    f1   auc  auc_boot_lo  auc_boot_hi  beats_baseline
+logistic 34              0.682      0.588   0.714 0.645 0.664        0.454        0.857           False
+  rf_clf 34              0.629      0.714   0.357 0.476 0.764        0.578        0.929            True
+ xgb_clf 34              0.532      0.500   0.214 0.300 0.657        0.464        0.836           False
+
+====================================================================================================
+8. SECTOR PANEL
+====================================================================================================
+                 target         model         baseline  delta_rmse  ci_low  ci_high  n_events  n_rows  significant
+   Y1_sector_log_return         ridge       naive_zero     -0.0114 -0.0209  -0.0018        30     594        False
+   Y1_sector_log_return         ridge naive_train_mean     -0.0105 -0.0204  -0.0007        30     594        False
+   Y1_sector_log_return random_forest       naive_zero     -0.0032 -0.0056  -0.0008        30     594        False
+   Y1_sector_log_return random_forest naive_train_mean     -0.0024 -0.0047  -0.0001        30     594        False
+Y3_sector_recovery_days         ridge       naive_zero      0.5764 -2.2230   2.9946        30     594        False
+Y3_sector_recovery_days         ridge naive_train_mean     -1.8670 -3.2732  -0.7528        30     594        False
+Y3_sector_recovery_days random_forest       naive_zero     -0.9709 -5.0911   2.0648        30     594        False
+Y3_sector_recovery_days random_forest naive_train_mean     -3.4144 -6.4458  -1.2314        30     594        False
+
+>>> sector comparisons beating their null: 0 of 8
+
+====================================================================================================
+9. Y3 HURDLE
+====================================================================================================
+           model  n  MAE_trading_days   RMSE
+      naive_zero 40            13.225 31.848
+ single-stage RF 40            13.738 31.437
+naive_train_mean 40            19.568 29.093
+          hurdle 40            28.836 43.313
+
+====================================================================================================
+10. DATA COVERAGE -- what the external sources actually bought
+====================================================================================================
+events: 74 | features: 79 | external features: 18
+external feature coverage: 100.0%-100.0%
+financial_damage real (the variable they were added to replace): 18/74
+DesInventar matched: 52/74
+  Y1_aspi_log_return: 74/74 observed
+  Y2_abnormal_volume: 61/74 observed
+  Y3_recovery_days: 74/74 observed

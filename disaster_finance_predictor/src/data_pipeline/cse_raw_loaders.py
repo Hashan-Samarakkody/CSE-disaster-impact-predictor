@@ -317,3 +317,56 @@ def build_market_dataframe(
     market["trading_volume"] = market["trading_volume"].where(market["volume_source"] != "missing")
 
     return market.sort_values("date").reset_index(drop=True)
+
+
+# Sector indices live in the same workbook as the ASPI, one column each. Only the ASPI
+# column was ever read, so 20 real daily series covering 2002-2023 sat unused while the
+# study concluded that index-level response was unpredictable -- a conclusion whose own
+# stated explanation (index aggregation absorbs localised shocks) is testable with
+# exactly these columns.
+#
+# The S&P Sri Lanka 20 column is deliberately excluded: it only starts in 2012 and is
+# ~51% populated over the study window, versus 87-100% for the sector columns.
+# Stored in NORMALISED form. The membership test below applies `_normalize`, which strips
+# everything outside [a-z0-9], so a human-readable "s&p sri lanka 20" written here would
+# never match and the guard would silently never fire. It did not: the column was being
+# dropped by the min_coverage gate instead, which happened to produce the same 20-sector
+# output and so hid the dead guard completely.
+EXCLUDED_INDEX_COLUMNS = {"spsrilanka20"}
+
+
+def load_sector_indices(path: Path, min_date: str = "2000-01-01",
+                        min_coverage: float = 0.80) -> pd.DataFrame:
+    """Load every daily sector index from the "Index" sheet, in long form.
+
+    Returns columns ``date``, ``sector``, ``close``. Sectors whose non-null coverage over
+    the retained window falls below ``min_coverage`` are dropped, which removes columns
+    that only begin part-way through the sample and would otherwise make the panel look
+    balanced when it is not.
+    """
+    header = pd.read_excel(path, sheet_name="Index", header=None, skiprows=3, nrows=1)
+    names = {i: str(v).strip() for i, v in header.iloc[0].items()
+             if isinstance(v, str) and str(v).strip()}
+
+    raw = pd.read_excel(path, sheet_name="Index", header=None, skiprows=5)
+    dates = pd.to_datetime(raw.iloc[:, 0], errors="coerce")
+
+    frames = []
+    for col, name in names.items():
+        if _normalize(name) in EXCLUDED_INDEX_COLUMNS or col >= raw.shape[1]:
+            continue
+        values = pd.to_numeric(raw.iloc[:, col], errors="coerce")
+        block = pd.DataFrame({"date": dates, "sector": name, "close": values})
+        block = block.dropna(subset=["date"])
+        block = block[block["date"] >= pd.Timestamp(min_date)]
+        if block.empty:
+            continue
+        if block["close"].notna().mean() < min_coverage:
+            continue
+        frames.append(block.dropna(subset=["close"]))
+
+    if not frames:
+        return pd.DataFrame(columns=["date", "sector", "close"])
+    out = pd.concat(frames, ignore_index=True)
+    out = out.drop_duplicates(subset=["date", "sector"], keep="first")
+    return out.sort_values(["sector", "date"]).reset_index(drop=True)

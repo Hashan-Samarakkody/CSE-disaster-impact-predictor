@@ -7,27 +7,27 @@ from torch import nn
 
 
 class ShallowMultiTaskMLP(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int = 64, dropout: float = 0.5) -> None:
+    def __init__(self, input_dim: int, hidden_dim: int = 64, dropout: float = 0.5,
+                 n_targets: int = 3) -> None:
         super().__init__()
         self.shared = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
         )
-        self.head_aspi = nn.Linear(hidden_dim, 1)
-        self.head_volume = nn.Linear(hidden_dim, 1)
-        self.head_recovery = nn.Linear(hidden_dim, 1)
+        # One head per target, sized at construction rather than hardcoded. The three
+        # named heads this replaced meant adding a fourth target raised
+        # "size of tensor a (3) must match the size of tensor b (5)" deep inside the
+        # training loop, with nothing in the message naming the cause.
+        self.heads = nn.ModuleList(nn.Linear(hidden_dim, 1) for _ in range(n_targets))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = self.shared(x)
-        y1 = self.head_aspi(h)
-        y2 = self.head_volume(h)
-        y3 = self.head_recovery(h)
-        return torch.cat([y1, y2, y3], dim=1)
+        return torch.cat([head(h) for head in self.heads], dim=1)
 
 
 class WeightedMultiTaskMSELoss(nn.Module):
-    def __init__(self, weights: tuple[float, float, float]) -> None:
+    def __init__(self, weights) -> None:
         super().__init__()
         self.register_buffer("weights", torch.tensor(weights, dtype=torch.float32))
 
