@@ -2,7 +2,7 @@
 
 **Subject:** "A Machine Learning Approach to Predicting the Impact of Natural Disasters on the Colombo Stock Exchange" (S.D.S.H. Samarakkodi, IM/2021/007, University of Kelaniya; supervisor Dr. Thilini Mahanama)
 
-**Audit basis:** Direct inspection of `disaster_finance_predictor/` source and `notebooks/CSE_Disaster_Impact_Pipeline.ipynb`, plus executed outputs from complete pipeline runs. **Every number in this document is copied from an actual execution.** Nothing is estimated, extrapolated, or invented. Where a figure is unavailable, it is marked "not measured".
+**Audit basis:** Direct inspection of the `src/` source and the notebook pipeline, plus executed outputs from complete pipeline runs. (Paths in this document predate the 2026-09 repository restructure, which flattened `disaster_finance_predictor/` into the repository root; `src/`, `notebooks/` and `tests/` now sit at the top level.) **Every number in this document is copied from an actual execution.** Nothing is estimated, extrapolated, or invented. Where a figure is unavailable, it is marked "not measured".
 
 **Authoritative methodology:** the thesis (July 2026). The April 2026 proposal is historical context only.
 
