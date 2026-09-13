@@ -129,6 +129,25 @@ sidecars before concluding that anything changed. And `^CSE` on Yahoo is a dead 
 the post-2023 ASPI extension comes from countryeconomy.com instead, which is documented
 in [`architecture/data_acquisition.md`](architecture/data_acquisition.md).
 
+## Live demo
+
+`app.py` is a Streamlit app that replays a real historical event through the fitted
+models, with editable severity inputs (financial damage, population affected, deaths,
+homeless, disaster type, magnitude). It is a demonstration aid, not a forecaster — see
+the in-app scope banner and [`src/inference.py`](src/inference.py) for why.
+
+```bash
+python scripts/train_final_models.py   # once, after the pipeline: fits + saves the
+                                        # classifiers and hurdle model the app serves
+streamlit run app.py
+```
+
+Requires `artifacts/` populated by a full pipeline run (`dataset`, `feature_spec`,
+`selected_features`, `final_rf_models`, `classification_summary`) plus the two extra
+artifacts `train_final_models.py` produces. Every historical metric shown in the app
+(AUC, beats-baseline, prevalence) is copied from `docs/RESULTS_AUDIT.txt`, not
+recomputed — the app cannot silently make a failing model look better.
+
 ## Where to read next
 
 - [`architecture.md`](architecture.md) — how the whole thing fits together.

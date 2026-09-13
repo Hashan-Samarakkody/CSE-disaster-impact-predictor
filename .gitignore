@@ -7,6 +7,7 @@ __pycache__/
 # Editor / OS / tooling state
 .vscode/
 .claude/
+.streamlit/
 Thumbs.db
 .DS_Store
 
