@@ -5,102 +5,156 @@
 
 --- Y1_aspi_log_return (n=40 pooled test points) ---
            model  n    RMSE     MAE  pooled_R2  RMSE_null_zero  skill_vs_zero
-             mlp 40 0.01378 0.00735   -0.04764         0.01434        0.03940
-         stacked 30 0.01563 0.00895   -0.06746         0.01603        0.02501
-   random_forest 40 0.01411 0.00815   -0.09871         0.01434        0.01626
-      naive_zero 40 0.01434 0.00811   -0.13533         0.01434        0.00000
-        ensemble 40 0.01449 0.00793   -0.15926         0.01434       -0.01048
-naive_train_mean 40 0.01471 0.00901   -0.19409         0.01434       -0.02555
-           ridge 40 0.01482 0.00837   -0.21287         0.01434       -0.03358
-         xgboost 40 0.01689 0.00946   -0.57581         0.01434       -0.17812
+      naive_zero 40 0.01460 0.00852   -0.14764         0.01460        0.00000
+         stacked 30 0.01681 0.01058   -0.20340         0.01635       -0.02848
+naive_train_mean 40 0.01501 0.00953   -0.21269         0.01460       -0.02795
+   random_forest 40 0.01514 0.00973   -0.23347         0.01460       -0.03672
+             mlp 40 0.01519 0.00921   -0.24145         0.01460       -0.04007
+           ridge 40 0.01551 0.00969   -0.29463         0.01460       -0.06211
+        ensemble 40 0.01563 0.00972   -0.31450         0.01460       -0.07023
+         xgboost 40 0.01706 0.01081   -0.56715         0.01460       -0.16857
 
---- Y2_abnormal_volume (n=34 pooled test points) ---
+--- Y1_car_10 (n=40 pooled test points) ---
            model  n    RMSE     MAE  pooled_R2  RMSE_null_zero  skill_vs_zero
-        ensemble 34 0.47714 0.38603    0.19893         0.54219        0.11998
-   random_forest 34 0.47944 0.38792    0.19118         0.54219        0.11574
-         xgboost 34 0.48044 0.38344    0.18780         0.54219        0.11389
-         stacked 24 0.59018 0.46809    0.02178         0.59685        0.01117
-             mlp 34 0.53362 0.41257   -0.00195         0.54219        0.01581
-      naive_zero 34 0.54219 0.44771   -0.03441         0.54219        0.00000
-naive_train_mean 34 0.54844 0.43425   -0.05838         0.54219       -0.01152
-           ridge 34 0.57952 0.46046   -0.18175         0.54219       -0.06885
+             mlp 40 0.05109 0.03917   -0.01269         0.05225        0.02219
+        ensemble 40 0.05135 0.03891   -0.02303         0.05225        0.01722
+naive_train_mean 40 0.05191 0.03813   -0.04554         0.05225        0.00646
+      naive_zero 40 0.05225 0.03712   -0.05918         0.05225        0.00000
+           ridge 40 0.05355 0.03868   -0.11277         0.05225       -0.02498
+         stacked 30 0.06038 0.04757   -0.13275         0.05880       -0.02686
+   random_forest 40 0.05412 0.04265   -0.13637         0.05225       -0.03579
+         xgboost 40 0.05554 0.04278   -0.19676         0.05225       -0.06296
+
+--- Y1_car_5 (n=40 pooled test points) ---
+           model  n    RMSE     MAE  pooled_R2  RMSE_null_zero  skill_vs_zero
+             mlp 40 0.03309 0.02394    0.04683         0.03463        0.04452
+        ensemble 40 0.03341 0.02428    0.02827         0.03463        0.03527
+         stacked 30 0.03790 0.02787    0.00904         0.03876        0.02216
+naive_train_mean 40 0.03450 0.02496   -0.03596         0.03463        0.00389
+   random_forest 40 0.03453 0.02503   -0.03767         0.03463        0.00307
+      naive_zero 40 0.03463 0.02474   -0.04407         0.03463        0.00000
+           ridge 40 0.03566 0.02423   -0.10676         0.03463       -0.02959
+         xgboost 40 0.03571 0.02652   -0.11008         0.03463       -0.03113
+
+--- Y2_abnormal_volume (n=36 pooled test points) ---
+           model  n    RMSE     MAE  pooled_R2  RMSE_null_zero  skill_vs_zero
+   random_forest 36 0.47156 0.37896    0.24660         0.54722        0.13825
+         xgboost 36 0.47224 0.36517    0.24443         0.54722        0.13702
+        ensemble 36 0.47247 0.37089    0.24369         0.54722        0.13659
+         stacked 26 0.56473 0.42337    0.10990         0.59918        0.05750
+      naive_zero 36 0.54722 0.45072   -0.01454         0.54722        0.00000
+             mlp 36 0.54810 0.42528   -0.01782         0.54722       -0.00161
+naive_train_mean 36 0.56330 0.44779   -0.07503         0.54722       -0.02938
+           ridge 36 0.57986 0.46244   -0.13916         0.54722       -0.05964
 
 --- Y3_recovery_days (n=40 pooled test points) ---
            model  n     RMSE      MAE  pooled_R2  RMSE_null_zero  skill_vs_zero
-naive_train_mean 40 29.09290 19.56833   -0.00831        31.84847        0.08652
-   random_forest 40 31.62195 14.18715   -0.19123        31.84847        0.00711
-           ridge 40 31.64377 14.57046   -0.19287        31.84847        0.00643
-      naive_zero 40 31.84847 13.22500   -0.20836        31.84847        0.00000
-        ensemble 40 32.39501 15.35346   -0.25019        31.84847       -0.01716
-         xgboost 40 33.45178 15.48839   -0.33308        31.84847       -0.05034
-             mlp 40 33.99425 16.19046   -0.37667        31.84847       -0.06737
-         stacked 30 35.85045 23.82735   -0.47136        32.89123       -0.08997
+naive_train_mean 40 29.46864 19.92167   -0.01931        32.25407        0.08636
+             mlp 40 31.86373 13.95347   -0.19173        32.25407        0.01210
+           ridge 40 32.10254 14.99551   -0.20966        32.25407        0.00470
+   random_forest 40 32.10681 14.67777   -0.20999        32.25407        0.00457
+      naive_zero 40 32.25407 13.72500   -0.22111        32.25407        0.00000
+        ensemble 40 32.35967 14.88159   -0.22912        32.25407       -0.00327
+         xgboost 40 34.11034 16.07009   -0.36571        32.25407       -0.05755
+         stacked 30 35.66153 23.01850   -0.43135        33.41407       -0.06726
 
 ====================================================================================================
 2. DID IT BEAT A NAIVE BASELINE? (paired event bootstrap + Diebold-Mariano)
 ====================================================================================================
             target         model         baseline  n  delta_rmse    ci_low  ci_high    dm_p                     verdict
-Y1_aspi_log_return         ridge       naive_zero 40    -0.00048  -0.00214  0.00067 0.46008         worse than baseline
-Y1_aspi_log_return         ridge naive_train_mean 40    -0.00012  -0.00125  0.00158 0.85650         worse than baseline
-Y1_aspi_log_return random_forest       naive_zero 40     0.00023  -0.00114  0.00120 0.72389 better, not distinguishable
-Y1_aspi_log_return random_forest naive_train_mean 40     0.00060  -0.00013  0.00168 0.11164 better, not distinguishable
-Y1_aspi_log_return       xgboost       naive_zero 40    -0.00255  -0.00648  0.00039 0.19483         worse than baseline
-Y1_aspi_log_return       xgboost naive_train_mean 40    -0.00219  -0.00574  0.00078 0.25728         worse than baseline
-Y1_aspi_log_return           mlp       naive_zero 40     0.00056  -0.00140  0.00186 0.47651 better, not distinguishable
-Y1_aspi_log_return           mlp naive_train_mean 40     0.00093  -0.00044  0.00293 0.18512 better, not distinguishable
-Y1_aspi_log_return      ensemble       naive_zero 40    -0.00015  -0.00193  0.00114 0.84930         worse than baseline
-Y1_aspi_log_return      ensemble naive_train_mean 40     0.00022  -0.00115  0.00202 0.74669 better, not distinguishable
-Y1_aspi_log_return       stacked       naive_zero 30     0.00040  -0.00239  0.00193 0.70821 better, not distinguishable
-Y1_aspi_log_return       stacked naive_train_mean 30    -0.00016  -0.00208  0.00100 0.81133         worse than baseline
-Y2_abnormal_volume         ridge       naive_zero 34    -0.03733  -0.14599  0.07056 0.51327         worse than baseline
-Y2_abnormal_volume         ridge naive_train_mean 34    -0.03108  -0.14967  0.07649 0.59379         worse than baseline
-Y2_abnormal_volume random_forest       naive_zero 34     0.06275  -0.00400  0.12870 0.08650 better, not distinguishable
-Y2_abnormal_volume random_forest naive_train_mean 34     0.06900  -0.01749  0.14691 0.14592 better, not distinguishable
-Y2_abnormal_volume       xgboost       naive_zero 34     0.06175  -0.04001  0.16220 0.24898 better, not distinguishable
-Y2_abnormal_volume       xgboost naive_train_mean 34     0.06800  -0.05251  0.18540 0.29693 better, not distinguishable
-Y2_abnormal_volume           mlp       naive_zero 34     0.00857  -0.07677  0.09187 0.84662 better, not distinguishable
-Y2_abnormal_volume           mlp naive_train_mean 34     0.01482  -0.07773  0.09762 0.74433 better, not distinguishable
-Y2_abnormal_volume      ensemble       naive_zero 34     0.06505  -0.01012  0.13327 0.09803 better, not distinguishable
-Y2_abnormal_volume      ensemble naive_train_mean 34     0.07130  -0.01456  0.15237 0.14213 better, not distinguishable
-Y2_abnormal_volume       stacked       naive_zero 24     0.00667  -0.11574  0.12724 0.91690 better, not distinguishable
-Y2_abnormal_volume       stacked naive_train_mean 24     0.03977  -0.05019  0.12697 0.40746 better, not distinguishable
-  Y3_recovery_days         ridge       naive_zero 40     0.20470  -0.72269  0.94028 0.62210 better, not distinguishable
-  Y3_recovery_days         ridge naive_train_mean 40    -2.55087  -4.54024  0.66199 0.13164         worse than baseline
-  Y3_recovery_days random_forest       naive_zero 40     0.22652  -0.22309  0.62903 0.32315 better, not distinguishable
-  Y3_recovery_days random_forest naive_train_mean 40    -2.52905  -4.60015  0.85210 0.15032         worse than baseline
-  Y3_recovery_days       xgboost       naive_zero 40    -1.60331  -5.99966  0.30580 0.34203         worse than baseline
-  Y3_recovery_days       xgboost naive_train_mean 40    -4.35888  -7.99618 -0.28935 0.07212         worse than baseline
-  Y3_recovery_days           mlp       naive_zero 40    -2.14578  -9.03080  1.35561 0.43692         worse than baseline
-  Y3_recovery_days           mlp naive_train_mean 40    -4.90135 -10.46783  0.05746 0.12557         worse than baseline
-  Y3_recovery_days      ensemble       naive_zero 40    -0.54654  -2.70594  0.63889 0.47570         worse than baseline
-  Y3_recovery_days      ensemble naive_train_mean 40    -3.30211  -5.48242 -0.12216 0.07140         worse than baseline
-  Y3_recovery_days       stacked       naive_zero 30    -2.95922 -12.45172  2.61019 0.43456         worse than baseline
-  Y3_recovery_days       stacked naive_train_mean 30    -6.20575 -14.07497 -1.12653 0.10833         worse than baseline
+Y1_aspi_log_return         ridge       naive_zero 40    -0.00091  -0.00458  0.00154 0.53533         worse than baseline
+Y1_aspi_log_return         ridge naive_train_mean 40    -0.00050  -0.00299  0.00132 0.64029         worse than baseline
+Y1_aspi_log_return random_forest       naive_zero 40    -0.00054  -0.00378  0.00216 0.73335         worse than baseline
+Y1_aspi_log_return random_forest naive_train_mean 40    -0.00013  -0.00234  0.00167 0.90530         worse than baseline
+Y1_aspi_log_return       xgboost       naive_zero 40    -0.00246  -0.00755  0.00219 0.35077         worse than baseline
+Y1_aspi_log_return       xgboost naive_train_mean 40    -0.00205  -0.00649  0.00190 0.37374         worse than baseline
+Y1_aspi_log_return           mlp       naive_zero 40    -0.00059  -0.00408  0.00187 0.68888         worse than baseline
+Y1_aspi_log_return           mlp naive_train_mean 40    -0.00018  -0.00253  0.00159 0.86211         worse than baseline
+Y1_aspi_log_return      ensemble       naive_zero 40    -0.00103  -0.00473  0.00210 0.56388         worse than baseline
+Y1_aspi_log_return      ensemble naive_train_mean 40    -0.00062  -0.00341  0.00173 0.64787         worse than baseline
+Y1_aspi_log_return       stacked       naive_zero 30    -0.00047  -0.00250  0.00101 0.61209         worse than baseline
+Y1_aspi_log_return       stacked naive_train_mean 30    -0.00095  -0.00224 -0.00010 0.11421         worse than baseline
+Y2_abnormal_volume         ridge       naive_zero 36    -0.03264  -0.18264  0.10129 0.66348         worse than baseline
+Y2_abnormal_volume         ridge naive_train_mean 36    -0.01656  -0.17311  0.11625 0.82706         worse than baseline
+Y2_abnormal_volume random_forest       naive_zero 36     0.07565   0.00967  0.14228 0.03895              BEATS BASELINE
+Y2_abnormal_volume random_forest naive_train_mean 36     0.09173   0.00539  0.17271 0.06190 better, not distinguishable
+Y2_abnormal_volume       xgboost       naive_zero 36     0.07498  -0.02370  0.17166 0.13862 better, not distinguishable
+Y2_abnormal_volume       xgboost naive_train_mean 36     0.09106  -0.02552  0.20181 0.14237 better, not distinguishable
+Y2_abnormal_volume           mlp       naive_zero 36    -0.00088  -0.07478  0.07541 0.98217         worse than baseline
+Y2_abnormal_volume           mlp naive_train_mean 36     0.01520  -0.04417  0.07757 0.63662 better, not distinguishable
+Y2_abnormal_volume      ensemble       naive_zero 36     0.07475   0.00653  0.13854 0.03527              BEATS BASELINE
+Y2_abnormal_volume      ensemble naive_train_mean 36     0.09083   0.01659  0.16233 0.03664              BEATS BASELINE
+Y2_abnormal_volume       stacked       naive_zero 26     0.03445  -0.08900  0.16244 0.59411 better, not distinguishable
+Y2_abnormal_volume       stacked naive_train_mean 26     0.07739  -0.01580  0.16953 0.11716 better, not distinguishable
+  Y3_recovery_days         ridge       naive_zero 40     0.15153  -0.76257  0.87369 0.70286 better, not distinguishable
+  Y3_recovery_days         ridge naive_train_mean 40    -2.63390  -4.51114  0.46630 0.10663         worse than baseline
+  Y3_recovery_days random_forest       naive_zero 40     0.14726  -0.47537  0.60867 0.58458 better, not distinguishable
+  Y3_recovery_days random_forest naive_train_mean 40    -2.63817  -4.55490  0.49681 0.11492         worse than baseline
+  Y3_recovery_days       xgboost       naive_zero 40    -1.85627  -6.78751  0.22219 0.33889         worse than baseline
+  Y3_recovery_days       xgboost naive_train_mean 40    -4.64170  -8.62546 -0.63795 0.06858         worse than baseline
+  Y3_recovery_days           mlp       naive_zero 40     0.39034   0.04517  0.79436 0.11950 better, not distinguishable
+  Y3_recovery_days           mlp naive_train_mean 40    -2.39509  -4.32313  0.83485 0.14263         worse than baseline
+  Y3_recovery_days      ensemble       naive_zero 40    -0.10560  -1.28784  0.51016 0.80568         worse than baseline
+  Y3_recovery_days      ensemble naive_train_mean 40    -2.89103  -4.82345  0.10646 0.08852         worse than baseline
+  Y3_recovery_days       stacked       naive_zero 30    -2.24746 -11.65828  2.69723 0.54214         worse than baseline
+  Y3_recovery_days       stacked naive_train_mean 30    -5.52604 -13.31584 -0.90301 0.14024         worse than baseline
+          Y1_car_5         ridge       naive_zero 40    -0.00102  -0.00591  0.00394 0.68969         worse than baseline
+          Y1_car_5         ridge naive_train_mean 40    -0.00116  -0.00432  0.00243 0.51811         worse than baseline
+          Y1_car_5 random_forest       naive_zero 40     0.00011  -0.00547  0.00556 0.97072 better, not distinguishable
+          Y1_car_5 random_forest naive_train_mean 40    -0.00003  -0.00378  0.00387 0.98856         worse than baseline
+          Y1_car_5       xgboost       naive_zero 40    -0.00108  -0.00689  0.00474 0.71860         worse than baseline
+          Y1_car_5       xgboost naive_train_mean 40    -0.00121  -0.00523  0.00310 0.57387         worse than baseline
+          Y1_car_5           mlp       naive_zero 40     0.00154  -0.00470  0.00746 0.62622 better, not distinguishable
+          Y1_car_5           mlp naive_train_mean 40     0.00141  -0.00358  0.00653 0.58813 better, not distinguishable
+          Y1_car_5      ensemble       naive_zero 40     0.00122  -0.00415  0.00641 0.66087 better, not distinguishable
+          Y1_car_5      ensemble naive_train_mean 40     0.00109  -0.00258  0.00486 0.57084 better, not distinguishable
+          Y1_car_5       stacked       naive_zero 30     0.00086  -0.00318  0.00414 0.66072 better, not distinguishable
+          Y1_car_5       stacked naive_train_mean 30     0.00073  -0.00167  0.00289 0.55000 better, not distinguishable
+         Y1_car_10         ridge       naive_zero 40    -0.00131  -0.01409  0.01018 0.83464         worse than baseline
+         Y1_car_10         ridge naive_train_mean 40    -0.00164  -0.01177  0.00770 0.74387         worse than baseline
+         Y1_car_10 random_forest       naive_zero 40    -0.00187  -0.01346  0.00773 0.72706         worse than baseline
+         Y1_car_10 random_forest naive_train_mean 40    -0.00221  -0.01074  0.00521 0.58822         worse than baseline
+         Y1_car_10       xgboost       naive_zero 40    -0.00329  -0.01504  0.00656 0.54113         worse than baseline
+         Y1_car_10       xgboost naive_train_mean 40    -0.00363  -0.01280  0.00414 0.38824         worse than baseline
+         Y1_car_10           mlp       naive_zero 40     0.00116  -0.01318  0.01380 0.86820 better, not distinguishable
+         Y1_car_10           mlp naive_train_mean 40     0.00082  -0.01104  0.01195 0.89143 better, not distinguishable
+         Y1_car_10      ensemble       naive_zero 40     0.00090  -0.01120  0.01098 0.87585 better, not distinguishable
+         Y1_car_10      ensemble naive_train_mean 40     0.00056  -0.00880  0.00877 0.90180 better, not distinguishable
+         Y1_car_10       stacked       naive_zero 30    -0.00158  -0.01432  0.00837 0.78612         worse than baseline
+         Y1_car_10       stacked naive_train_mean 30    -0.00195  -0.01199  0.00612 0.67321         worse than baseline
 
->>> comparisons whose CI excludes zero: 0 of 36
+>>> comparisons whose CI excludes zero: 5 of 60
 
 ====================================================================================================
 3. CLASSIFICATION -- every label x every model
 ====================================================================================================
              label             model  n  n_pos  prevalence  accuracy  balanced_accuracy    mcc  precision  recall    f1  pr_auc   auc  auc_boot_lo  auc_boot_hi  beats_baseline
-C1_negative_return          logistic 40     13       0.325     0.550              0.467 -0.069      0.273   0.231 0.250   0.377 0.453        0.262        0.655           False
+C1_negative_return          logistic 40     13       0.325     0.575              0.506  0.012      0.333   0.308 0.320   0.398 0.479        0.274        0.687           False
 C1_negative_return majority_baseline 40     13       0.325     0.675              0.500  0.000      0.000   0.000 0.000   0.325 0.500        0.500        0.500           False
-C1_negative_return            rf_clf 40     13       0.325     0.575              0.526  0.050      0.357   0.385 0.370   0.391 0.538        0.345        0.726           False
-C1_negative_return           xgb_clf 40     13       0.325     0.600              0.564  0.124      0.400   0.462 0.429   0.476 0.561        0.356        0.755           False
-  C1b_adverse_move          logistic 40      6       0.150     0.725              0.426 -0.159      0.000   0.000 0.000   0.123 0.309        0.098        0.554           False
+C1_negative_return            rf_clf 40     13       0.325     0.550              0.487 -0.026      0.308   0.308 0.308   0.353 0.501        0.308        0.698           False
+C1_negative_return           xgb_clf 40     13       0.325     0.600              0.544  0.088      0.385   0.385 0.385   0.373 0.470        0.262        0.678           False
+  C1b_adverse_move          logistic 40      6       0.150     0.725              0.495 -0.009      0.143   0.167 0.154   0.208 0.608        0.377        0.814           False
   C1b_adverse_move majority_baseline 40      6       0.150     0.850              0.500  0.000      0.000   0.000 0.000   0.150 0.500        0.500        0.500           False
-  C1b_adverse_move            rf_clf 40      6       0.150     0.775              0.456 -0.120      0.000   0.000 0.000   0.190 0.583        0.392        0.765           False
-  C1b_adverse_move           xgb_clf 40      6       0.150     0.825              0.485 -0.067      0.000   0.000 0.000   0.158 0.471        0.270        0.686           False
-   C2_volume_spike          logistic 34     14       0.412     0.676              0.682  0.359      0.588   0.714 0.645   0.618 0.664        0.454        0.857           False
-   C2_volume_spike majority_baseline 34     14       0.412     0.588              0.500  0.000      0.000   0.000 0.000   0.412 0.500        0.500        0.500           False
-   C2_volume_spike            rf_clf 34     14       0.412     0.676              0.629  0.313      0.714   0.357 0.476   0.735 0.764        0.578        0.929            True
-   C2_volume_spike           xgb_clf 34     14       0.412     0.588              0.532  0.083      0.500   0.214 0.300   0.609 0.657        0.464        0.836           False
- C3_recovers_in_90          logistic 40     36       0.900     0.850              0.472 -0.076      0.895   0.944 0.919   0.946 0.597        0.389        0.799           False
+  C1b_adverse_move            rf_clf 40      6       0.150     0.775              0.456 -0.120      0.000   0.000 0.000   0.148 0.446        0.250        0.647           False
+  C1b_adverse_move           xgb_clf 40      6       0.150     0.775              0.456 -0.120      0.000   0.000 0.000   0.143 0.417        0.211        0.632           False
+   C2_volume_spike          logistic 36     16       0.444     0.778              0.788  0.575      0.700   0.875 0.778   0.712 0.797        0.631        0.941            True
+   C2_volume_spike majority_baseline 36     16       0.444     0.556              0.500  0.000      0.000   0.000 0.000   0.444 0.500        0.500        0.500           False
+   C2_volume_spike            rf_clf 36     16       0.444     0.722              0.700  0.444      0.800   0.500 0.615   0.704 0.775        0.600        0.928            True
+   C2_volume_spike           xgb_clf 36     16       0.444     0.611              0.588  0.194      0.600   0.375 0.462   0.674 0.712        0.531        0.881            True
+ C3_recovers_in_90          logistic 40     36       0.900     0.850              0.472 -0.076      0.895   0.944 0.919   0.951 0.618        0.431        0.799           False
  C3_recovers_in_90 majority_baseline 40     36       0.900     0.900              0.500  0.000      0.900   1.000 0.947   0.900 0.500        0.500        0.500           False
- C3_recovers_in_90            rf_clf 40     36       0.900     0.875              0.486 -0.053      0.897   0.972 0.933   0.834 0.229        0.035        0.472           False
- C3_recovers_in_90           xgb_clf 40     36       0.900     0.900              0.500  0.000      0.900   1.000 0.947   0.869 0.271        0.111        0.451           False
+ C3_recovers_in_90            rf_clf 40     36       0.900     0.900              0.500  0.000      0.900   1.000 0.947   0.823 0.222        0.014        0.521           False
+ C3_recovers_in_90           xgb_clf 40     36       0.900     0.900              0.500  0.000      0.900   1.000 0.947   0.824 0.146        0.042        0.278           False
+ C3b_slow_recovery          logistic 40     13       0.325     0.625              0.543  0.092      0.400   0.308 0.348   0.408 0.493        0.288        0.701           False
+ C3b_slow_recovery majority_baseline 40     13       0.325     0.675              0.500  0.000      0.000   0.000 0.000   0.325 0.500        0.500        0.500           False
+ C3b_slow_recovery            rf_clf 40     13       0.325     0.575              0.486 -0.031      0.300   0.231 0.261   0.386 0.510        0.313        0.704           False
+ C3b_slow_recovery           xgb_clf 40     13       0.325     0.600              0.504  0.010      0.333   0.231 0.273   0.364 0.487        0.285        0.678           False
+  C4_car5_negative          logistic 40     16       0.400     0.625              0.562  0.161      0.571   0.250 0.348   0.575 0.750        0.589        0.898            True
+  C4_car5_negative majority_baseline 40     16       0.400     0.600              0.500  0.000      0.000   0.000 0.000   0.400 0.500        0.500        0.500           False
+  C4_car5_negative            rf_clf 40     16       0.400     0.675              0.615  0.295      0.714   0.312 0.435   0.524 0.516        0.320        0.701           False
+  C4_car5_negative           xgb_clf 40     16       0.400     0.550              0.500  0.000      0.400   0.250 0.308   0.496 0.555        0.367        0.732           False
 
->>> model/label pairs clearing BOTH the majority rule and chance: 1
+>>> model/label pairs clearing BOTH the majority rule and chance: 4
 
 ====================================================================================================
 4. BEFORE vs AFTER -- pooled R2 against the pre-change baseline (commit 85590a8)
@@ -108,15 +162,15 @@ C1_negative_return           xgb_clf 40     13       0.325     0.600            
 baseline: N=64, 31 features, 30 test points | now: N=74, 54 features, 40 test points (34 for Y2)
 
             target         model  R2_before  R2_after  change direction
-Y1_aspi_log_return random_forest    -0.3151   -0.0987  0.2164    better
-Y1_aspi_log_return         ridge    -0.5338   -0.2129  0.3209    better
-Y1_aspi_log_return       xgboost    -1.7660   -0.5758  1.1902    better
-Y2_abnormal_volume random_forest    -0.1221    0.1912  0.3133    better
-Y2_abnormal_volume         ridge     0.1307   -0.1817 -0.3124     worse
-Y2_abnormal_volume       xgboost    -0.4630    0.1878  0.6508    better
-  Y3_recovery_days random_forest    -0.1608   -0.1912 -0.0304     worse
-  Y3_recovery_days         ridge    -0.1853   -0.1929 -0.0076     worse
-  Y3_recovery_days       xgboost    -0.1693   -0.3331 -0.1638     worse
+Y1_aspi_log_return random_forest    -0.3151   -0.2335  0.0816    better
+Y1_aspi_log_return         ridge    -0.5338   -0.2946  0.2392    better
+Y1_aspi_log_return       xgboost    -1.7660   -0.5672  1.1988    better
+Y2_abnormal_volume random_forest    -0.1221    0.2466  0.3687    better
+Y2_abnormal_volume         ridge     0.1307   -0.1392 -0.2699     worse
+Y2_abnormal_volume       xgboost    -0.4630    0.2444  0.7074    better
+  Y3_recovery_days random_forest    -0.1608   -0.2100 -0.0492     worse
+  Y3_recovery_days         ridge    -0.1853   -0.2097 -0.0244     worse
+  Y3_recovery_days       xgboost    -0.1693   -0.3657 -0.1964     worse
 
 >>> improved: 5 of 9 model/target pairs
 
@@ -128,18 +182,18 @@ N=74 with the ORIGINAL 31 features, so comparing it to the N=64 baseline
 isolates the sample extension, and comparing it to `full` isolates the data.
 
             target         model  A_before (N=64, 31f)  B_more_events (N=74, 31f)  C_plus_external (N=74, 54f)  events_effect  external_effect
-Y1_aspi_log_return random_forest               -0.3151                    -0.1043                      -0.0987         0.2108           0.0056
-Y1_aspi_log_return         ridge               -0.5338                    -0.3471                      -0.2129         0.1867           0.1342
-Y1_aspi_log_return       xgboost               -1.7660                    -0.6778                      -0.5758         1.0882           0.1020
-Y2_abnormal_volume random_forest               -0.1221                    -0.0890                       0.1912         0.0331           0.2802
-Y2_abnormal_volume         ridge                0.1307                     0.0157                      -0.1817        -0.1150          -0.1974
-Y2_abnormal_volume       xgboost               -0.4630                    -0.3624                       0.1878         0.1006           0.5502
-  Y3_recovery_days random_forest               -0.1608                    -0.1907                      -0.1912        -0.0299          -0.0005
-  Y3_recovery_days         ridge               -0.1853                    -0.1955                      -0.1929        -0.0102           0.0026
-  Y3_recovery_days       xgboost               -0.1693                    -0.2022                      -0.3331        -0.0329          -0.1308
+Y1_aspi_log_return random_forest               -0.3151                    -0.1483                      -0.2335         0.1668          -0.0852
+Y1_aspi_log_return         ridge               -0.5338                    -0.2742                      -0.2946         0.2596          -0.0204
+Y1_aspi_log_return       xgboost               -1.7660                    -0.6718                      -0.5672         1.0942           0.1046
+Y2_abnormal_volume random_forest               -0.1221                     0.0402                       0.2466         0.1623           0.2064
+Y2_abnormal_volume         ridge                0.1307                    -0.1590                      -0.1392        -0.2897           0.0199
+Y2_abnormal_volume       xgboost               -0.4630                    -0.1819                       0.2444         0.2811           0.4263
+  Y3_recovery_days random_forest               -0.1608                    -0.2021                      -0.2100        -0.0413          -0.0078
+  Y3_recovery_days         ridge               -0.1853                    -0.2326                      -0.2097        -0.0473           0.0230
+  Y3_recovery_days       xgboost               -0.1693                    -0.2060                      -0.3657        -0.0367          -0.1597
 
 >>> sample extension helped: 5/9
->>> external features helped: 6/9
+>>> external features helped: 5/9
 
 CAVEAT, and it matters for how much weight the two columns carry:
   `external_effect` (C - B) is a clean comparison -- identical events, identical
@@ -156,29 +210,41 @@ CAVEAT, and it matters for how much weight the two columns carry:
 ====================================================================================================
 model                           random_forest    ridge  xgboost
 target             block                                       
-Y1_aspi_log_return desinventar        0.00046  0.00029 -0.00061
-                   election           0.00013 -0.00010  0.00012
-                   external           0.00004  0.00080  0.00054
-                   fx                -0.00012 -0.00058 -0.00071
-                   hazard            -0.00026 -0.00074 -0.00087
-Y2_abnormal_volume desinventar       -0.01525 -0.01778  0.09644
-                   election          -0.00859 -0.00972  0.02995
-                   external           0.07688 -0.05061  0.14179
-                   fx                 0.04373 -0.04133  0.13152
-                   hazard             0.00857  0.06783  0.02069
-Y3_recovery_days   desinventar       -0.04306  0.03368  0.28620
-                   election          -0.05007  0.14799  0.20590
-                   external          -0.00688  0.03435 -1.68394
-                   fx                 0.06623  2.29028 -1.67792
-                   hazard            -0.03920  1.29615  0.03655
+Y1_aspi_log_return desinventar       -0.00042  0.00172 -0.00030
+                   election           0.00029  0.00027  0.00064
+                   external          -0.00053 -0.00012  0.00056
+                   fx                -0.00040  0.00011 -0.00063
+                   hazard            -0.00006  0.00037 -0.00013
+Y1_car_10          desinventar        0.00066  0.00670  0.00041
+                   election          -0.00051 -0.00042 -0.00228
+                   external           0.00070  0.00981  0.00177
+                   fx                 0.00048  0.00005  0.00359
+                   hazard            -0.00000 -0.00298 -0.00071
+Y1_car_5           desinventar        0.00033  0.00219  0.00353
+                   election           0.00002  0.00090 -0.00011
+                   external          -0.00003 -0.00082  0.00134
+                   fx                 0.00006  0.00052 -0.00032
+                   hazard            -0.00056  0.00110 -0.00061
+Y2_abnormal_volume desinventar        0.01285 -0.04374  0.13156
+                   election           0.00150  0.03906  0.00719
+                   external           0.06070  0.00503  0.11838
+                   fx                 0.03714 -0.03799  0.12697
+                   hazard            -0.00601 -0.00284 -0.03019
+Y3_recovery_days   desinventar       -0.09489 -0.12195 -0.24384
+                   election          -0.04286  0.20310 -0.20544
+                   external          -0.10429  0.30355 -2.05646
+                   fx                 0.06714  2.21984 -2.04787
+                   hazard            -0.08679  2.38246 -0.02097
 
->>> significant: 5 of 45
-            target         model    block  delta_rmse      lo      hi
-Y2_abnormal_volume random_forest       fx     0.04373 0.01293 0.08084
-Y2_abnormal_volume random_forest external     0.07688 0.01758 0.13897
-Y2_abnormal_volume       xgboost       fx     0.13152 0.05947 0.20305
-Y2_abnormal_volume       xgboost election     0.02995 0.00040 0.06889
-Y2_abnormal_volume       xgboost external     0.14179 0.01354 0.26521
+>>> significant: 7 of 75
+            target         model       block  delta_rmse      lo      hi
+Y1_aspi_log_return         ridge desinventar     0.00172 0.00060 0.00307
+Y2_abnormal_volume random_forest          fx     0.03714 0.00204 0.07658
+Y2_abnormal_volume random_forest    external     0.06070 0.00689 0.11776
+Y2_abnormal_volume       xgboost desinventar     0.13156 0.00142 0.28041
+Y2_abnormal_volume       xgboost          fx     0.12697 0.03201 0.23025
+Y2_abnormal_volume       xgboost    external     0.11838 0.01074 0.21924
+          Y1_car_5         ridge      hazard     0.00110 0.00009 0.00258
 
 ====================================================================================================
 7. CLASSIFICATION BEFORE vs AFTER -- C2_volume_spike, the one that works
@@ -191,22 +257,22 @@ logistic 30              0.699      0.529   0.818 0.643 0.794        0.593      
 
 AFTER (N=74, 34 test points; 6 events with no volume data now correctly dropped):
    model  n  balanced_accuracy  precision  recall    f1   auc  auc_boot_lo  auc_boot_hi  beats_baseline
-logistic 34              0.682      0.588   0.714 0.645 0.664        0.454        0.857           False
-  rf_clf 34              0.629      0.714   0.357 0.476 0.764        0.578        0.929            True
- xgb_clf 34              0.532      0.500   0.214 0.300 0.657        0.464        0.836           False
+logistic 36              0.788        0.7   0.875 0.778 0.797        0.631        0.941            True
+  rf_clf 36              0.700        0.8   0.500 0.615 0.775        0.600        0.928            True
+ xgb_clf 36              0.588        0.6   0.375 0.462 0.712        0.531        0.881            True
 
 ====================================================================================================
 8. SECTOR PANEL
 ====================================================================================================
                  target         model         baseline  delta_rmse  ci_low  ci_high  n_events  n_rows  significant
-   Y1_sector_log_return         ridge       naive_zero     -0.0114 -0.0209  -0.0018        30     594        False
-   Y1_sector_log_return         ridge naive_train_mean     -0.0105 -0.0204  -0.0007        30     594        False
-   Y1_sector_log_return random_forest       naive_zero     -0.0032 -0.0056  -0.0008        30     594        False
-   Y1_sector_log_return random_forest naive_train_mean     -0.0024 -0.0047  -0.0001        30     594        False
-Y3_sector_recovery_days         ridge       naive_zero      0.5764 -2.2230   2.9946        30     594        False
-Y3_sector_recovery_days         ridge naive_train_mean     -1.8670 -3.2732  -0.7528        30     594        False
-Y3_sector_recovery_days random_forest       naive_zero     -0.9709 -5.0911   2.0648        30     594        False
-Y3_sector_recovery_days random_forest naive_train_mean     -3.4144 -6.4458  -1.2314        30     594        False
+   Y1_sector_log_return         ridge       naive_zero     -0.0110 -0.0206  -0.0018        30     594        False
+   Y1_sector_log_return         ridge naive_train_mean     -0.0102 -0.0200  -0.0007        30     594        False
+   Y1_sector_log_return random_forest       naive_zero     -0.0034 -0.0057  -0.0011        30     594        False
+   Y1_sector_log_return random_forest naive_train_mean     -0.0025 -0.0049  -0.0003        30     594        False
+Y3_sector_recovery_days         ridge       naive_zero     -0.2878 -3.5385   2.3825        30     594        False
+Y3_sector_recovery_days         ridge naive_train_mean     -2.2487 -3.8601  -0.8719        30     594        False
+Y3_sector_recovery_days random_forest       naive_zero     -1.7790 -5.7914   1.3757        30     594        False
+Y3_sector_recovery_days random_forest naive_train_mean     -3.7399 -6.7619  -1.5316        30     594        False
 
 >>> sector comparisons beating their null: 0 of 8
 
@@ -214,18 +280,18 @@ Y3_sector_recovery_days random_forest naive_train_mean     -3.4144 -6.4458  -1.2
 9. Y3 HURDLE
 ====================================================================================================
            model  n  MAE_trading_days   RMSE
-      naive_zero 40            13.225 31.848
- single-stage RF 40            13.738 31.437
-naive_train_mean 40            19.568 29.093
-          hurdle 40            28.836 43.313
+      naive_zero 40            13.725 32.254
+ single-stage RF 40            14.374 32.034
+naive_train_mean 40            19.922 29.469
+          hurdle 40            24.146 41.156
 
 ====================================================================================================
 10. DATA COVERAGE -- what the external sources actually bought
 ====================================================================================================
-events: 74 | features: 79 | external features: 18
+events: 76 | features: 91 | external features: 18
 external feature coverage: 100.0%-100.0%
-financial_damage real (the variable they were added to replace): 18/74
-DesInventar matched: 52/74
-  Y1_aspi_log_return: 74/74 observed
-  Y2_abnormal_volume: 61/74 observed
-  Y3_recovery_days: 74/74 observed
+financial_damage real (the variable they were added to replace): 18/76
+DesInventar matched: 52/76
+  Y1_aspi_log_return: 76/76 observed
+  Y2_abnormal_volume: 63/76 observed
+  Y3_recovery_days: 76/76 observed
