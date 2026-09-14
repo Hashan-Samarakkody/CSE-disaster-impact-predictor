@@ -25,7 +25,7 @@ ARTIFACTS = ROOT / "artifacts"
 DISASTER_TYPES = ["Drought", "Flood", "Other", "Storm"]
 
 TARGET_LABELS = {
-    "Y1_aspi_log_return": "ASPI day-0 log return",
+    "Y1_aspi_log_return": "ASPI % deviation, event day vs 30d pre-disaster mean",
     "Y2_abnormal_volume": "Abnormal trading volume (V / 30d avg - 1)",
     "Y3_recovery_days": "Recovery time (trading days, capped at 90)",
     "Y1_car_5": "5-day cumulative return",

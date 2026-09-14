@@ -56,7 +56,7 @@ WIDTH_FULL, WIDTH_HALF = 6.3, 3.1
 H_SHORT, H_MED, H_TALL = 2.4, 3.6, 5.0
 
 TARGET_LABELS = {
-    "Y1_aspi_log_return": "Y1 · ASPI log return, event day",
+    "Y1_aspi_log_return": "Y1 · ASPI % dev. vs 30d pre-mean, event day",
     "Y2_abnormal_volume": "Y2 · abnormal volume (V / 30-day mean − 1)",
     "Y3_recovery_days": "Y3 · recovery time (trading days, capped 90)",
     "Y1_car_5": "CAR[0,+5] · cumulative return, 5 trading days",
@@ -64,7 +64,7 @@ TARGET_LABELS = {
 }
 # Short forms for multi-panel figures, where the full labels collide.
 SHORT_TARGET_LABELS = {
-    "Y1_aspi_log_return": "Y1 · log return",
+    "Y1_aspi_log_return": "Y1 · % dev.",
     "Y2_abnormal_volume": "Y2 · abnormal volume",
     "Y3_recovery_days": "Y3 · recovery days",
     "Y1_sector_log_return": "Y1 · sector log return",

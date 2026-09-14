@@ -112,6 +112,19 @@ def test_engineer_disaster_features_pools_types_with_too_few_events():
     assert "disaster_Cyclone" not in out.columns
 
 
+def test_y1_is_nan_when_fewer_than_5_trading_sessions_remain():
+    """Dataset-boundary handling: never fabricate a truncated 5-day horizon."""
+    dates = pd.date_range("2024-01-01", periods=20, freq="B")
+    prices = np.linspace(100.0, 120.0, 20)
+    market_df = pd.DataFrame({"date": dates, "aspi_close": prices, "trading_volume": 1e6})
+    # Event 3 trading sessions from the end -- only 2 future sessions exist, not 5.
+    disaster_df = pd.DataFrame({"event_date": [dates[-3]]})
+
+    t = FeatureEngineer().build_targets(market_df, disaster_df).iloc[0]
+    assert np.isnan(t.Y1_aspi_log_return)
+    assert pd.isna(t.Y1_horizon_end_date)
+
+
 def test_build_targets_caps_recovery_days_at_90():
     dates = pd.date_range("2024-01-01", periods=140, freq="B")
     prices = np.concatenate([np.full(20, 100.0), np.linspace(80, 95, 120)])
@@ -144,11 +157,14 @@ def test_car_targets_accumulate_from_the_pre_event_close():
     fe = FeatureEngineer(FeatureEngineeringConfig())
     t = fe.build_targets(market, events).iloc[0]
 
-    expected = float(np.log(110.0 / 100.0))
-    assert t.Y1_aspi_log_return == pytest.approx(expected)
-    # Price is flat at 110 after the jump, so 5- and 10-day CARs equal the day-0 return.
-    assert t.Y1_car_5 == pytest.approx(expected)
-    assert t.Y1_car_10 == pytest.approx(expected)
+    # Y1 = ASPI_5D_Log_Return_Pct = 100 * ln(P[pos+5] / P[pos]). Price is already flat
+    # at 110 on the event day and stays there, so the 5-trading-day-forward move is 0
+    # -- the jump itself happened AT the reference day, not after it.
+    assert t.Y1_aspi_log_return == pytest.approx(0.0)
+    # CARs are unchanged: log return from the pre-event close (P[pos-1]).
+    expected_car = float(np.log(110.0 / 100.0))
+    assert t.Y1_car_5 == pytest.approx(expected_car)
+    assert t.Y1_car_10 == pytest.approx(expected_car)
 
 
 def test_car_targets_capture_drift_the_day0_return_misses():
@@ -160,10 +176,13 @@ def test_car_targets_capture_drift_the_day0_return_misses():
     events = pd.DataFrame({"event_date": [days[10]]})
 
     t = FeatureEngineer(FeatureEngineeringConfig()).build_targets(market, events).iloc[0]
-    assert t.Y1_aspi_log_return == pytest.approx(np.log(99.0 / 100.0))
+    # Y1 = 100 * ln(P[pos+5] / P[pos]) = 100 * ln(90 / 99): event-day close (99) as
+    # denominator, 5th-trading-day-forward close (90) as numerator.
+    assert t.Y1_aspi_log_return == pytest.approx(100.0 * np.log(90.0 / 99.0))
     assert t.Y1_car_5 == pytest.approx(np.log(90.0 / 100.0))
-    # The window return is a much larger loss than the single day showed.
-    assert t.Y1_car_5 < t.Y1_aspi_log_return
+    # The CAR window (from the pre-event close) shows a bigger loss than Y1 (from the
+    # event-day close itself, which had already partly dipped).
+    assert t.Y1_car_5 < -0.05
 
 
 def test_car_is_nan_rather_than_a_truncated_window():

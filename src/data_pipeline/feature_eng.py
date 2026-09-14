@@ -211,7 +211,8 @@ class FeatureEngineer:
         return pd.concat([df, one_hot], axis=1)
 
     def build_targets(self, market_df: pd.DataFrame, disaster_df: pd.DataFrame) -> pd.DataFrame:
-        """Build Y1 (log return), Y2 (abnormal volume), and Y3 (recovery days) per event."""
+        """Build Y1 (% dev. of post-week mean vs pre-30d mean), Y2 (abnormal volume), and
+        Y3 (recovery days) per event."""
         c = self.config
         market = market_df.copy().sort_values(c.date_col)
         market[c.date_col] = pd.to_datetime(market[c.date_col])
@@ -233,7 +234,23 @@ class FeatureEngineer:
 
             price_t = market.iloc[pos][c.price_col]
             price_tm1 = market.iloc[pos - 1][c.price_col]
-            y1 = float(np.log(price_t / price_tm1))
+
+            # Y1 = ASPI_5D_Log_Return_Pct -- five-trading-day forward cumulative log
+            # return, in percent: 100 * ln(ASPI_(t+5) / ASPI_t). `pos` is the reference
+            # trading day (first trading session on/after the event date -- the existing
+            # alignment rule, reused as-is). `market` is already indexed one row per
+            # TRADING session (non-trading days never appear in it), so pos+5 is exactly
+            # the fifth subsequent CSE trading session, not five calendar days.
+            # NaN (and the row excluded downstream) if fewer than 5 trading sessions
+            # remain after the event -- never fabricate a truncated horizon.
+            y1_horizon_pos = pos + 5
+            if y1_horizon_pos < len(market):
+                price_t5 = market.iloc[y1_horizon_pos][c.price_col]
+                y1 = float(100.0 * np.log(price_t5 / price_t))
+                y1_horizon_end_date = market.iloc[y1_horizon_pos][c.date_col]
+            else:
+                y1 = np.nan
+                y1_horizon_end_date = pd.NaT
 
             # Y2 needs a volume series. A sector index has none -- the CSE publishes
             # volume market-wide, not per sector -- so the sector panel calls this with
@@ -271,6 +288,10 @@ class FeatureEngineer:
             rows.append({
                 c.disaster_date_col: event_date,
                 "Y1_aspi_log_return": y1,
+                # Date of the trading session Y1's numerator is read from -- used only to
+                # purge train/test fold-boundary overlap in `walk_forward.purge_horizon_overlap`,
+                # never as a model feature.
+                "Y1_horizon_end_date": y1_horizon_end_date,
                 "Y2_abnormal_volume": y2,
                 "Y3_recovery_days": float(y3),
                 **cars,

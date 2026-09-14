@@ -95,7 +95,10 @@ def label_adverse_move_sigma(y, train_idx=None, dataset=None):
     leaves too few positives to support precision or recall. Never headline it.
     """
     v = y["Y1_aspi_log_return"]
-    sigma = dataset["rolling_std_30"].replace(0, np.nan)
+    # rolling_std_30 is computed on the daily log_return series (unchanged units), while
+    # Y1 is now a %-deviation-from-30d-mean (see feature_eng.build_targets) -- scale sigma
+    # to percent so the comparison stays meaningful.
+    sigma = (dataset["rolling_std_30"] * 100.0).replace(0, np.nan)
     return pd.Series(_binarise(v < -sigma, v.notna() & sigma.notna()), index=v.index)
 
 

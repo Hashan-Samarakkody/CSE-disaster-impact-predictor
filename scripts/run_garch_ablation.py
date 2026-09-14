@@ -34,7 +34,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.evaluation.metrics import bootstrap_metric_ci, evaluate_regression, skill_score
 from src.sampling.time_aware_smogn import time_aware_smogn
-from src.training.walk_forward import generate_walk_forward_splits
+from src.training.walk_forward import generate_walk_forward_splits, purge_horizon_overlap
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -63,9 +63,13 @@ def augment_fold(X_train, y_train, dates_train, type_cols, gdp_train=None,
     return X_aug, y_aug, report
 
 
-def run(feature_cols, X_all, y_all, dates_all, gdp_all, splits, type_cols):
+def run(feature_cols, X_all, y_all, dates_all, gdp_all, splits, type_cols, horizon_end_all):
     yt_all, yp_all = [], []
     for s in splits:
+        # ASPI_5D_Log_Return_Pct's label reads market prices up to 5 trading days past
+        # the event -- purge training events whose label horizon reaches into this
+        # fold's test period (fold-boundary embargo, see walk_forward.purge_horizon_overlap).
+        s = purge_horizon_overlap(s, dates_all, horizon_end_all)
         X_tr_real, X_te = X_all[feature_cols].iloc[s.train_index], X_all[feature_cols].iloc[s.test_index]
         y_tr_real, y_te = y_all.iloc[s.train_index], y_all.iloc[s.test_index]
         dates_tr = dates_all.iloc[s.train_index]
@@ -113,17 +117,19 @@ def main() -> None:
     X_all = dataset[feature_cols].fillna(0.0)
     y_all = dataset[["Y1_aspi_log_return", "Y3_recovery_days"]].copy()
     dates_all = dataset["event_date"]
+    horizon_end_all = dataset["Y1_horizon_end_date"]
     gdp_all = dataset["gdp_current_usd"] if "gdp_current_usd" in dataset.columns else None
     splits = list(generate_walk_forward_splits(len(X_all), TRAIN_WINDOW, TEST_WINDOW, STEP))
 
     with_garch = feature_cols
     without_garch = [c for c in feature_cols if c != "garch_cond_vol"]
 
-    yt_w, yp_w, m_w = run(with_garch, X_all, y_all, dates_all, gdp_all, splits, type_cols)
-    yt_wo, yp_wo, m_wo = run(without_garch, X_all, y_all, dates_all, gdp_all, splits, type_cols)
+    yt_w, yp_w, m_w = run(with_garch, X_all, y_all, dates_all, gdp_all, splits, type_cols, horizon_end_all)
+    yt_wo, yp_wo, m_wo = run(without_garch, X_all, y_all, dates_all, gdp_all, splits, type_cols, horizon_end_all)
 
     print("=" * 100)
-    print("Y1_aspi_log_return -- Ridge, with vs without garch_cond_vol (identical folds/SMOGN/selection)")
+    print("Y1_aspi_log_return (ASPI_5D_Log_Return_Pct) -- Ridge, with vs without garch_cond_vol "
+          "(identical folds/SMOGN/selection, purged for label-horizon/fold-boundary overlap)")
     print("=" * 100)
     print(f"{'variant':>18s} {'n':>4s} {'RMSE':>9s} {'MAE':>9s} {'pooled_R2':>10s}")
     print(f"{'without_garch':>18s} {len(yt_wo):>4d} {m_wo['rmse']:>9.5f} {m_wo['mae']:>9.5f} {m_wo['r2']:>10.5f}")
