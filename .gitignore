@@ -1,10 +1,20 @@
+# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
-*settings.json
-# Regenerable artifact cache (stage 01 rebuilds it). Figures in docs/figures ARE tracked,
-# so the thesis can cite them by a stable path.
-disaster_finance_predictor/artifacts/
+.ipynb_checkpoints/
+
+# Editor / OS / tooling state
+.vscode/
+.claude/
+.streamlit/
+Thumbs.db
+.DS_Store
+
+# Regenerable artifact cache. Stage 01 onward rebuilds every file here.
+# Figures in docs/figures/ ARE tracked, so the thesis can cite them by a stable path.
+artifacts/
 
 # nbconvert stderr logs
-disaster_finance_predictor/notebooks/err_*.txt
+notebooks/err_*.txt
+notebooks/nb_err.txt

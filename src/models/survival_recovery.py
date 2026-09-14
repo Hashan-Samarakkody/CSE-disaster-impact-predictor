@@ -1,0 +1,145 @@
+"""Right-censored survival model for Y3 (recovery time).
+
+`Y3_recovery_days` is capped at 90 trading days by construction (`feature_eng.py`,
+`max_recovery_days`). Every existing regressor for this target -- Ridge, Random Forest,
+XGBoost, the MLP, and the two-stage hurdle model (`hurdle.py`) -- treats an event that
+never recovered inside the window as an *observed* value of exactly 90. That is the wrong
+likelihood for this data shape: an event capped at 90 did not necessarily recover on day
+90, it recovered on some unknown day >= 90 that the 90-day follow-up window did not reach.
+Coding it as "observed at 90" biases every point-regression loss toward underestimating
+slow recoveries, which the results audit's own numbers show (`docs/RESULTS_AUDIT.txt`,
+Y3 hurdle: RMSE 41.2 vs a naive-mean RMSE of 29.5 -- worse than doing nothing).
+
+Right-censored survival analysis is the standard fix for exactly this shape (see
+`docs/METHODOLOGY_AUDIT.md`, "Improvement attempts", for the two papers this follows):
+capped events are marked `event_observed=False` and contribute their *lower bound* on
+recovery time to the likelihood, instead of a wrong point value.
+
+The target itself is unchanged -- this is a different likelihood for the same
+`Y3_recovery_days` column, not a new target.
+"""
+
+from __future__ import annotations
+
+import warnings
+
+import numpy as np
+import pandas as pd
+
+CAP = 90.0
+# lifelines' AFT fitters require strictly positive durations. A same-day recovery (Y3=0)
+# is a real, common outcome here (the resolved value is not "the market recovered before
+# it was ever perturbed", it is "recovered same day"), so every duration is shifted by
+# half a trading day rather than dropped or floored at 1 -- this is the standard interval-
+# censoring correction for a duration recorded at daily granularity, not a tuned offset.
+DURATION_EPS = 0.5
+
+
+class AFTRecoveryModel:
+    """Weibull/LogNormal AFT model with right-censoring at `cap`, chosen in-fold by AIC.
+
+    Mirrors `HurdleRecoveryModel`'s interface (`fit`, `predict`) and degenerate-fold
+    handling so it can be dropped into the same walk-forward loop and results table.
+    """
+
+    def __init__(self, cap: float = CAP, penalizer: float = 0.1):
+        self.cap = cap
+        self.penalizer = penalizer
+        self.model_ = None
+        self.feature_cols_ = None
+        self.fallback_ = None
+        self.degenerate_ = False
+
+    def fit(self, X, y):
+        from lifelines import LogNormalAFTFitter, WeibullAFTFitter
+        from lifelines.exceptions import ConvergenceError
+
+        X = pd.DataFrame(np.asarray(X))
+        y = np.asarray(y, dtype=float)
+        self.feature_cols_ = list(X.columns)
+        self.fallback_ = float(np.mean(y)) if len(y) else self.cap
+
+        censored = y >= self.cap
+        # A fold needs both event types (recovered and censored) and enough rows per
+        # feature for the AFT regression to identify anything; below that, degrade to the
+        # training mean exactly like the hurdle model does, rather than let lifelines
+        # raise on a degenerate design matrix.
+        if len(y) < 8 or censored.all() or (~censored).sum() < 4:
+            self.degenerate_ = True
+            return self
+
+        df = X.copy()
+        df["_duration"] = y + DURATION_EPS
+        df["_observed"] = ~censored
+
+        candidates = [WeibullAFTFitter(penalizer=self.penalizer),
+                      LogNormalAFTFitter(penalizer=self.penalizer)]
+        fitted, aics = [], []
+        for model in candidates:
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    model.fit(df, duration_col="_duration", event_col="_observed")
+                fitted.append(model)
+                aics.append(model.AIC_)
+            except (ConvergenceError, np.linalg.LinAlgError, ValueError):
+                continue
+
+        if not fitted:
+            self.degenerate_ = True
+            return self
+
+        self.model_ = fitted[int(np.argmin(aics))]
+        return self
+
+    def predict(self, X):
+        X = pd.DataFrame(np.asarray(X), columns=self.feature_cols_)
+        if self.degenerate_ or self.model_ is None:
+            return np.full(len(X), self.fallback_)
+
+        # Median survival time: robust point summary for a right-skewed AFT distribution,
+        # unlike the mean, which can be numerically unstable (Weibull/LogNormal tails).
+        median = self.model_.predict_median(X).to_numpy()
+        median = np.nan_to_num(median, nan=self.cap, posinf=self.cap) - DURATION_EPS
+        return np.clip(median, 0.0, self.cap)
+
+    def concordance_index(self, X, y):
+        """Harrell's C-index: the metric right-censored survival predictions should be
+        judged on (RMSE/MAE are still reported for comparability with the other models,
+        but they are not the metric this model was fit to optimise)."""
+        from lifelines.utils import concordance_index
+
+        if self.degenerate_ or self.model_ is None:
+            return float("nan")
+        X = pd.DataFrame(np.asarray(X), columns=self.feature_cols_)
+        y = np.asarray(y, dtype=float)
+        median = self.model_.predict_median(X).to_numpy()
+        median = np.nan_to_num(median, nan=self.cap * 10, posinf=self.cap * 10)
+        censored = y >= self.cap
+        # lifelines' convention: predicted_scores should be concordant with the duration
+        # itself (higher score = longer predicted survival), so the predicted median
+        # duration is passed directly, not negated (negation is only for hazard/risk
+        # scores, which point the opposite way -- see lifelines' own Cox example).
+        return float(concordance_index(y, median, event_observed=~censored))
+
+
+if __name__ == "__main__":
+    rng = np.random.default_rng(0)
+    n = 60
+    X = rng.normal(size=(n, 3))
+    true_duration = np.clip(np.abs(X[:, 0]) * 15 + rng.normal(0, 3, n), 0, None)
+    y = np.minimum(true_duration, CAP)
+
+    model = AFTRecoveryModel().fit(X, y)
+    assert not model.degenerate_, "should fit on a well-posed 60-row synthetic fold"
+    pred = model.predict(X)
+    assert pred.min() >= 0.0 and pred.max() <= CAP, (pred.min(), pred.max())
+    cidx = model.concordance_index(X, y)
+    assert 0.0 <= cidx <= 1.0, cidx
+    assert cidx > 0.55, f"expected the model to beat chance concordance (0.5), got {cidx}"
+
+    tiny = AFTRecoveryModel().fit(X[:5], y[:5])
+    assert tiny.degenerate_
+    assert np.allclose(tiny.predict(X[:5]), tiny.fallback_)
+
+    print(f"survival_recovery.py self-check passed (c-index={cidx:.3f})")
