@@ -1171,3 +1171,94 @@ independently agreed it does not carry enough signal to make the cut. The AFT su
 model's c-index result (0.568) stands as reported above, unaffected by this (Y3's
 feature pool is separately selected and the AFT script above was run against the exact
 same real dataset).
+
+## Y1 redefinition to 5-trading-day cumulative return, and a feature/model pass
+
+Following the improvement work above, the author redefined Y1 (target definition, not a
+technique) from a single-day log return to `ASPI_5D_Log_Return_Pct = 100 * ln(ASPI_(t+5)
+/ ASPI_t)`, `t+5` counted in actual CSE trading sessions (verified by hand against 5 real
+events; see the manual-verification note kept alongside `feature_eng.py`). This produced
+a positive pooled R2 for the first time on any Y1 model (ensemble R2=+0.085 at the point
+this redefinition was scored), though not statistically distinguishable from naive_zero
+(bootstrap CI on delta_rmse included zero). A fold-boundary purge
+(`src/training/walk_forward.py::purge_horizon_overlap`) was added at the same time,
+because a 5-day-forward label can otherwise leak across a walk-forward fold boundary --
+3 real event pairs in this dataset are closer together than the 5-trading-day horizon.
+
+A further feature/model pass was then run, cited and reasoned before implementation:
+
+- **Collinearity pruning composed into feature selection.** `src/evaluation/collinearity.py`
+  already implemented the pre-declared |rho|>=0.95 redundancy rule (see the collinearity
+  section earlier in this document) but it had never actually been wired into
+  `notebooks/04_modeling_regression.ipynb`'s `select_top_features` -- only RF-importance
+  ranking ran there. Composed as: redundancy-drop (reads no target, so not selection on
+  the test set) -> RF-importance top-k, on each fold's real training rows only. Standard
+  filter-method combination for small-N tabular data (VIF/correlation pruning + importance
+  ranking; a >0.75 correlation-pair diagnostic table is also generated and saved to
+  `artifacts/y1_feature_stability.csv`, but the ACTUAL drop threshold stays at the
+  pre-registered 0.95, per author decision, not the harder 0.75 that would count as
+  revising a pre-declared rule after seeing results).
+- **PCA** — added as a reported ablation only (`notebooks/04_modeling_regression.ipynb`,
+  section 4.8b): PCA(10 components)+Ridge vs RF-selected-features+Ridge, same folds. Not
+  adopted as a default (PCA components are uninterpretable, which cuts against the
+  explainability/SHAP chapter) unless it clearly wins.
+- **Gaussian Process regression, SVR, median quantile regression** added to the model
+  lineup (literature-standard choices for small-N nonlinear regression with calibrated
+  uncertainty; SVR specifically closes this document's own earlier-flagged open item,
+  "SVR specified but never implemented").
+
+### Measured effect (full official pipeline re-run, real data)
+
+Composing collinearity-drop into `select_top_features` changed EVERY model's Y1 result,
+not just the ones that use it directly (MLP inherits its feature set from the same
+per-fold selection). Before vs after, same folds, same pipeline:
+
+| model | RMSE before | RMSE after | R2 before | R2 after |
+|---|---|---|---|---|
+| ridge | 2.608 | 2.667 | -0.004 | -0.050 |
+| random_forest | 2.594 | 2.598 | +0.007 | +0.004 |
+| xgboost | 2.564 | 2.851 | +0.030 | -0.200 |
+| mlp | 2.766 | 2.926 | -0.130 | -0.264 |
+| **ensemble** | **2.489** | **2.652** | **+0.085** | **-0.039** |
+
+This is an honest negative result for Y1: composing the pre-declared collinearity rule
+into the actual scored pipeline made the ensemble (and every individual model except RF,
+roughly flat) measurably WORSE on point-prediction metrics, flipping the one positive R2
+result of the day back negative. The likely mechanism: RF-importance ranking already
+implicitly down-weights redundant correlated features on its own, so the extra hard
+pre-filter mostly removes features that, despite correlation, still carried fold-specific
+marginal signal at this N -- collinearity pruning is a correctness/interpretability
+argument (it directly fixes a documented problem: `sma_5/10/20` etc. at ~99% mutual
+correlation), not a guaranteed RMSE improvement, especially with only ~30 training rows
+per fold where any feature-set change is high-variance.
+
+Y2 moved the other way (RF R2 0.247->0.268, and SVR/GP/XGBoost/ensemble all newly beat
+naive_zero where previously only RF/ensemble/XGBoost did) -- the same change helped one
+target and hurt another, which is itself informative: it is evidence AGAINST a single
+fixed feature-selection recipe being optimal for all three targets simultaneously, not
+evidence that collinearity-pruning is simply "good" or "bad" in general.
+
+**SVR and Gaussian Process regression**: SVR is now the only Y1 model with both a
+positive pooled R2 (+0.018) and a positive skill vs naive_zero, at this specific
+snapshot of the feature pipeline -- reported, not yet claimed as a stable winner (single
+run, no dedicated bootstrap-CI comparison of SVR vs naive_zero performed yet; see the Y1
+experiment suite below for that comparison). GP scores close to zero (R2=-0.009),
+consistent with the general small-N finding that GP's main value here is calibrated
+uncertainty, not a point-accuracy win.
+
+**Quantile regression (median, alpha=0.01, solver="highs")**: badly miscalibrated on
+every target (Y1 R2=-2.73, Y2 R2=-1.33, Y3 substantially worse than naive) -- the fixed
+alpha=0.01 is very likely too weak a regularizer for a ~76-row, ~20-feature design after
+collinearity pruning, letting the LP-based fit chase individual training points. Recorded
+as a failed configuration, not a working addition to the lineup as currently tuned; would
+need either much stronger regularization or a proper inner-CV alpha search (not attempted
+here, ponytail: shipped the lazy fixed-alpha version, this is exactly the case where it
+measurably underperforms and the grid-search upgrade is warranted before using it for
+anything).
+
+### Y1-specific experiment suite (SMOGN ablation, compact features, regime features,
+ExtraTrees, single-task modeling, OOF ensemble weighting, shrinkage)
+
+See `scripts/run_y1_experiments.py` for the full implementation and
+`artifacts/y1_experiments_ranked.csv` / `artifacts/y1_feature_stability.csv` for results.
+Numbers appended below once the run completes.

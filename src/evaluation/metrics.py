@@ -159,6 +159,31 @@ def skill_score(rmse_model: float, rmse_reference: float) -> float:
     return 1.0 - rmse_model / rmse_reference
 
 
+def extended_regression_metrics(y_true, y_pred, y_true_reference_std=None):
+    """Secondary diagnostics for a regression target, beyond RMSE/MAE/R2: median
+    absolute error, directional accuracy (sign match -- meaningful for a return-like
+    target that can be +/-), Pearson and Spearman correlation, and RMSE normalised by
+    the target's own standard deviation (scale-free, so a 5-day target's larger raw
+    RMSE than a 1-day target isn't mistaken for a worse model). Called "predictive
+    skill" / "forecasting performance" diagnostics, never "accuracy" (that word is
+    reserved for the directional metric, where it is literally a hit rate)."""
+    from scipy import stats
+
+    yt = np.asarray(y_true, dtype=float)
+    yp = np.asarray(y_pred, dtype=float)
+    ref_std = float(np.std(yt)) if y_true_reference_std is None else y_true_reference_std
+    pearson = float(stats.pearsonr(yt, yp)[0]) if len(yt) > 2 and np.std(yp) > 0 else float("nan")
+    spearman = float(stats.spearmanr(yt, yp)[0]) if len(yt) > 2 and np.std(yp) > 0 else float("nan")
+    rmse = float(np.sqrt(np.mean((yt - yp) ** 2)))
+    return {
+        "median_abs_error": float(np.median(np.abs(yt - yp))),
+        "directional_accuracy": float(np.mean(np.sign(yt) == np.sign(yp))),
+        "pearson_r": pearson,
+        "spearman_rho": spearman,
+        "rmse_normalized": rmse / ref_std if ref_std > 0 else float("nan"),
+    }
+
+
 def bootstrap_auc_ci(y_true, y_score, n_boot=5000, alpha=0.05, random_state=42):
     """Stratified bootstrap CI for an AUC.
 
