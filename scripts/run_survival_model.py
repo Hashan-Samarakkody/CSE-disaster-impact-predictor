@@ -79,6 +79,7 @@ def main() -> None:
     store_naive_zero = {"y_true": [], "y_pred": [], "folds": []}
     store_naive_mean = {"y_true": [], "y_pred": [], "folds": []}
     cidx_folds = []
+    fold_detail = []
 
     for fold_i, s in enumerate(splits):
         X_tr_real, X_te = X_all.iloc[s.train_index], X_all.iloc[s.test_index]
@@ -104,8 +105,20 @@ def main() -> None:
         store_aft["y_true"].append(y_te_t.to_numpy())
         store_aft["y_pred"].append(pred_aft)
         store_aft["folds"].append(fold_i)
+        y_te_arr = y_te_t.to_numpy()
+        fold_censored = int((y_te_arr >= CAP).sum())
+        fold_detail.append({
+            "fold": fold_i, "n_test": len(y_te_arr), "n_censored_test": fold_censored,
+            "n_uncensored_test": len(y_te_arr) - fold_censored,
+            "rmse": float(np.sqrt(np.mean((y_te_arr - pred_aft) ** 2))),
+            "mae": float(np.mean(np.abs(y_te_arr - pred_aft))),
+        })
         if not aft.degenerate_ and aft.model_ is not None:
-            cidx_folds.append(aft.concordance_index(X_te_sel, y_te_t.to_numpy()))
+            cidx = aft.concordance_index(X_te_sel, y_te_arr)
+            cidx_folds.append(cidx)
+            fold_detail[-1]["c_index"] = cidx
+        else:
+            fold_detail[-1]["c_index"] = float("nan")
 
         train_mean = float(y_tr_real[TARGET].dropna().mean())
         store_naive_zero["y_true"].append(y_te_t.to_numpy())
@@ -147,9 +160,35 @@ def main() -> None:
     if cidx_folds:
         print(f"Harrell's C-index (censoring-aware; the metric this model is actually "
               f"fit to optimise), per-fold: {[f'{c:.3f}' for c in cidx_folds]}, "
-              f"mean={np.mean(cidx_folds):.3f} (0.5 = chance, only >0.5 is a real signal)")
+              f"mean={np.mean(cidx_folds):.3f} std={np.std(cidx_folds):.3f} "
+              f"(0.5 = chance, only >0.5 is a real signal)")
     else:
         print("No fold produced a non-degenerate AFT fit -- see AFTRecoveryModel.degenerate_.")
+
+    n_censored_total = int((yt_aft >= CAP).sum())
+    print()
+    print(f"censoring proportion (pooled test points): {n_censored_total}/{len(yt_aft)} "
+          f"= {n_censored_total / len(yt_aft):.1%}")
+    print(f"uncensored recoveries (pooled test points): {len(yt_aft) - n_censored_total}")
+
+    print()
+    print("per-fold detail:")
+    detail_df = pd.DataFrame(fold_detail)
+    print(detail_df.to_string(index=False))
+
+    uncensored_mask = yt_aft < CAP
+    if uncensored_mask.sum() >= 6:
+        yt_u, yp_u = yt_aft[uncensored_mask], yp_aft[uncensored_mask]
+        corr = float(np.corrcoef(yt_u, yp_u)[0, 1])
+        terciles = pd.qcut(yp_u, q=3, labels=["low_pred", "mid_pred", "high_pred"], duplicates="drop")
+        calib = pd.DataFrame({"actual": yt_u, "predicted": yp_u, "bucket": terciles}).groupby(
+            "bucket", observed=True)[["actual", "predicted"]].mean()
+        print()
+        print(f"calibration (uncensored only, n={uncensored_mask.sum()}): "
+              f"Pearson r(actual, predicted median) = {corr:+.3f}")
+        print(calib.to_string())
+    else:
+        print("\ncalibration: fewer than 6 uncensored pooled points -- not attempted.")
 
 
 if __name__ == "__main__":
