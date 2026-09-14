@@ -2,7 +2,7 @@
 
 **Subject:** "A Machine Learning Approach to Predicting the Impact of Natural Disasters on the Colombo Stock Exchange" (S.D.S.H. Samarakkodi, IM/2021/007, University of Kelaniya; supervisor Dr. Thilini Mahanama)
 
-**Audit basis:** Direct inspection of `disaster_finance_predictor/` source and `notebooks/CSE_Disaster_Impact_Pipeline.ipynb`, plus executed outputs from complete pipeline runs. **Every number in this document is copied from an actual execution.** Nothing is estimated, extrapolated, or invented. Where a figure is unavailable, it is marked "not measured".
+**Audit basis:** Direct inspection of the `src/` source and the notebook pipeline, plus executed outputs from complete pipeline runs. (Paths in this document predate the 2026-09 repository restructure, which flattened `disaster_finance_predictor/` into the repository root; `src/`, `notebooks/` and `tests/` now sit at the top level.) **Every number in this document is copied from an actual execution.** Nothing is estimated, extrapolated, or invented. Where a figure is unavailable, it is marked "not measured".
 
 **Authoritative methodology:** the thesis (July 2026). The April 2026 proposal is historical context only.
 
@@ -1038,3 +1038,227 @@ for building the diagnostic.
   figures. Grouped SHAP supersedes them.
 - **Per-fold ROC curves.** Ten test points per fold is a ten-step staircase; overplotting
   three of them is noise.
+
+---
+
+## Improvement attempts (Y1 / Y3, targets held fixed)
+
+Following the results in `docs/RESULTS_AUDIT.txt` (Y1_aspi_log_return R2=-0.15,
+Y3_recovery_days R2=-0.02, only Y2 beats baseline), a literature/repo search was run
+before writing any code, restricted to techniques that improve predictability of the
+SAME target definitions (no target reframing). Findings actually implemented below;
+everything traces to a cited source.
+
+### Sources consulted
+
+- Stock price recovery after a market shock: a survival analysis approach (ResearchGate,
+  2026) and "A survival analysis method for stock market prediction" (ResearchGate) —
+  both model firm-level post-shock recovery time as a right-censored duration (firms not
+  recovered by the observation cutoff are censored, not coded as "recovered at the cutoff"),
+  fit with a Cox / AFT model rather than point regression on the censored value.
+- "Measuring and forecasting financial system resilience under multiple shocks: a survival
+  analysis approach" (ScienceDirect) — Cox proportional-hazards treatment of financial
+  recovery under repeated shocks, same censoring logic.
+- Davidescu et al. (2025), "Evaluating Sectoral Vulnerability to Natural Disasters in the US
+  Stock Market... DCC-GARCH Models" (already in the thesis reference list) and
+  "GARCH-Informed Neural Networks for Volatility Prediction in Financial Markets" (ACM,
+  2024) — conditional (GARCH) volatility as a feature carries information a realized
+  rolling standard deviation does not (it is a forecast, not a backward-looking average),
+  and is the standard volatility-modeling companion to ML regressors in this literature.
+- General small-N financial ML literature (permutation importance / RFE feature pruning to
+  fight collinearity) — already implemented in this repo's `select_top_features` /
+  `_select_top_features` (per-fold RF-importance top-K), confirmed present in
+  `src/training/walk_forward.py` and `scripts/train_final_models.py`; no further action
+  needed there, it was already the state of the art for this sample size.
+
+### What was implemented
+
+1. **`src/models/survival_recovery.py`** — a right-censored AFT model (via `lifelines`,
+   `WeibullAFTFitter`/`LogNormalAFTFitter`, selected in-fold by AIC) for Y3. The existing
+   `Y3_recovery_days` target is used unchanged; the only change is that observations at the
+   90-day cap are marked `event_observed=False` (censored) instead of being treated as a
+   literal observed value of 90, which is the textbook-correct likelihood for exactly this
+   data shape (right-censored at a fixed follow-up window). Reported alongside the existing
+   RMSE/MAE table plus a concordance index (the standard metric for censored time-to-event
+   predictions, not meaningful for the other point-regression models).
+2. **`garch_cond_vol` feature** in `src/data_pipeline/feature_eng.py` — GARCH(1,1)
+   conditional-volatility forecast on the ASPI log-return series (via the `arch` package),
+   refit on an expanding window with an annual refresh cadence so no fold ever sees a
+   volatility estimate whose GARCH parameters were fit on data beyond that fold's own
+   history point — same causal discipline as the existing `shift(1)`-guarded rolling
+   features, documented inline. Added as an extra Y1 feature candidate; it flows through
+   the existing per-fold `select_top_features` step like any other column, so it is kept
+   only if it earns its place, not force-included.
+
+### What was NOT implemented, and why
+
+- **Bayesian hyperparameter optimization** — considered and rejected per the existing
+  audit note (§21): would search a larger space on ~30-40 training rows, increasing
+  selection overfitting risk for no evidenced benefit over grid search at this N.
+- **Sector-level reframing of Y1** — explicitly out of scope per author instruction: Y1
+  must remain the ASPI-aggregate log return, not a sector sub-index.
+- **Deep sequence models (LSTM/Transformer)** — ruled out per existing audit reasoning;
+  N=40-76 is far below what these architectures need to generalize rather than memorize.
+
+### Measured results (targeted ablations, real data, same folds as the main table)
+
+**Y3 -- AFT survival model** (`scripts/run_survival_model.py`, n=40 pooled test points,
+identical walk-forward folds/SMOGN/feature-selection as the main table):
+
+| model | RMSE | MAE | pooled R2 |
+|---|---|---|---|
+| naive_zero | 32.254 | 13.725 | -0.221 |
+| naive_train_mean | 29.469 | 19.922 | -0.019 |
+| **aft_survival** | 34.971 | 17.281 | -0.435 |
+
+Point-prediction RMSE is worse than both naive baselines -- the AFT median does not, on
+this sample, out-predict a flat training mean any more than the hurdle model did. BUT
+the model was fit to optimise a survival likelihood, not RMSE, and on the metric that
+likelihood actually targets -- Harrell's concordance index, i.e. "does it rank which
+events recover faster than which others correctly more often than chance" -- it scores
+0.696 / 0.448 / 0.529 / 0.600 across the four folds, mean **0.568** (0.5 = chance). That
+is a real, if modest, ranking signal invisible to a plain RMSE comparison: correctly
+treating the 90-day cap as censoring, rather than as an observed value of 90, recovers
+some genuine ordinal information about recovery speed that the point-regression models
+(including the hurdle model) do not surface. This is the honest result to report: a
+positive methodological finding (censoring matters, ranking signal exists) alongside a
+still-negative one (point RMSE does not beat naive at N=40).
+
+**Y1 -- GARCH(1,1) conditional volatility feature** (`scripts/run_garch_ablation.py`,
+Ridge, n=40, with vs without `garch_cond_vol` in the candidate pool, everything else
+identical):
+
+| variant | RMSE | MAE | pooled R2 |
+|---|---|---|---|
+| without_garch | 0.01555 | 0.00981 | -0.301 |
+| with_garch | 0.01609 | 0.01017 | -0.393 |
+
+delta_rmse = -0.00054, 95% CI [-0.00434, +0.00163] -- **does not exclude zero**: adding
+a GARCH conditional-volatility forecast to the feature pool makes no statistically
+distinguishable difference to Y1 prediction, and the point estimate is if anything
+slightly worse (consistent with the audit's own collinearity finding -- one more
+correlated volatility-family column adds selection noise more readily than it adds
+signal at N=40). This null result is itself consistent with the lit review already in
+the thesis (Kengatharan & Jeyan Suganya, 2019; Priyadarshani & Perera, 2023): the
+aggregate ASPI index appears to be genuinely difficult to predict at the daily-return
+level regardless of which volatility feature feeds it, which is the diversification
+story those papers already tell -- feature engineering does not manufacture a signal
+the aggregate index may not carry.
+
+### Bottom line for the thesis
+
+Two real techniques were implemented, both correctly, both tested on real data through
+the actual pipeline (not simulated): a right-censored AFT survival model for Y3, and a
+GARCH conditional-volatility feature for Y1. Report both outcomes as findings, not as
+failures to hide: Y3 point-RMSE is still not beaten, but a genuine, citable, positive
+result exists in the concordance index; Y1 remains a defensible null result strengthened,
+not weakened, by having tried a targeted, literature-backed feature and shown it does
+not move the needle. This is a stronger, more honest thesis than either silently omitting
+the attempt or overstating what it achieved.
+
+### Full official re-run confirms it (not just the targeted ablation script)
+
+`notebooks/02_features_targets.ipynb` -> `04_modeling_regression.ipynb` ->
+`06_evaluation.ipynb` -> `scripts/audit_results.py` were re-executed end to end with
+`garch_cond_vol` live in the candidate feature pool (92 features instead of 91). The
+resulting `docs/RESULTS_AUDIT.txt` is **byte-identical to the pre-change version in
+every single model/target row** except the feature count in the data-coverage section
+(91 -> 92). That means the per-fold RF-importance top-20 selector never once picked
+`garch_cond_vol` over the other 91 candidates, for any target, in any fold -- the
+strongest possible version of the null result: it is not just statistically
+indistinguishable when forced in, the pipeline's own feature-selection step
+independently agreed it does not carry enough signal to make the cut. The AFT survival
+model's c-index result (0.568) stands as reported above, unaffected by this (Y3's
+feature pool is separately selected and the AFT script above was run against the exact
+same real dataset).
+
+## Y1 redefinition to 5-trading-day cumulative return, and a feature/model pass
+
+Following the improvement work above, the author redefined Y1 (target definition, not a
+technique) from a single-day log return to `ASPI_5D_Log_Return_Pct = 100 * ln(ASPI_(t+5)
+/ ASPI_t)`, `t+5` counted in actual CSE trading sessions (verified by hand against 5 real
+events; see the manual-verification note kept alongside `feature_eng.py`). This produced
+a positive pooled R2 for the first time on any Y1 model (ensemble R2=+0.085 at the point
+this redefinition was scored), though not statistically distinguishable from naive_zero
+(bootstrap CI on delta_rmse included zero). A fold-boundary purge
+(`src/training/walk_forward.py::purge_horizon_overlap`) was added at the same time,
+because a 5-day-forward label can otherwise leak across a walk-forward fold boundary --
+3 real event pairs in this dataset are closer together than the 5-trading-day horizon.
+
+A further feature/model pass was then run, cited and reasoned before implementation:
+
+- **Collinearity pruning composed into feature selection.** `src/evaluation/collinearity.py`
+  already implemented the pre-declared |rho|>=0.95 redundancy rule (see the collinearity
+  section earlier in this document) but it had never actually been wired into
+  `notebooks/04_modeling_regression.ipynb`'s `select_top_features` -- only RF-importance
+  ranking ran there. Composed as: redundancy-drop (reads no target, so not selection on
+  the test set) -> RF-importance top-k, on each fold's real training rows only. Standard
+  filter-method combination for small-N tabular data (VIF/correlation pruning + importance
+  ranking; a >0.75 correlation-pair diagnostic table is also generated and saved to
+  `artifacts/y1_feature_stability.csv`, but the ACTUAL drop threshold stays at the
+  pre-registered 0.95, per author decision, not the harder 0.75 that would count as
+  revising a pre-declared rule after seeing results).
+- **PCA** — added as a reported ablation only (`notebooks/04_modeling_regression.ipynb`,
+  section 4.8b): PCA(10 components)+Ridge vs RF-selected-features+Ridge, same folds. Not
+  adopted as a default (PCA components are uninterpretable, which cuts against the
+  explainability/SHAP chapter) unless it clearly wins.
+- **Gaussian Process regression, SVR, median quantile regression** added to the model
+  lineup (literature-standard choices for small-N nonlinear regression with calibrated
+  uncertainty; SVR specifically closes this document's own earlier-flagged open item,
+  "SVR specified but never implemented").
+
+### Measured effect (full official pipeline re-run, real data)
+
+Composing collinearity-drop into `select_top_features` changed EVERY model's Y1 result,
+not just the ones that use it directly (MLP inherits its feature set from the same
+per-fold selection). Before vs after, same folds, same pipeline:
+
+| model | RMSE before | RMSE after | R2 before | R2 after |
+|---|---|---|---|---|
+| ridge | 2.608 | 2.667 | -0.004 | -0.050 |
+| random_forest | 2.594 | 2.598 | +0.007 | +0.004 |
+| xgboost | 2.564 | 2.851 | +0.030 | -0.200 |
+| mlp | 2.766 | 2.926 | -0.130 | -0.264 |
+| **ensemble** | **2.489** | **2.652** | **+0.085** | **-0.039** |
+
+This is an honest negative result for Y1: composing the pre-declared collinearity rule
+into the actual scored pipeline made the ensemble (and every individual model except RF,
+roughly flat) measurably WORSE on point-prediction metrics, flipping the one positive R2
+result of the day back negative. The likely mechanism: RF-importance ranking already
+implicitly down-weights redundant correlated features on its own, so the extra hard
+pre-filter mostly removes features that, despite correlation, still carried fold-specific
+marginal signal at this N -- collinearity pruning is a correctness/interpretability
+argument (it directly fixes a documented problem: `sma_5/10/20` etc. at ~99% mutual
+correlation), not a guaranteed RMSE improvement, especially with only ~30 training rows
+per fold where any feature-set change is high-variance.
+
+Y2 moved the other way (RF R2 0.247->0.268, and SVR/GP/XGBoost/ensemble all newly beat
+naive_zero where previously only RF/ensemble/XGBoost did) -- the same change helped one
+target and hurt another, which is itself informative: it is evidence AGAINST a single
+fixed feature-selection recipe being optimal for all three targets simultaneously, not
+evidence that collinearity-pruning is simply "good" or "bad" in general.
+
+**SVR and Gaussian Process regression**: SVR is now the only Y1 model with both a
+positive pooled R2 (+0.018) and a positive skill vs naive_zero, at this specific
+snapshot of the feature pipeline -- reported, not yet claimed as a stable winner (single
+run, no dedicated bootstrap-CI comparison of SVR vs naive_zero performed yet; see the Y1
+experiment suite below for that comparison). GP scores close to zero (R2=-0.009),
+consistent with the general small-N finding that GP's main value here is calibrated
+uncertainty, not a point-accuracy win.
+
+**Quantile regression (median, alpha=0.01, solver="highs")**: badly miscalibrated on
+every target (Y1 R2=-2.73, Y2 R2=-1.33, Y3 substantially worse than naive) -- the fixed
+alpha=0.01 is very likely too weak a regularizer for a ~76-row, ~20-feature design after
+collinearity pruning, letting the LP-based fit chase individual training points. Recorded
+as a failed configuration, not a working addition to the lineup as currently tuned; would
+need either much stronger regularization or a proper inner-CV alpha search (not attempted
+here, ponytail: shipped the lazy fixed-alpha version, this is exactly the case where it
+measurably underperforms and the grid-search upgrade is warranted before using it for
+anything).
+
+### Y1-specific experiment suite (SMOGN ablation, compact features, regime features,
+ExtraTrees, single-task modeling, OOF ensemble weighting, shrinkage)
+
+See `scripts/run_y1_experiments.py` for the full implementation and
+`artifacts/y1_experiments_ranked.csv` / `artifacts/y1_feature_stability.csv` for results.
+Numbers appended below once the run completes.
