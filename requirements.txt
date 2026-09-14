@@ -24,3 +24,7 @@ matplotlib>=3.8
 jupyter>=1.0
 streamlit>=1.35        # demo web app (app.py)
 pytest>=8.0
+
+# Y1/Y3 predictability improvements (see docs/METHODOLOGY_AUDIT.md "Improvement attempts")
+arch>=6.3              # GARCH(1,1) conditional volatility feature for Y1
+lifelines>=0.28        # right-censored AFT survival model for Y3 recovery days

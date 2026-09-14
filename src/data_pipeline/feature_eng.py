@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
@@ -10,6 +11,78 @@ import pandas as pd
 
 
 EXCLUDED_DISASTER_TYPES = {"epidemic", "biological", "biological disaster", "pandemic"}
+
+# Minimum trailing history a calendar year needs before GARCH is allowed to speak for it
+# at all. See `_garch_conditional_volatility` for why annual (not per-row) refitting is
+# the causal-safe choice here.
+GARCH_MIN_HISTORY = 250
+
+
+def _garch_conditional_volatility(dates: pd.Series, log_returns: pd.Series) -> pd.Series:
+    """Causal GARCH(1,1) conditional-volatility forecast, aggregate ASPI level.
+
+    Rationale: `rolling_std_*` (above) is a *realized*, backward-looking dispersion
+    measure. A GARCH(1,1) conditional volatility is a one-step-ahead *forecast* that
+    weights recent shocks more than old ones and mean-reverts to a long-run level -- a
+    genuinely different, complementary signal, not a relabelling of the rolling-std
+    columns (see docs/METHODOLOGY_AUDIT.md, "Improvement attempts", for the two papers
+    behind this addition). It is added as a *candidate* feature: the existing per-fold
+    `select_top_features` RF-importance step decides whether it earns a place, same as
+    every other column.
+
+    Causality: refitting a GARCH model on every row's own trailing window (as an
+    analyst well past this event date would) is what a live forecaster would do, but
+    literally refitting per-row is not what happened here -- for speed, the fit is
+    refreshed once per calendar year, using ONLY returns strictly before that year, and
+    that single year's fixed (omega, alpha, beta) parameters are then used to filter the
+    conditional-variance recursion forward through the year using only its own (already
+    causal, same-direction) past returns. No row's feature value at date `t` is ever
+    computed from a fit that included any return on or after `t`. The first
+    `GARCH_MIN_HISTORY` trading days have no prior year with enough history and are left
+    NaN -- consistent with how the rolling-window features above are NaN at the start of
+    the sample.
+    """
+    from arch import arch_model
+    from arch.utility.exceptions import ConvergenceWarning
+
+    returns_pct = (log_returns * 100.0).to_numpy()  # arch's default scale is % returns
+    years = pd.to_datetime(dates).dt.year.to_numpy()
+    out = np.full(len(returns_pct), np.nan)
+
+    for year in sorted(set(years)):
+        train_mask = years < year
+        if train_mask.sum() < GARCH_MIN_HISTORY:
+            continue
+        train_returns = returns_pct[train_mask]
+        train_returns = train_returns[~np.isnan(train_returns)]
+        if len(train_returns) < GARCH_MIN_HISTORY:
+            continue
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=ConvergenceWarning)
+                fitted = arch_model(train_returns, vol="Garch", p=1, q=1, rescale=False).fit(
+                    disp="off", show_warning=False)
+        except (ValueError, np.linalg.LinAlgError):
+            continue  # a year whose training history fails to converge is left NaN, not guessed
+
+        this_year_mask = years == year
+        this_year_returns = np.nan_to_num(returns_pct[this_year_mask], nan=0.0)
+
+        # `.fix(params)` re-runs the SAME (already-fitted, strictly-prior-year) GARCH
+        # recursion through a longer series without re-estimating anything -- it is a
+        # pure filter pass, not a refit, so appending this year's returns and reading off
+        # the tail is causal: the recursion at position i uses only returns[0..i-1].
+        combined = np.concatenate([train_returns, this_year_returns])
+        try:
+            filtered = arch_model(combined, vol="Garch", p=1, q=1,
+                                   rescale=False).fix(fitted.params)
+        except (ValueError, np.linalg.LinAlgError):
+            continue
+        cond_vol = filtered.conditional_volatility[-this_year_mask.sum():]
+        out[this_year_mask] = cond_vol / 100.0  # back to log-return scale
+
+    return pd.Series(out, index=log_returns.index)
 
 
 @dataclass
@@ -68,6 +141,18 @@ class FeatureEngineer:
         df["rolling_std_30"] = shifted_returns.rolling(window=30, min_periods=30).std()
 
         df["squared_return"] = df["log_return"] ** 2
+
+        # One-step-ahead GARCH(1,1) conditional volatility forecast, causal by
+        # construction (see `_garch_conditional_volatility`) -- a genuinely different
+        # signal from the realized `rolling_std_*` above, added as a candidate feature
+        # for the existing per-fold RF-importance selection to keep or drop.
+        try:
+            df["garch_cond_vol"] = _garch_conditional_volatility(df[c.date_col], df["log_return"])
+        except ImportError:
+            # `arch` is an added, optional dependency (requirements.txt); a pipeline run
+            # without it degrades to not having this one candidate feature, not to a
+            # crash.
+            pass
 
         # Pre-event volume block. Y2 is DEFINED as V_t / mean(V_{t-30..t-1}) - 1, so the same
         # functional one trading day earlier is its natural autoregressive predictor. Every

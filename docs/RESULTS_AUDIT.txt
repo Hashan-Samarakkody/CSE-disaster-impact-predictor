@@ -288,7 +288,7 @@ naive_train_mean 40            19.922 29.469
 ====================================================================================================
 10. DATA COVERAGE -- what the external sources actually bought
 ====================================================================================================
-events: 76 | features: 91 | external features: 18
+events: 76 | features: 92 | external features: 18
 external feature coverage: 100.0%-100.0%
 financial_damage real (the variable they were added to replace): 18/76
 DesInventar matched: 52/76
