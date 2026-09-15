@@ -1,0 +1,281 @@
+<title>Model Architecture Sheet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#EEF0EE; --ink:#14181A; --muted:#5B625E; --line:#D3D6D2; --line-strong:#B9BEB9;
+  --accent:#9C6B1F; --accent-soft:#F1E3C9;
+  --accent2:#1E6E64; --accent2-soft:#DCEEEA;
+  --ok:#2E7D4F; --ok-soft:#E1F0E5;
+  --warn:#9C6B1F; --warn-soft:#F1E3C9;
+  --null:#8A4A3A; --null-soft:#F1E0DA;
+  --card:#F7F8F6; --card-line:#DADDD9;
+  --shadow: 0 1px 2px rgba(20,24,26,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14181A; --ink:#ECEEEA; --muted:#9AA39C; --line:#2B322E; --line-strong:#3A423D;
+    --accent:#D9A64B; --accent-soft:#3A2F17;
+    --accent2:#4FB3A4; --accent2-soft:#173330;
+    --ok:#5FBE84; --ok-soft:#173321;
+    --warn:#D9A64B; --warn-soft:#3A2F17;
+    --null:#D98A72; --null-soft:#3A2018;
+    --card:#191E20; --card-line:#2A3130;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14181A; --ink:#ECEEEA; --muted:#9AA39C; --line:#2B322E; --line-strong:#3A423D;
+  --accent:#D9A64B; --accent-soft:#3A2F17;
+  --accent2:#4FB3A4; --accent2-soft:#173330;
+  --ok:#5FBE84; --ok-soft:#173321;
+  --warn:#D9A64B; --warn-soft:#3A2F17;
+  --null:#D98A72; --null-soft:#3A2018;
+  --card:#191E20; --card-line:#2A3130;
+  --shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink); margin:0;
+  font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size:15px; line-height:1.55;
+}
+.wrap{max-width:920px; margin:0 auto; padding:56px 20px 80px;}
+
+.masthead{display:flex; flex-direction:column; gap:18px; margin-bottom:8px;}
+.eyebrow{
+  font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--accent2);
+}
+h1{
+  font-family:"Newsreader", Georgia, serif; font-weight:500; font-size:clamp(30px,5vw,42px);
+  margin:0; text-wrap:balance; letter-spacing:-.01em;
+}
+h1 em{color:var(--accent); font-style:italic;}
+.lede{max-width:62ch; color:var(--muted); margin:0; font-size:16px;}
+
+.stat-strip{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden;
+  margin:30px 0 48px;
+}
+.stat{background:var(--card); padding:14px 16px; display:flex; flex-direction:column; gap:4px;}
+.stat .n{
+  font-family:"IBM Plex Mono", monospace; font-variant-numeric:tabular-nums;
+  font-size:20px; font-weight:600; color:var(--ink);
+}
+.stat .l{font-size:11px; color:var(--muted); letter-spacing:.04em; text-transform:uppercase;}
+
+.model{
+  border-top:1px solid var(--line-strong); padding:40px 0 6px;
+}
+.model:first-of-type{border-top:none; padding-top:8px;}
+.model-head{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:6px;}
+.model-name{
+  font-family:"Newsreader", Georgia, serif; font-size:26px; font-weight:500; margin:0;
+}
+.model-target{
+  font-family:"IBM Plex Mono", monospace; font-size:12px; color:var(--muted);
+}
+.model-desc{color:var(--muted); max-width:66ch; margin:0 0 22px; font-size:14.5px;}
+
+.status{
+  display:inline-flex; align-items:center; gap:6px; padding:3px 10px 3px 8px; border-radius:999px;
+  font-family:"IBM Plex Mono", monospace; font-size:11.5px; font-weight:500; letter-spacing:.02em;
+  white-space:nowrap;
+}
+.status::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
+.status.ok{background:var(--ok-soft); color:var(--ok);}
+.status.warn{background:var(--warn-soft); color:var(--warn);}
+.status.null{background:var(--null-soft); color:var(--null);}
+
+.diagram{
+  background:var(--card); border:1px solid var(--card-line); border-radius:4px;
+  padding:20px 16px 12px; margin:0 0 20px; overflow-x:auto; box-shadow:var(--shadow);
+}
+.diagram :is(.mermaid){display:flex; justify-content:center; min-width:640px;}
+
+.metrics{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden;
+  margin-bottom:14px;
+}
+.metric{background:var(--card); padding:10px 14px;}
+.metric .v{
+  font-family:"IBM Plex Mono", monospace; font-variant-numeric:tabular-nums;
+  font-size:17px; font-weight:600;
+}
+.metric .k{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
+
+.note{
+  font-size:13px; color:var(--muted); max-width:70ch; margin:0 0 30px;
+  border-left:2px solid var(--line-strong); padding-left:12px;
+}
+.note b{color:var(--ink); font-weight:600;}
+
+footer{margin-top:52px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px;}
+footer code{font-family:"IBM Plex Mono", monospace; background:var(--card); padding:1px 5px; border-radius:2px; border:1px solid var(--card-line);}
+
+@media (max-width:480px){
+  .wrap{padding:36px 16px 60px;}
+  .model-head{flex-direction:column; align-items:flex-start;}
+}
+</style>
+
+<div class="wrap">
+  <div class="masthead">
+    <span class="eyebrow">CSE Disaster-Impact Predictor &middot; Model Sheet</span>
+    <h1>Four models, <em>one dataset</em>,<br>three targets.</h1>
+    <p class="lede">Every model below reads from the same 76-event feature table. What differs is the architecture between input and output — and, per target, whether that difference earned its keep.</p>
+  </div>
+
+  <div class="stat-strip">
+    <div class="stat"><span class="n">76</span><span class="l">Events</span></div>
+    <div class="stat"><span class="n">64</span><span class="l">Candidate features</span></div>
+    <div class="stat"><span class="n">4</span><span class="l">Walk-forward folds</span></div>
+    <div class="stat"><span class="n">3</span><span class="l">Targets (Y1 / Y2 / Y3)</span></div>
+  </div>
+
+  <!-- ============================================================= Y1: k=10 Ridge -->
+  <section class="model">
+    <div class="model-head">
+      <h2 class="model-name">k=10 Ridge</h2>
+      <span class="model-target">TARGET &middot; Y1_ASPI_5D_LOG_RETURN_PCT</span>
+    </div>
+    <p class="model-desc">Linear, L2-regularized regression on a compact, collinearity-pruned feature set. Primary Y1 candidate — best RMSE/MAE/R² of everything tried, though not statistically distinguishable from a zero-return guess.</p>
+
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph IN["INPUT &middot; 64 candidate features"]
+    direction TB
+    i1["Returns &amp; momentum\nlag returns, price/SMA ratios"]
+    i2["Volatility\nrolling std, GARCH"]
+    i3["Disaster severity\nEM-DAT, DesInventar, NASA POWER"]
+    i4["Macro &amp; FX\nGDP, CPI, S&amp;P500, USD/LKR"]
+  end
+  SEL["FEATURE SELECTION\n① drop pairs |&rho;| &ge; 0.95\n② RF-importance &rarr; keep top 10"]
+  MODEL["RIDGE REGRESSION\nStandardScaler &rarr; L2 penalty\n&alpha; chosen by inner TimeSeriesSplit"]
+  OUT["OUTPUT\nY1_aspi_log_return (%)\npredicted 5-day cumulative ASPI move"]
+  IN --> SEL --> MODEL --> OUT
+</pre>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><span class="v">2.495</span><span class="k">RMSE</span></div>
+      <div class="metric"><span class="v">1.767</span><span class="k">MAE</span></div>
+      <div class="metric"><span class="v">+0.081</span><span class="k">Pooled R&sup2;</span></div>
+      <div class="metric"><span class="v">n=40</span><span class="k">Test points</span></div>
+    </div>
+    <span class="status warn">&mdash; positive, not statistically confirmed</span>
+    <p class="note"><b>Why 10 features, not 64:</b> at ~30 real training rows per fold, a wide feature set overfits before it informs. The compact set was chosen by ablation (k &isin; {5,8,10,12,20}), not by picking the best-looking result after the fact — k=10 won on the same folds every other candidate used.</p>
+  </section>
+
+  <!-- ============================================================= Y1: Ensemble -->
+  <section class="model">
+    <div class="model-head">
+      <h2 class="model-name">RF + XGBoost + MLP <span style="color:var(--muted); font-weight:400;">ensemble</span></h2>
+      <span class="model-target">TARGET &middot; Y1_ASPI_5D_LOG_RETURN_PCT</span>
+    </div>
+    <p class="model-desc">Inverse-RMSE-weighted blend of three independently-fit models. Kept as the parsimony/robustness reference against k=10 Ridge — more moving parts, no better result.</p>
+
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph IN["INPUT &middot; 64 candidate features"]
+    direction TB
+    i1["Same feature table\nas every other model"]
+  end
+  SEL["FEATURE SELECTION\ncollinearity drop &rarr; RF-importance\ntop 20, fit per fold"]
+  subgraph MEMBERS["THREE INDEPENDENT MODELS"]
+    direction TB
+    rf["Random Forest\n(grid-searched depth/leaf)"]
+    xgb["XGBoost\n(grid-searched depth/rate)"]
+    mlp["Shallow MLP\nshared hidden layer, 3 outputs"]
+  end
+  BLEND["WEIGHTED BLEND\nweight &prop; 1 / prior-fold RMSE\n(never the fold being scored)"]
+  OUT["OUTPUT\nY1_aspi_log_return (%)"]
+  IN --> SEL --> MEMBERS --> BLEND --> OUT
+</pre>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><span class="v">2.653</span><span class="k">RMSE</span></div>
+      <div class="metric"><span class="v">2.029</span><span class="k">MAE</span></div>
+      <div class="metric"><span class="v">&minus;0.039</span><span class="k">Pooled R&sup2;</span></div>
+      <div class="metric"><span class="v">n=40</span><span class="k">Test points</span></div>
+    </div>
+    <span class="status null">&mdash; worse than the simpler Ridge candidate</span>
+    <p class="note"><b>Why it loses to Ridge here:</b> fold-level R&sup2; swings from &minus;2.43 to +0.05 across just 4 folds &mdash; three models compound each other's fold-1 miss instead of cancelling it. The MLP's shared hidden layer, borrowing structure from Y2/Y3, doesn't help Y1 either.</p>
+  </section>
+
+  <!-- ============================================================= Y2: Random Forest -->
+  <section class="model">
+    <div class="model-head">
+      <h2 class="model-name">Random Forest</h2>
+      <span class="model-target">TARGET &middot; Y2_ABNORMAL_VOLUME</span>
+    </div>
+    <p class="model-desc">200&ndash;400 shallow trees over the same collinearity-pruned feature pipeline. The one result this session with a bootstrap confidence interval that excludes zero.</p>
+
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph IN["INPUT &middot; 64 candidate features"]
+    direction TB
+    i1["Volume history\nvol_ratio_1/5/10_30, vol_cv_30"]
+    i2["Hazard intensity\nNASA POWER rainfall/wind"]
+    i3["FX &amp; macro block"]
+  end
+  SEL["FEATURE SELECTION\ncollinearity drop &rarr; RF-importance\ntop 20, fit per fold"]
+  MODEL["RANDOM FOREST\nbagged decision trees\ndepth/leaf grid-searched inside fold"]
+  OUT["OUTPUT\nY2_abnormal_volume\npredicted (V / 30d baseline) &minus; 1"]
+  IN --> SEL --> MODEL --> OUT
+</pre>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><span class="v">0.465</span><span class="k">RMSE</span></div>
+      <div class="metric"><span class="v">0.382</span><span class="k">MAE</span></div>
+      <div class="metric"><span class="v">+0.268</span><span class="k">Pooled R&sup2;</span></div>
+      <div class="metric"><span class="v">n=36</span><span class="k">Test points</span></div>
+    </div>
+    <span class="status ok">&mdash; statistically confirmed vs naive_zero</span>
+    <p class="note"><b>Why this one holds up:</b> &Delta;RMSE bootstrap CI is [+0.013, +0.151] &mdash; excludes zero. Leave-one-out sensitivity moves R&sup2; only between +0.214 and +0.311; no single event is propping the result up.</p>
+  </section>
+
+  <!-- ============================================================= Y3: AFT Survival -->
+  <section class="model">
+    <div class="model-head">
+      <h2 class="model-name">AFT Survival <span style="color:var(--muted); font-weight:400;">(Weibull / LogNormal)</span></h2>
+      <span class="model-target">TARGET &middot; Y3_RECOVERY_DAYS</span>
+    </div>
+    <p class="model-desc">Right-censored accelerated-failure-time model. The 90-day cap is treated as "hasn't recovered yet," not as an observed value of 90 &mdash; a different likelihood for the same target, not a redefinition of it.</p>
+
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph IN["INPUT &middot; 64 candidate features"]
+    direction TB
+    i1["Same feature table,\nRF-importance top 20"]
+  end
+  CENS["CENSORING FLAG\nrecovered by day 90? &rarr; observed\nstill down at day 90? &rarr; censored"]
+  MODEL["AFT REGRESSION\nWeibull vs LogNormal,\nlower-AIC model kept per fold"]
+  OUT["OUTPUT\npredicted median recovery day\n+ Harrell's C-index (ranking)"]
+  IN --> CENS --> MODEL --> OUT
+</pre>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><span class="v">34.97</span><span class="k">RMSE (days)</span></div>
+      <div class="metric"><span class="v">17.28</span><span class="k">MAE (days)</span></div>
+      <div class="metric"><span class="v">0.568</span><span class="k">C-index</span></div>
+      <div class="metric"><span class="v">10%</span><span class="k">Censored</span></div>
+    </div>
+    <span class="status warn">&mdash; real ranking signal, point prediction still not confirmed</span>
+    <p class="note"><b>Split verdict:</b> C-index 0.568 (mean of 0.696 / 0.448 / 0.529 / 0.600 across folds) beats the 0.5 chance line &mdash; it ranks which events recover faster than which others better than a coin flip. RMSE still loses to a flat training-mean guess (29.47 days), and calibration is weak (predicted-vs-actual correlation &asymp; &minus;0.03): trust the ranking, not the day count.</p>
+  </section>
+
+  <footer>
+    Every model above shares one walk-forward split geometry (30-event train / 10-event test / 10-event step) and the same fold-boundary purge for Y1's 5-day label horizon. Full numbers: <code>docs/METHODOLOGY_AUDIT.md</code>, <code>artifacts/results_regression.pkl</code>.
+  </footer>
+</div>
