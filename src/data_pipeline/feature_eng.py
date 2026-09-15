@@ -95,9 +95,10 @@ class FeatureEngineeringConfig:
     damage_col: str = "financial_damage"
     affected_col: str = "population_affected"
     # Inclusion threshold on total affected. The thesis pre-registered >=1000; lowered to
-    # 700 on the author's instruction (2026-09-12), admitting 2 further Storm events.
+    # 700 on the author's instruction (2026-09-12, admitting 2 further Storm events), then
+    # to 500 on the author's instruction (2026-09-15) to admit further events.
     # Declared here so the deviation is visible in the config every stage reads.
-    min_affected: int = 700
+    min_affected: int = 500
     max_recovery_days: int = 90
 
 
@@ -191,8 +192,8 @@ class FeatureEngineer:
         df = df[keep_mask].copy()
 
         # Read from the config so the value is declared in one place. Widening a
-        # pre-registered filter is a deviation and is reported as one: it admits exactly 2
-        # extra events, so it cannot rescue a result.
+        # pre-registered filter is a deviation and is reported as one -- see
+        # FeatureEngineeringConfig.min_affected for the history of changes and why.
         df = df[df[c.affected_col] >= c.min_affected].copy()
         df["log_financial_damage"] = np.log1p(df[c.damage_col].clip(lower=0))
         df["log_population_affected"] = np.log1p(df[c.affected_col].clip(lower=0))

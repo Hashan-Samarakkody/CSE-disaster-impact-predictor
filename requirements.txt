@@ -23,6 +23,7 @@ shap>=0.45
 matplotlib>=3.8
 jupyter>=1.0
 streamlit>=1.35        # demo web app (app.py)
+plotly>=5.20            # charts in app.py
 pytest>=8.0
 
 # Y1/Y3 predictability improvements (see docs/METHODOLOGY_AUDIT.md "Improvement attempts")
