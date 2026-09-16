@@ -81,17 +81,20 @@ def fit_final_classifiers(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFram
     return final
 
 
-def fit_final_hurdle(X: pd.DataFrame, y: pd.DataFrame) -> dict:
+def fit_final_hurdle(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFrame) -> dict:
     target = "Y3_recovery_days"
     ok = y[target].notna().to_numpy()
     y_ok = y.loc[ok, target].to_numpy()
-    feats = _select_top_features(X.loc[ok], (y_ok < 90).astype(int))
+    # Real competing-risk censoring indicator (methodology-audit finding #7), not
+    # `y_ok < 90` alone -- see AFTRecoveryModel/HurdleRecoveryModel.fit docstrings.
+    recovered_ok = ~dataset["Y3_censored"].loc[y.loc[ok].index].to_numpy()
+    feats = _select_top_features(X.loc[ok], recovered_ok.astype(int))
 
     model = HurdleRecoveryModel(
         LogisticRegression(max_iter=5000, class_weight="balanced"),
         RandomForestRegressor(n_estimators=300, max_depth=3, min_samples_leaf=3,
                               random_state=RANDOM_STATE, n_jobs=-1),
-    ).fit(X.loc[ok, feats], y_ok)
+    ).fit(X.loc[ok, feats], y_ok, recovered=recovered_ok)
     return {"model": model, "features": feats}
 
 
@@ -105,7 +108,7 @@ def main() -> None:
     final_classifiers = fit_final_classifiers(X, y, dataset)
 
     print("Fitting final Y3 hurdle model...")
-    final_hurdle = fit_final_hurdle(X, y)
+    final_hurdle = fit_final_hurdle(X, y, dataset)
 
     import pickle
     with open(ARTIFACTS / "final_classifiers.pkl", "wb") as fh:

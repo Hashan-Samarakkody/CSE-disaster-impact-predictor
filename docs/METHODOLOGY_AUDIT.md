@@ -1330,3 +1330,92 @@ Y1/Y2 point-regression numbers and the 6 classification labels also shifted slig
 (a handful of borderline-adjacent training rows now excluded per fold); no comparison's
 qualitative conclusion changed (C2_volume_spike remains the only classification label
 confirmed to beat baseline; no Y1 candidate is statistically confirmed either way).
+
+### 2026-09-16: purged inner CV (methodology-audit finding #6)
+
+The outer-fold purge above only protects the outer test period -- hyperparameter search
+(GridSearchCV/RidgeCV) runs its own `TimeSeriesSplit` inside each fold's real training
+rows, and an inner-training row's label can reach into an inner-validation window just
+as easily as an outer one (the exact violation finding #6 names, "the same horizon
+problem can occur inside inner CV").
+
+Added `purged_inner_cv` (`notebooks/_shared.py`): runs `TimeSeriesSplit`, then purges
+each inner split's training rows against that inner split's own validation origin using
+the same per-target label-end-date columns from finding #5, and materializes the result
+as a list of `(train_idx, val_idx)` pairs (accepted directly by `GridSearchCV`/`RidgeCV`'s
+`cv=` parameter). Falls back to the unpurged split only if every inner split would
+otherwise lose its entire training side, and prints a warning when that happens (did not
+trigger in this run). Wired into all four `run_walk_forward` call sites in notebook 04
+(primary config, dense-config ablation, K=10 ablation, external-feature-block ablation)
+and notebook 05's classification loop; the now-dead unpurged `inner_cv` helper was
+removed from both notebooks rather than left unused.
+
+**Caught mid-implementation:** the K=10 ablation (04 §12) and external-feature-block
+ablation (04 §13) call `run_walk_forward` directly and had been missed on the first pass
+-- they still passed no `label_end_dates_all` at all (silently falling back to the
+unpurged branch), which nbconvert's own exit code did not surface (the chained
+`tail`/`grep` in this session's own run commands returns ITS exit code, not the
+notebook's -- the same class of masking bug already documented earlier in this file).
+Caught by grepping the notebook for every `run_walk_forward(` call site rather than
+trusting the first passing run, and by reading the execution log directly for
+`CellExecutionError` rather than a shell exit code.
+
+No pipeline-numbers regression from this fix beyond what finding #5 already changed --
+inner-CV purging affects which hyperparameters are SELECTED, not which rows are scored,
+and at this N (~15-20 real training rows per fold) the purge rarely empties an inner
+split. Re-ran the full chain (02 unaffected/skipped -- no feature_eng change this step --
+04, 05, survival, train_final_models); Y3 c-index unchanged at 0.640 (this script has no
+inner hyperparameter search); classifier AUCs unchanged; 95/95 tests pass.
+
+### 2026-09-16: Y3 competing-risk censoring (methodology-audit finding #7)
+
+Every recovery-day search previously ran the full 90-day window regardless of whether a
+LATER qualifying disaster struck before day 90. An event scored as "recovered on day 47"
+or "capped at 90" was, in several real cases, actually interrupted mid-observation by
+the next disaster -- its true recovery status past that point is genuinely unknown, not
+the value the naive search happened to land on.
+
+Fixed in `feature_eng.build_targets`: for each event, find the NEXT qualifying event's
+own reference trading session (same alignment rule as the event itself, found
+independently rather than assumed adjacent), and cap the recovery search at
+`min(90, days_to_next_disaster)`. Two new columns record the outcome for every Y3
+consumer: `Y3_censored` (bool) and `Y3_censor_reason` (`"recovered"` / `"cap_90"` /
+`"next_disaster"`), added to `feature_eng.py`'s `EXCLUDE_COLS` in `notebooks/_shared.py`
+equivalent (`notebooks/02_features_targets.ipynb`) so neither ever becomes a feature.
+
+**Measured on the full n=74 dataset:** 64 events recovered cleanly, 7 were censored by a
+later disaster before day 90 (previously silently scored as if fully observed to 90 or
+scored as an uncontaminated "recovery" at whatever day the naive search landed on), and
+only 3 genuinely exhaust the 90-day cap -- down from the roughly 9-10 events the
+uncorrected cap-only count previously reported, because several of those were actually
+`next_disaster` cases that happened to also read >=90 under the old single-window search.
+
+**Propagated to every Y3 consumer**, not just the AFT model, since the target itself is
+now more correct for all of them:
+- `AFTRecoveryModel.fit`/`concordance_index` (`src/models/survival_recovery.py`) and
+  `HurdleRecoveryModel.fit` (`src/models/hurdle.py`) gained an explicit `censored`/
+  `recovered` override parameter (default `None` preserves the old `y >= cap` inference,
+  for backward compatibility and the modules' own self-tests). `run_survival_model.py`,
+  `train_final_models.py`, and notebook 05's hurdle cell now pass the real indicator.
+- **C3_recovers_in_90 and C3b_slow_recovery** (`src/models/classifiers.py`) needed a
+  second, independent fix: `Y3_recovery_days < 90` no longer implies "recovered" (a
+  next-disaster-censored row can have a small Y3 value too), so both labels now exclude
+  `next_disaster`-censored rows entirely (treated as missing, same as an absent Y3
+  value) rather than force them into either class -- their true status by day 90 is
+  unknowable under competing risks, not falsifiably negative.
+
+**Effect on the AFT model** (n=40 pooled test points, same folds): c-index 0.640 ->
+0.618 (still >0.5); RMSE 33.9 -> 20.2 and MAE 16.4 -> 9.4 (Y3 values themselves are now
+correctly smaller for the 7 reclassified events); calibration Pearson r 0.036 -> 0.240;
+reported censoring proportion 10.0% -> 15.0% (of which 5 of 6 pooled test-point censored
+cases are now correctly attributed to a competing disaster, not the 90-day cap).
+**Effect on C3_recovers_in_90**: full-refit AUC 0.618 -> 0.912 -- removing rows whose
+true label was unknowable (rather than guessing) eliminated real label noise. 97/97
+tests pass (2 new: `test_y3_censored_early_by_a_later_qualifying_disaster`,
+`test_y3_genuine_recovery_before_a_later_disaster_is_not_censored`).
+
+Not addressed by this fix: finding #12 (ordinary point-regressors -- Ridge/RF/XGBoost/
+the hurdle model's stage-2 regressor -- still treat a censored Y3 value as if it were an
+observed one; only the AFT model and the two classification labels above are now
+censoring-aware) and the median-cut computation inside `label_slow_recovery`, which still
+mixes genuine and censored durations when choosing its per-fold split point.

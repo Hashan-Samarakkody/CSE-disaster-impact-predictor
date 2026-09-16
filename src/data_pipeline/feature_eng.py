@@ -226,8 +226,10 @@ class FeatureEngineer:
         events = disaster_df.copy().sort_values(c.disaster_date_col)
         events[c.disaster_date_col] = pd.to_datetime(events[c.disaster_date_col])
 
+        event_dates_sorted = events[c.disaster_date_col].tolist()
+
         rows = []
-        for _, event in events.iterrows():
+        for row_i, (_, event) in enumerate(events.iterrows()):
             event_date = event[c.disaster_date_col]
             event_idx = market.index[market[c.date_col] >= event_date]
             if len(event_idx) == 0:
@@ -240,6 +242,21 @@ class FeatureEngineer:
 
             price_t = market.iloc[pos][c.price_col]
             price_tm1 = market.iloc[pos - 1][c.price_col]
+
+            # Y3 competing-risk censoring (methodology-audit finding #7): if a LATER
+            # qualifying disaster's reference session falls before this event's recovery
+            # (or before the 90-day cap), this event's recovery clock is no longer a
+            # clean observation of ITS OWN recovery -- the next disaster is a competing
+            # event. `next_event_pos` is the next qualifying event's own reference
+            # trading session (same "first session on/after date" alignment rule as this
+            # event), found independently rather than assumed to be `pos + 1` in
+            # `events`, since two qualifying disasters can share or straddle sessions.
+            next_event_pos = None
+            if row_i + 1 < len(event_dates_sorted):
+                next_date = event_dates_sorted[row_i + 1]
+                next_idx = market.index[market[c.date_col] >= next_date]
+                if len(next_idx) > 0:
+                    next_event_pos = market.index.get_loc(next_idx[0])
 
             # Y1 = ASPI_5D_Log_Return_Pct -- five-trading-day forward cumulative log
             # return, in percent: 100 * ln(ASPI_(t+5) / ASPI_t). `pos` is the reference
@@ -275,20 +292,35 @@ class FeatureEngineer:
             y2_label_end_date = market.iloc[pos][c.date_col]
 
             pre_disaster_baseline = price_tm1
-            recovery_window = market.iloc[pos : pos + c.max_recovery_days + 1]
+            # Competing-risk cap (methodology-audit finding #7): search no further than
+            # the earlier of the 90-day design cap and the next qualifying disaster's own
+            # reference session. Recovery windows were previously searched to the full
+            # 90-day cap regardless, so an event whose "no recovery" outcome actually
+            # reflects a LATER disaster striking first was scored identically to one that
+            # genuinely never recovered -- a real contamination the panel review flagged.
+            effective_cap = c.max_recovery_days
+            if next_event_pos is not None:
+                effective_cap = max(0, min(c.max_recovery_days, next_event_pos - pos))
+            recovery_window = market.iloc[pos : pos + effective_cap + 1]
             recovered = recovery_window[recovery_window[c.price_col] >= pre_disaster_baseline]
             if recovered.empty:
-                y3 = c.max_recovery_days
-            else:
                 # TRADING days, per thesis Sec. 3.2.2. The previous version returned calendar days
                 # while searching a window of 91 trading ROWS, so the 90 cap actually bit at about
                 # 62 trading days and slow recoveries were indistinguishable from none at all.
+                y3 = effective_cap
+                y3_censored = True
+                y3_censor_reason = ("next_disaster" if effective_cap < c.max_recovery_days
+                                     else "cap_90")
+            else:
                 recovery_pos = market.index.get_loc(recovered.index[0])
-                y3 = min(recovery_pos - pos, c.max_recovery_days)
-            # The date Y3's label is actually settled: either the trading session it
-            # recovered on, or the session the 90-day cap was confirmed on -- whichever
-            # is earlier. A training row's Y3 label is not "known" before this date, so
-            # this is what target-specific purging must compare against, not event_date.
+                y3 = min(recovery_pos - pos, effective_cap)
+                y3_censored = False
+                y3_censor_reason = "recovered"
+            # The date Y3's label is actually settled: the trading session it recovered
+            # on, or the session its censoring (90-day cap OR the next disaster,
+            # whichever bound this row) was confirmed on -- whichever is earlier. A
+            # training row's Y3 label is not "known" before this date, so this is what
+            # target-specific purging must compare against, not event_date.
             y3_label_end_pos = min(pos + int(y3), len(market) - 1)
             y3_label_end_date = market.iloc[y3_label_end_pos][c.date_col]
 
@@ -321,6 +353,11 @@ class FeatureEngineer:
                 "Y3_label_end_date": y3_label_end_date,
                 "Y2_abnormal_volume": y2,
                 "Y3_recovery_days": float(y3),
+                # Competing-risk censoring detail (methodology-audit finding #7) -- NOT
+                # model features, consumed only by scripts/run_survival_model.py's
+                # censoring-aware fit/evaluation and reported diagnostics.
+                "Y3_censored": y3_censored,
+                "Y3_censor_reason": y3_censor_reason,
                 **cars,
                 **car_end_dates,
             })

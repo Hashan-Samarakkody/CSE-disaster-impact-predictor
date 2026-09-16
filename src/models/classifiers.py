@@ -83,9 +83,20 @@ def label_recovers_in_90(y, train_idx=None, dataset=None):
     Report it with the caveat attached: roughly 9 of 64 events sit at the cap, so the
     minority class is about 3 events in a 30-point test set and the estimate is
     underpowered by construction.
+
+    Methodology-audit finding #7 (competing-risk censoring): since Y3_recovery_days can
+    now be < 90 either because the event genuinely recovered OR because a LATER
+    qualifying disaster capped the observation window early, `v < 90` alone can no
+    longer distinguish them. A next-disaster-censored row's true recovery status by day
+    90 is genuinely unknown (the observation ended before either outcome was reached),
+    so it is excluded from this label entirely rather than forced to either class --
+    the same discipline `_binarise` already applies to missing Y3 values.
     """
     v = y["Y3_recovery_days"]
-    return pd.Series(_binarise(v < 90, v.notna()), index=v.index)
+    unknown = (dataset["Y3_censor_reason"].reindex(v.index).eq("next_disaster")
+               if dataset is not None and "Y3_censor_reason" in dataset.columns
+               else pd.Series(False, index=v.index))
+    return pd.Series(_binarise(v < 90, v.notna() & ~unknown.fillna(False)), index=v.index)
 
 
 def label_adverse_move_sigma(y, train_idx=None, dataset=None):
@@ -121,10 +132,21 @@ def label_slow_recovery(y, train_idx, dataset=None):
     C3_recovers_in_90 has prevalence 0.90, so its accuracy measures the imbalance. A
     median split is ~50% by construction. The cut uses training rows only, as C1b's
     tercile does. C3 is retained and still reported beside this -- dropping a label after
-    seeing it fail is the selection the pre-declaration exists to prevent."""
+    seeing it fail is the selection the pre-declaration exists to prevent.
+
+    Same finding-#7 exclusion as label_recovers_in_90: a next-disaster-censored row's
+    true recovery speed relative to the median is unknown (its Y3 value is a lower
+    bound, not an observed recovery time), so it cannot be labeled "slow" or "fast" and
+    is excluded here too. The median cut itself is still computed over all non-missing
+    training values, mixing genuine and censored durations -- an already-disclosed,
+    separate limitation (finding #12: ordinary treatment of a right-censored target),
+    not one this fix resolves."""
     v = y["Y3_recovery_days"]
     cut = float(np.nanmedian(v.iloc[train_idx]))
-    return pd.Series(_binarise(v > cut, v.notna()), index=v.index)
+    unknown = (dataset["Y3_censor_reason"].reindex(v.index).eq("next_disaster")
+               if dataset is not None and "Y3_censor_reason" in dataset.columns
+               else pd.Series(False, index=v.index))
+    return pd.Series(_binarise(v > cut, v.notna() & ~unknown.fillna(False)), index=v.index)
 
 
 LABELS = {

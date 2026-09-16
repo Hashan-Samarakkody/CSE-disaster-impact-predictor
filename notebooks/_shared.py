@@ -24,6 +24,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import TimeSeriesSplit
 
 # Windows + torch + the Intel OpenMP runtime that ships with numpy will abort the
 # process on a duplicate libiomp5md.dll unless this is set before torch is imported.
@@ -99,6 +100,39 @@ LABEL_END_DATE_COL = {
     "C3b_slow_recovery": TARGET_LABEL_END_DATE_COL["Y3_recovery_days"],
     "C4_car5_negative": TARGET_LABEL_END_DATE_COL["Y1_EventWindow_0_5_LogReturn_Pct"],
 }
+
+
+def purged_inner_cv(dates_real, label_end_real, n_splits=3):
+    """TimeSeriesSplit on this fold's real training rows, THEN purge each inner split's
+    training rows against that inner split's OWN validation origin (methodology-audit
+    finding #6: the outer-fold purge, on its own, only protects the outer test period --
+    an inner-training row's label can still reach into an inner-validation window during
+    hyperparameter search, which is exactly the same fold-boundary embargo violation one
+    level deeper). `dates_real`/`label_end_real` must be the SAME rows, in the SAME
+    order, as whatever the caller passes as `cv=` to GridSearchCV/RidgeCV.
+
+    Falls back to the corresponding unpurged TimeSeriesSplit only if EVERY inner split
+    would otherwise lose its entire training side (prints a warning when this happens --
+    it is a real degradation, not silently absorbed)."""
+    n = len(dates_real)
+    tss = TimeSeriesSplit(n_splits=max(2, min(n_splits, n - 1)))
+    dates_arr = pd.Series(dates_real).reset_index(drop=True)
+    end_arr = pd.Series(label_end_real).reset_index(drop=True)
+    raw_splits = list(tss.split(np.arange(n)))
+    purged = []
+    for tr_idx, val_idx in raw_splits:
+        if len(val_idx) == 0 or len(tr_idx) == 0:
+            continue
+        first_val_date = dates_arr.iloc[val_idx[0]]
+        train_end = end_arr.iloc[tr_idx]
+        keep = (train_end.isna() | (train_end < first_val_date)).to_numpy()
+        if keep.any():
+            purged.append((tr_idx[keep], val_idx))
+    if not purged:
+        print("  purged_inner_cv: every inner split lost its entire training side -- "
+              "falling back to the unpurged TimeSeriesSplit for this fold/target.")
+        return raw_splits
+    return purged
 
 
 # ---------------------------------------------------------------- artifact cache
@@ -207,7 +241,7 @@ __all__ = [
     "np", "pd", "Path", "json",
     "NOTEBOOK_DIR", "REPO_ROOT", "DATA_DIR", "ARTIFACT_DIR", "FIGURE_DIR",
     "RANDOM_STATE", "TARGET_COLS", "TARGET_BOUNDS", "clip_to_bounds",
-    "TARGET_LABEL_END_DATE_COL", "LABEL_END_DATE_COL",
+    "TARGET_LABEL_END_DATE_COL", "LABEL_END_DATE_COL", "purged_inner_cv",
     "save_frame", "load_frame", "save_object", "load_object", "save_json", "load_json",
     "artifact_status",
 ]

@@ -50,7 +50,13 @@ class AFTRecoveryModel:
         self.fallback_ = None
         self.degenerate_ = False
 
-    def fit(self, X, y):
+    def fit(self, X, y, censored=None):
+        """`censored=None` infers censoring from the 90-day cap alone (`y >= cap`), the
+        original behaviour. Pass the real censoring indicator explicitly (e.g.
+        `Y3_censored` from `feature_eng.build_targets`, methodology-audit finding #7)
+        when some rows are censored EARLIER than 90 days by a competing event (a later
+        qualifying disaster) -- those rows have `y < cap` but are still right-censored,
+        which `y >= cap` alone cannot detect."""
         from lifelines import LogNormalAFTFitter, WeibullAFTFitter
         from lifelines.exceptions import ConvergenceError
 
@@ -59,7 +65,7 @@ class AFTRecoveryModel:
         self.feature_cols_ = list(X.columns)
         self.fallback_ = float(np.mean(y)) if len(y) else self.cap
 
-        censored = y >= self.cap
+        censored = (y >= self.cap) if censored is None else np.asarray(censored, dtype=bool)
         # A fold needs both event types (recovered and censored) and enough rows per
         # feature for the AFT regression to identify anything; below that, degrade to the
         # training mean exactly like the hurdle model does, rather than let lifelines
@@ -103,10 +109,12 @@ class AFTRecoveryModel:
         median = np.nan_to_num(median, nan=self.cap, posinf=self.cap) - DURATION_EPS
         return np.clip(median, 0.0, self.cap)
 
-    def concordance_index(self, X, y):
+    def concordance_index(self, X, y, censored=None):
         """Harrell's C-index: the metric right-censored survival predictions should be
         judged on (RMSE/MAE are still reported for comparability with the other models,
-        but they are not the metric this model was fit to optimise)."""
+        but they are not the metric this model was fit to optimise). Same `censored`
+        override as `fit` -- pass the real indicator, not just `y >= cap`, once some
+        rows are censored by a competing event before the 90-day cap."""
         from lifelines.utils import concordance_index
 
         if self.degenerate_ or self.model_ is None:
@@ -115,7 +123,7 @@ class AFTRecoveryModel:
         y = np.asarray(y, dtype=float)
         median = self.model_.predict_median(X).to_numpy()
         median = np.nan_to_num(median, nan=self.cap * 10, posinf=self.cap * 10)
-        censored = y >= self.cap
+        censored = (y >= self.cap) if censored is None else np.asarray(censored, dtype=bool)
         # lifelines' convention: predicted_scores should be concordant with the duration
         # itself (higher score = longer predicted survival), so the predicted median
         # duration is passed directly, not negated (negation is only for hazard/risk

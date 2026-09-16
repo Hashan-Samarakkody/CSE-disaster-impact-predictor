@@ -82,7 +82,7 @@ def main() -> None:
 
     splits = list(generate_walk_forward_splits(len(X_all), TRAIN_WINDOW, TEST_WINDOW, STEP))
 
-    store_aft = {"y_true": [], "y_pred": [], "folds": []}
+    store_aft = {"y_true": [], "y_pred": [], "folds": [], "censored": []}
     store_naive_zero = {"y_true": [], "y_pred": [], "folds": []}
     store_naive_mean = {"y_true": [], "y_pred": [], "folds": []}
     cidx_folds = []
@@ -102,19 +102,37 @@ def main() -> None:
         X_tr_aug, y_tr_aug, _ = augment_fold(X_tr_real, y_tr_real, dates_tr, type_cols, gdp_tr)
         tr_ok = y_tr_aug[TARGET].notna()
 
+        # Competing-risk censoring (methodology-audit finding #7): `dataset["Y3_censored"]`
+        # is the real indicator (True for BOTH the 90-day cap and a later qualifying
+        # disaster striking first), not `y >= CAP` alone. `time_aware_smogn` concatenates
+        # real rows first (in X_tr_real's order) then appends synthetic rows with a fresh
+        # RangeIndex (`ignore_index=True`, see src/sampling/time_aware_smogn.py), so the
+        # first `len(X_tr_real)` rows of X_tr_aug/y_tr_aug are exactly the real training
+        # rows in that order -- real censoring is looked up for those; synthetic rows
+        # (SMOGN interpolates a numeric duration, not a competing-risk event) keep the
+        # old `y >= CAP` inference, since SMOGN has no way to know about a later disaster.
+        n_real_tr = len(X_tr_real)
+        real_censored_tr = dataset["Y3_censored"].loc[X_tr_real.index].to_numpy()
+        synthetic_censored_tr = y_tr_aug[TARGET].to_numpy()[n_real_tr:] >= CAP
+        censored_tr_full = pd.Series(
+            np.concatenate([real_censored_tr, synthetic_censored_tr]), index=y_tr_aug.index)
+
         y_tr_t, y_te_t = y_tr_aug.loc[tr_ok, TARGET], y_te.loc[te_ok, TARGET]
+        censored_tr = censored_tr_full[tr_ok].to_numpy()
+        censored_te = dataset["Y3_censored"].loc[y_te_t.index].to_numpy()
         feat_cols = select_top_features(X_tr_aug.loc[tr_ok], y_tr_t, k=20)
         X_tr_sel = X_tr_aug.loc[tr_ok, feat_cols].to_numpy()
         X_te_sel = X_te.loc[te_ok, feat_cols].to_numpy()
 
-        aft = AFTRecoveryModel(cap=CAP).fit(X_tr_sel, y_tr_t.to_numpy())
+        aft = AFTRecoveryModel(cap=CAP).fit(X_tr_sel, y_tr_t.to_numpy(), censored=censored_tr)
         pred_aft = aft.predict(X_te_sel)
 
         store_aft["y_true"].append(y_te_t.to_numpy())
         store_aft["y_pred"].append(pred_aft)
         store_aft["folds"].append(fold_i)
+        store_aft["censored"].append(censored_te)
         y_te_arr = y_te_t.to_numpy()
-        fold_censored = int((y_te_arr >= CAP).sum())
+        fold_censored = int(censored_te.sum())
         fold_detail.append({
             "fold": fold_i, "n_test": len(y_te_arr), "n_censored_test": fold_censored,
             "n_uncensored_test": len(y_te_arr) - fold_censored,
@@ -122,7 +140,7 @@ def main() -> None:
             "mae": float(np.mean(np.abs(y_te_arr - pred_aft))),
         })
         if not aft.degenerate_ and aft.model_ is not None:
-            cidx = aft.concordance_index(X_te_sel, y_te_arr)
+            cidx = aft.concordance_index(X_te_sel, y_te_arr, censored=censored_te)
             cidx_folds.append(cidx)
             fold_detail[-1]["c_index"] = cidx
         else:
@@ -136,6 +154,7 @@ def main() -> None:
 
     yt_aft = np.concatenate(store_aft["y_true"])
     yp_aft = np.concatenate(store_aft["y_pred"])
+    censored_aft = np.concatenate(store_aft["censored"])
     yp_zero = np.concatenate(store_naive_zero["y_pred"])
     yp_mean = np.concatenate(store_naive_mean["y_pred"])
 
@@ -173,10 +192,16 @@ def main() -> None:
     else:
         print("No fold produced a non-degenerate AFT fit -- see AFTRecoveryModel.degenerate_.")
 
-    n_censored_total = int((yt_aft >= CAP).sum())
+    # Real competing-risk censoring indicator (methodology-audit finding #7), not
+    # `y >= CAP` alone -- a row censored by a later qualifying disaster has y < CAP but
+    # is still not an observed recovery.
+    n_censored_total = int(censored_aft.sum())
+    n_cap_only = int((yt_aft >= CAP).sum())
     print()
     print(f"censoring proportion (pooled test points): {n_censored_total}/{len(yt_aft)} "
-          f"= {n_censored_total / len(yt_aft):.1%}")
+          f"= {n_censored_total / len(yt_aft):.1%} (of which {n_cap_only} hit the 90-day "
+          f"cap; {n_censored_total - n_cap_only} were censored earlier by a later "
+          f"qualifying disaster)")
     print(f"uncensored recoveries (pooled test points): {len(yt_aft) - n_censored_total}")
 
     print()
@@ -184,7 +209,7 @@ def main() -> None:
     detail_df = pd.DataFrame(fold_detail)
     print(detail_df.to_string(index=False))
 
-    uncensored_mask = yt_aft < CAP
+    uncensored_mask = ~censored_aft
     if uncensored_mask.sum() >= 6:
         yt_u, yp_u = yt_aft[uncensored_mask], yp_aft[uncensored_mask]
         corr = float(np.corrcoef(yt_u, yp_u)[0, 1])

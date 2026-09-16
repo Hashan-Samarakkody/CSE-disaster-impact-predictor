@@ -139,6 +139,55 @@ def test_build_targets_caps_recovery_days_at_90():
     assert targets.iloc[0]["Y3_recovery_days"] == 90.0
 
 
+def test_y3_censored_early_by_a_later_qualifying_disaster():
+    """Methodology-audit finding #7: a later qualifying disaster must cap the FIRST
+    event's recovery search, not let it run the full 90 days as if the first event were
+    observed in isolation."""
+    dates = pd.date_range("2024-01-01", periods=140, freq="B")
+    prices = np.full(len(dates), 100.0)
+    prices[20:50] = 80.0   # event 1 crashes, never recovers before event 2 arrives
+    prices[50:] = 60.0     # event 2 crashes further from ITS OWN pre-event baseline (80),
+                           # never recovers either
+    volumes = np.linspace(1000.0, 2000.0, len(dates))
+    market_df = pd.DataFrame({"date": dates, "aspi_close": prices, "trading_volume": volumes})
+    # Second event 30 trading sessions after the first.
+    disaster_df = pd.DataFrame({"event_date": [dates[20], dates[50]]})
+
+    targets = FeatureEngineer().build_targets(market_df, disaster_df)
+    assert len(targets) == 2
+
+    first, second = targets.iloc[0], targets.iloc[1]
+    # First event's search is cut short at the second event's own reference session
+    # (30 trading days later), not the full 90-day cap.
+    assert first["Y3_recovery_days"] == 30.0
+    assert bool(first["Y3_censored"]) is True
+    assert first["Y3_censor_reason"] == "next_disaster"
+
+    # Second (last) event has no competing event after it, so the ordinary 90-day cap
+    # still applies.
+    assert second["Y3_recovery_days"] == 90.0
+    assert bool(second["Y3_censored"]) is True
+    assert second["Y3_censor_reason"] == "cap_90"
+
+
+def test_y3_genuine_recovery_before_a_later_disaster_is_not_censored():
+    """A recovery that happens BEFORE the next disaster arrives is a clean, uncensored
+    observation -- the competing-risk cap must not mislabel it."""
+    dates = pd.date_range("2024-01-01", periods=140, freq="B")
+    prices = np.full(len(dates), 100.0)
+    prices[20:25] = 90.0     # dips
+    prices[25:] = 100.0      # recovers by trading day 5 after the event
+    volumes = np.linspace(1000.0, 2000.0, len(dates))
+    market_df = pd.DataFrame({"date": dates, "aspi_close": prices, "trading_volume": volumes})
+    disaster_df = pd.DataFrame({"event_date": [dates[20], dates[50]]})
+
+    targets = FeatureEngineer().build_targets(market_df, disaster_df)
+    first = targets.iloc[0]
+    assert first["Y3_recovery_days"] == 5.0
+    assert bool(first["Y3_censored"]) is False
+    assert first["Y3_censor_reason"] == "recovered"
+
+
 # ------------------------------------------------- cumulative event-window returns
 
 def test_car_targets_accumulate_from_the_pre_event_close():

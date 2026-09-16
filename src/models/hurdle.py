@@ -27,9 +27,15 @@ class HurdleRecoveryModel:
         self.fallback_ = None      # used when a fold has no variation to learn from
         self.degenerate_ = False
 
-    def fit(self, X, y):
+    def fit(self, X, y, recovered=None):
+        """`recovered=None` infers stage-1 recovery from `y < cap` alone, the original
+        behaviour. Pass the real indicator explicitly (methodology-audit finding #7:
+        `~Y3_censored` from `feature_eng.build_targets`) once some rows are censored
+        EARLIER than the cap by a competing event (a later qualifying disaster) -- those
+        rows have `y < cap` but were never observed to recover, which `y < cap` alone
+        cannot tell apart from a genuine recovery."""
         y = np.asarray(y, dtype=float)
-        recovered = y < self.cap
+        recovered = (y < self.cap) if recovered is None else np.asarray(recovered, dtype=bool)
         self.fallback_ = float(np.mean(y)) if len(y) else self.cap
 
         # A fold in which every event recovered (or none did) gives stage 1 one class and
