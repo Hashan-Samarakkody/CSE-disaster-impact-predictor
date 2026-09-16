@@ -54,6 +54,15 @@ same short window — that later drop was never seen because the search had alre
 ## 3. Features
 
 - 68 columns in `FEATURE_COLS` (`artifacts/feature_spec.json`).
+- Every engineered market-price column is ADF/KPSS-tested before admission
+  (`notebooks/02_features_targets.ipynb` §2.2.1); a unit root (ADF fails to reject)
+  excludes the column. This test runs on a **development-period-only** slice of the
+  daily market series — rows before the 31st qualifying disaster's date, i.e. before
+  fold 0's own first test period — not the full ~22-year series (finding #26,
+  methodology-audit followup 2026-09-17: the admissibility decision itself must not see
+  any row inside any walk-forward test fold). `sma_5/10/20`/`ema_5/10/20` (raw price
+  levels) are excluded either way; the fix changed the leakage exposure, not the
+  6-column result.
 - 16 columns carry real missingness and are median-imputed from TRAIN rows only, never
   a global or zero fill, inside every fold: `financial_damage`, `log_financial_damage`,
   `log_damage_x_flood`, `total_deaths`, `no_homeless`, `mag_area_km2`, `mag_wind_kph`,
