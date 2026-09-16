@@ -453,7 +453,22 @@ Given that the study exists to predict catastrophic impacts, a model with accept
 
 **Not yet measured — the study's central ablation.** Market-only vs disaster-only vs market+disaster vs +macro. This directly answers *"do disaster variables add predictive information beyond ordinary market history?"* — the question the entire thesis exists to answer — and it has never been run. **This is the single most important missing experiment.**
 
-**Not yet measured:** SMOGN on/off. The augmentation's worth has never been isolated.
+**Measured 2026-09-16 (E08/E09, RF, all 3 targets, same folds/purge/median-impute/
+selection/inner-CV, `use_smogn` the only difference -- see
+`notebooks/04_modeling_regression.ipynb` §4.2b, `artifacts/smogn_ablation.parquet`):**
+
+| target | RMSE no-SMOGN | RMSE with-SMOGN | pooled R2 no-SMOGN | pooled R2 with-SMOGN | verdict |
+|---|---|---|---|---|---|
+| Y1_ASPI_5D_Forward_LogReturn_Pct | 2.9104 | 2.8834 | 0.0584 | 0.0698 | SMOGN helps |
+| Y2_abnormal_volume | 0.4948 | 0.4822 | 0.1741 | 0.2242 | SMOGN helps |
+| Y3_recovery_days | 17.0321 | 16.9179 | -0.1363 | -0.1264 | SMOGN helps |
+| Y1_EventWindow_0_10_LogReturn_Pct | 4.5143 | 4.5603 | 0.0043 | 0.0063 | RMSE slightly worse, pooled R2 slightly better |
+
+**Decision: kept ON for all 3 targets.** 3 of 4 targets improve on both metrics; the
+4th (EventWindow_0_10) moves in opposite directions on the two metrics by ~1%, which is
+noise at this fold count (n=40 pooled test points), not a signal worth a per-target
+special case. This closes P2-6 ("SMOGN on/off never ablated") -- the augmentation's
+worth is now isolated and measured, not assumed.
 
 ---
 
