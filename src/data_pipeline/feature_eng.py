@@ -269,6 +269,10 @@ class FeatureEngineer:
                       if baseline_mean and not np.isnan(baseline_mean) else np.nan)
             else:
                 y2 = np.nan
+            # Y2 only ever reads data up to and including the event session itself
+            # (backward-looking baseline + day-pos volume), so its label is "known" the
+            # same day -- no forward horizon to purge.
+            y2_label_end_date = market.iloc[pos][c.date_col]
 
             pre_disaster_baseline = price_tm1
             recovery_window = market.iloc[pos : pos + c.max_recovery_days + 1]
@@ -281,6 +285,12 @@ class FeatureEngineer:
                 # 62 trading days and slow recoveries were indistinguishable from none at all.
                 recovery_pos = market.index.get_loc(recovered.index[0])
                 y3 = min(recovery_pos - pos, c.max_recovery_days)
+            # The date Y3's label is actually settled: either the trading session it
+            # recovered on, or the session the 90-day cap was confirmed on -- whichever
+            # is earlier. A training row's Y3 label is not "known" before this date, so
+            # this is what target-specific purging must compare against, not event_date.
+            y3_label_end_pos = min(pos + int(y3), len(market) - 1)
+            y3_label_end_date = market.iloc[y3_label_end_pos][c.date_col]
 
             # Cumulative event-window returns, pre-declared in
             # docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2 before anything scored them. NaN rather
@@ -290,21 +300,29 @@ class FeatureEngineer:
             # from the pre-event close, not an abnormal return against an expected-return model,
             # so calling it "CAR" was inaccurate.
             cars = {}
+            car_end_dates = {}
             for k in (5, 10):
+                in_range = pos + k < len(market)
                 cars[f"Y1_EventWindow_0_{k}_LogReturn_Pct"] = (
                     float(100.0 * np.log(market.iloc[pos + k][c.price_col] / price_tm1))
-                    if pos + k < len(market) else np.nan)
+                    if in_range else np.nan)
+                car_end_dates[f"Y1_EventWindow_0_{k}_horizon_end_date"] = (
+                    market.iloc[pos + k][c.date_col] if in_range else pd.NaT)
 
             rows.append({
                 c.disaster_date_col: event_date,
                 "Y1_ASPI_5D_Forward_LogReturn_Pct": y1,
-                # Date of the trading session Y1's numerator is read from -- used only to
-                # purge train/test fold-boundary overlap in `walk_forward.purge_horizon_overlap`,
-                # never as a model feature.
+                # Label-end dates below are used only to purge train/test fold-boundary
+                # overlap (`walk_forward.purge_horizon_overlap`), one per target -- see
+                # docs/METHODOLOGY_AUDIT.md "Target-specific label purging" -- never as
+                # model features.
                 "Y1_horizon_end_date": y1_horizon_end_date,
+                "Y2_label_end_date": y2_label_end_date,
+                "Y3_label_end_date": y3_label_end_date,
                 "Y2_abnormal_volume": y2,
                 "Y3_recovery_days": float(y3),
                 **cars,
+                **car_end_dates,
             })
 
         return pd.DataFrame(rows)

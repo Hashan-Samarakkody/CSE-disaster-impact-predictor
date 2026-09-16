@@ -70,6 +70,37 @@ def clip_to_bounds(target: str, values):
     return np.clip(np.asarray(values, dtype=float), lo, hi)
 
 
+# One column per target naming the trading session on which that target's label is
+# actually "known" -- used ONLY by `walk_forward.purge_horizon_overlap` to drop
+# training rows whose label depends on prices/events dated on/after a fold's first
+# test event (fold-boundary embargo). Per 2026-09-16 methodology-audit review
+# (finding #5): a single shared Y1-5-day purge under-purged Y1_EventWindow_0_10 (a
+# 10-trading-day horizon) and Y3 (up to 90 trading days), while over-purging Y2 (which
+# has no forward horizon at all -- its label is known the same session). Each target
+# now gets its own column, built in `feature_eng.build_targets`.
+TARGET_LABEL_END_DATE_COL = {
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1_horizon_end_date",
+    "Y1_EventWindow_0_5_LogReturn_Pct": "Y1_EventWindow_0_5_horizon_end_date",
+    "Y1_EventWindow_0_10_LogReturn_Pct": "Y1_EventWindow_0_10_horizon_end_date",
+    "Y2_abnormal_volume": "Y2_label_end_date",
+    "Y3_recovery_days": "Y3_label_end_date",
+}
+
+# Same mapping, keyed by the stage-05 CLASSIFICATION label name instead of the
+# regression target it is derived from (src/models/classifiers.py's LABELS dict) --
+# notebook 05 had NO fold-boundary purge at all before the 2026-09-16 methodology-audit
+# review (finding #5), even though every label depends on a future-looking target with
+# its own horizon (up to 90 trading days for the two Y3-derived labels).
+LABEL_END_DATE_COL = {
+    "C1_negative_return": TARGET_LABEL_END_DATE_COL["Y1_ASPI_5D_Forward_LogReturn_Pct"],
+    "C1b_adverse_move": TARGET_LABEL_END_DATE_COL["Y1_ASPI_5D_Forward_LogReturn_Pct"],
+    "C2_volume_spike": TARGET_LABEL_END_DATE_COL["Y2_abnormal_volume"],
+    "C3_recovers_in_90": TARGET_LABEL_END_DATE_COL["Y3_recovery_days"],
+    "C3b_slow_recovery": TARGET_LABEL_END_DATE_COL["Y3_recovery_days"],
+    "C4_car5_negative": TARGET_LABEL_END_DATE_COL["Y1_EventWindow_0_5_LogReturn_Pct"],
+}
+
+
 # ---------------------------------------------------------------- artifact cache
 
 
@@ -176,6 +207,7 @@ __all__ = [
     "np", "pd", "Path", "json",
     "NOTEBOOK_DIR", "REPO_ROOT", "DATA_DIR", "ARTIFACT_DIR", "FIGURE_DIR",
     "RANDOM_STATE", "TARGET_COLS", "TARGET_BOUNDS", "clip_to_bounds",
+    "TARGET_LABEL_END_DATE_COL", "LABEL_END_DATE_COL",
     "save_frame", "load_frame", "save_object", "load_object", "save_json", "load_json",
     "artifact_status",
 ]

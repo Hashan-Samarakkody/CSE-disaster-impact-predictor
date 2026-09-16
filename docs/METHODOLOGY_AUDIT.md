@@ -1292,3 +1292,41 @@ throughout this document.
    purging, Y3 competing-risk censoring, missingness semantics, nested CV, and the
    prediction-origin alignment question) are separate, larger changes and are tracked
    as follow-on work, not resolved by this freeze.
+
+### 2026-09-16: target-specific label-horizon purging (methodology-audit finding #5)
+
+Before this, `notebooks/04_modeling_regression.ipynb`'s `run_walk_forward` purged every
+target against a single shared column (Y1's 5-trading-day horizon), applied once per
+fold. That under-purged `Y1_EventWindow_0_10_LogReturn_Pct` (a 10-day horizon) and
+`Y3_recovery_days` (up to 90 trading days), and over-purged `Y2_abnormal_volume` (which
+has no forward horizon at all -- its label is known the same session). Three other
+call sites had **no purge at all**: the shared-MLP loop in notebook 04 (§8), every
+classification label in `notebooks/05_modeling_classification.ipynb` (all 6 labels are
+derived from a future-looking regression target), and `scripts/run_survival_model.py`
+(Y3's own AFT model).
+
+Fixed by adding one label-end-date column per target
+(`feature_eng.build_targets`: `Y1_horizon_end_date`, `Y1_EventWindow_0_5/10_horizon_end_date`,
+`Y2_label_end_date`, `Y3_label_end_date` -- Y2's is the event session itself, Y3's is the
+trading session its recovery/cap was actually confirmed on) and a single source-of-truth
+mapping (`notebooks/_shared.py`: `TARGET_LABEL_END_DATE_COL`, `LABEL_END_DATE_COL`).
+`run_walk_forward` now purges and SMOGN-augments **per target inside the fold loop**
+(previously once per fold, shared across targets) so each target's training rows are
+purged against its own horizon before augmentation. The MLP loop (which cannot take a
+different training set per target, since its output layer is shared) now purges against
+Y3's horizon -- the most conservative available -- rather than nothing. Notebook 05 and
+`run_survival_model.py` now purge every fold, per label/target, for the first time.
+
+**Measured effect, Y3 AFT survival model (the only case with a like-for-like before/after
+run available)**: pooled C-index 0.557 -> **0.640** (folds: 0.696/0.448/0.500/0.917 vs the
+previous 0.696/0.448/0.500/0.583) on the same n=40 pooled test points -- test rows are
+untouched by purging, only training rows are removed, so this is a same-sample
+comparison. This reads as a genuine correctness fix (the previous number was computed
+with zero fold-boundary protection, i.e. it likely OVERSTATED accuracy from leakage, not
+understated it), not evidence the model works better -- reported honestly either
+direction, per this document's standing rule.
+
+Y1/Y2 point-regression numbers and the 6 classification labels also shifted slightly
+(a handful of borderline-adjacent training rows now excluded per fold); no comparison's
+qualitative conclusion changed (C2_volume_spike remains the only classification label
+confirmed to beat baseline; no Y1 candidate is statistically confirmed either way).

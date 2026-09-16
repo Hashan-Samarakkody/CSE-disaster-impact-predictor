@@ -32,7 +32,7 @@ from src.data_pipeline.feature_eng import FeatureEngineeringConfig
 from src.evaluation.metrics import bootstrap_metric_ci, evaluate_regression, skill_score
 from src.models.survival_recovery import AFTRecoveryModel
 from src.sampling.time_aware_smogn import time_aware_smogn
-from src.training.walk_forward import generate_walk_forward_splits
+from src.training.walk_forward import generate_walk_forward_splits, purge_horizon_overlap
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -72,6 +72,13 @@ def main() -> None:
     y_all = dataset[[TARGET]].copy()
     dates_all = dataset["event_date"]
     gdp_all = dataset["gdp_current_usd"] if "gdp_current_usd" in dataset.columns else None
+    # Y3's label is only "known" once recovery is confirmed (or the 90-day cap is
+    # confirmed) -- see feature_eng.build_targets. This script had NO fold-boundary
+    # purge at all before the 2026-09-16 methodology-audit review (finding #5): a
+    # training row's Y3 label can depend on prices up to 90 trading days after its
+    # event, so without this a training event close to a fold boundary could leak
+    # price information from on/after the first test event.
+    y3_label_end_all = dataset["Y3_label_end_date"]
 
     splits = list(generate_walk_forward_splits(len(X_all), TRAIN_WINDOW, TEST_WINDOW, STEP))
 
@@ -82,6 +89,7 @@ def main() -> None:
     fold_detail = []
 
     for fold_i, s in enumerate(splits):
+        s = purge_horizon_overlap(s, dates_all, y3_label_end_all)
         X_tr_real, X_te = X_all.iloc[s.train_index], X_all.iloc[s.test_index]
         y_tr_real, y_te = y_all.iloc[s.train_index], y_all.iloc[s.test_index]
         dates_tr = dates_all.iloc[s.train_index]
