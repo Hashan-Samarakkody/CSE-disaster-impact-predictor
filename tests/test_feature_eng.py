@@ -188,6 +188,49 @@ def test_y3_genuine_recovery_before_a_later_disaster_is_not_censored():
     assert first["Y3_censor_reason"] == "recovered"
 
 
+def test_y3_delayed_crash_after_a_resilient_event_day_is_not_missed():
+    """Methodology-audit finding #11: the event-day close sitting above the pre-event
+    baseline must not short-circuit Y3 to 0 when the index falls below baseline a few
+    sessions later, inside the prespecified 5-day post-event gate window -- the recovery
+    clock must start at that later trough, not be blind to it because day 0 looked fine."""
+    dates = pd.date_range("2024-01-01", periods=140, freq="B")
+    prices = np.full(len(dates), 100.0)
+    prices[20] = 101.0       # event day itself: resilient, ABOVE the pre-event baseline
+    prices[21:23] = 85.0     # crashes 1-2 sessions later, inside the 5-day gate window
+    prices[23:] = 100.0      # recovers by trading day 3 after the event
+    volumes = np.linspace(1000.0, 2000.0, len(dates))
+    market_df = pd.DataFrame({"date": dates, "aspi_close": prices, "trading_volume": volumes})
+    disaster_df = pd.DataFrame({"event_date": [dates[20]]})
+
+    targets = FeatureEngineer().build_targets(market_df, disaster_df)
+    first = targets.iloc[0]
+    # Pre-finding#11 behaviour would have scored this Y3=0 (event-day close >= baseline)
+    # and never noticed the day 21-22 crash at all.
+    assert bool(first["Y3_drawdown_occurred"]) is True
+    assert first["Y3_recovery_days"] == 3.0
+    assert bool(first["Y3_censored"]) is False
+    assert first["Y3_censor_reason"] == "recovered"
+
+
+def test_y3_is_zero_only_when_no_drawdown_occurs_in_the_gate_window():
+    """A genuinely resilient event (never dips below baseline within the gate window)
+    still scores Y3=0 -- the fix changes what counts as "resilient", not the value for a
+    row that actually is."""
+    dates = pd.date_range("2024-01-01", periods=140, freq="B")
+    prices = np.full(len(dates), 100.0)
+    prices[20:26] = 105.0    # stays above baseline through the whole 5-day gate window
+    volumes = np.linspace(1000.0, 2000.0, len(dates))
+    market_df = pd.DataFrame({"date": dates, "aspi_close": prices, "trading_volume": volumes})
+    disaster_df = pd.DataFrame({"event_date": [dates[20]]})
+
+    targets = FeatureEngineer().build_targets(market_df, disaster_df)
+    first = targets.iloc[0]
+    assert bool(first["Y3_drawdown_occurred"]) is False
+    assert first["Y3_recovery_days"] == 0.0
+    assert bool(first["Y3_censored"]) is False
+    assert first["Y3_censor_reason"] == "recovered"
+
+
 # ------------------------------------------------- cumulative event-window returns
 
 def test_car_targets_accumulate_from_the_pre_event_close():

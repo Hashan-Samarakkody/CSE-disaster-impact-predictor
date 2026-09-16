@@ -18,12 +18,32 @@ fit here -- backwards for events this irregular. DM is still computed and report
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 
 _MIN_N = 8  # below this, neither test carries information worth printing
 
 
 def _rmse(err: np.ndarray) -> float:
     return float(np.sqrt(np.mean(err ** 2)))
+
+
+def build_episode_ids(dates, gap_days: int = 14) -> np.ndarray:
+    """Group events into disaster episodes (methodology-audit followup, item 22): two
+    events less than `gap_days` apart are treated as one episode, since their market
+    outcomes plausibly share the same shock rather than being independent draws --
+    "very close together" per the panel's own wording. Chained, not pairwise: A-B-C each
+    `gap_days` apart all land in one episode, matching how a bootstrap should NOT be able
+    to draw them as if independent. Returns an integer episode id per input date, in
+    input order (dates need not be pre-sorted)."""
+    d = pd.to_datetime(pd.Series(dates)).reset_index(drop=True)
+    order = d.sort_values().index.to_numpy()
+    sorted_dates = d.iloc[order].to_numpy()
+    gap = np.diff(sorted_dates).astype("timedelta64[D]").astype(float)
+    new_episode = np.concatenate([[True], gap > gap_days])
+    episode_of_sorted = np.cumsum(new_episode) - 1
+    episode_ids = np.empty(len(d), dtype=int)
+    episode_ids[order] = episode_of_sorted
+    return episode_ids
 
 
 def paired_bootstrap_delta(
@@ -34,12 +54,20 @@ def paired_bootstrap_delta(
     alpha: float = 0.05,
     random_state: int = 42,
     metric: str = "rmse",
+    cluster_ids=None,
 ):
     """Bootstrap CI for (baseline error - model error), resampling EVENTS in pairs.
 
     Positive delta means the model is better. The pairing matters: model and baseline
     are scored on the identical resampled events every draw, so the shared difficulty of
     an event cancels and the CI reflects only the difference between the two predictors.
+
+    `cluster_ids` (methodology-audit followup, item 22): when given, resamples DISASTER
+    EPISODES rather than individual events -- events sharing an episode id are drawn or
+    left out together every round, since the plain event-level bootstrap assumes
+    independence across rows that can in fact be the same or adjacent disasters with
+    correlated market outcomes. `None` (default) keeps the plain per-event bootstrap for
+    callers with no episode grouping available.
 
     Returns a dict with the point delta, its CI, and the share of draws favouring the
     model (a one-sided bootstrap p-value in the `p_model_worse` field).
@@ -68,8 +96,21 @@ def paired_bootstrap_delta(
                 "note": f"n={n} too small to bootstrap"}
 
     rng = np.random.default_rng(random_state)
-    idx = rng.integers(0, n, size=(n_boot, n))
-    deltas = np.array([score(err_b[i]) - score(err_m[i]) for i in idx])
+    if cluster_ids is None:
+        idx = rng.integers(0, n, size=(n_boot, n))
+        deltas = np.array([score(err_b[i]) - score(err_m[i]) for i in idx])
+    else:
+        cids = np.asarray(cluster_ids)
+        if len(cids) != n:
+            raise ValueError("cluster_ids must be the same length as y_true")
+        clusters = np.unique(cids)
+        members = [np.flatnonzero(cids == cl) for cl in clusters]
+        n_clusters = len(clusters)
+        deltas = np.empty(n_boot)
+        for b in range(n_boot):
+            draw = rng.integers(0, n_clusters, size=n_clusters)
+            i = np.concatenate([members[c] for c in draw])
+            deltas[b] = score(err_b[i]) - score(err_m[i])
 
     lo, hi = np.quantile(deltas, [alpha / 2, 1 - alpha / 2])
     return {
@@ -133,20 +174,44 @@ def diebold_mariano(y_true, y_pred_model, y_pred_baseline, h: int = 1, power: in
 
 
 def pooled(results: dict, model: str, target: str):
-    """Concatenate a model/target's per-fold out-of-fold arrays into one paired vector."""
+    """Concatenate a model/target's per-fold out-of-fold arrays into one paired vector.
+
+    Also returns the pooled original-dataset row index when `score_and_record` recorded
+    one (methodology-audit followup, item 22 -- needed to build episode ids for the
+    cluster bootstrap in `verdict_table`); `None` for older cached results that predate
+    that tracking, so this stays backward compatible with a stale `results_regression.pkl`.
+    """
     store = results[model][target]
-    return (np.concatenate(store["y_true"]), np.concatenate(store["y_pred"]))
+    idx = np.concatenate(store["index"]) if store.get("index") else None
+    return (np.concatenate(store["y_true"]), np.concatenate(store["y_pred"]), idx)
 
 
-def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_train_mean")):
+def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_train_mean"),
+                  event_dates=None, episode_gap_days: int = 14):
     """Full per-(model, target, baseline) verdict table.
 
     Only compares models against baselines on the *same* events. The stacked model
     forfeits fold 0 to its meta-learner, so it has 20 points where the others have 30;
     comparing its pooled vector against a 30-point baseline vector would be meaningless,
     so those pairs are aligned on length and flagged rather than silently zipped.
+
+    `event_dates` (methodology-audit followup, item 22): a Series/mapping from the
+    original dataset row index to its event date. When given (and `pooled()` found a
+    row-index for both sides), the bootstrap clusters by disaster episode
+    (`build_episode_ids`, events under `episode_gap_days` apart share an episode)
+    instead of resampling individual events -- events that are the same or an adjacent
+    disaster are no longer treated as independent draws. Falls back to the plain
+    per-event bootstrap when dates aren't available for a given pair.
+
+    A Holm correction (methodology-audit followup, item 20) is applied across every row
+    in the returned table to the bootstrap's one-sided `p_model_worse`, since many
+    (model, target, baseline) comparisons are run and some "significant" result is
+    expected by chance alone. `holm_significant` is a stricter, family-wise-corrected
+    diagnostic column; `verdict`/`boot_beats` (the single-comparison bootstrap CI) stay
+    the primary criterion per the module docstring -- this is reported, not gated, same
+    relationship DM already has to the primary verdict.
     """
-    import pandas as pd
+    from statsmodels.stats.multitest import multipletests
 
     rows = []
     models = [m for m in results if m not in baselines]
@@ -154,21 +219,28 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
         for model in models:
             if target not in results[model]:
                 continue
-            yt_m, yp_m = pooled(results, model, target)
+            yt_m, yp_m, idx_m = pooled(results, model, target)
             for base in baselines:
                 if base not in results or target not in results[base]:
                     continue
-                yt_b, yp_b = pooled(results, base, target)
+                yt_b, yp_b, idx_b = pooled(results, base, target)
                 if len(yt_b) != len(yt_m):
                     # Align on the tail: the shorter vector is always the later folds.
                     k = min(len(yt_b), len(yt_m))
                     yt_m2, yp_m2, yp_b2 = yt_m[-k:], yp_m[-k:], yp_b[-k:]
+                    idx_m2 = idx_m[-k:] if idx_m is not None else None
                     aligned = f"aligned to last {k} points"
                 else:
-                    yt_m2, yp_m2, yp_b2 = yt_m, yp_m, yp_b
+                    yt_m2, yp_m2, yp_b2, idx_m2 = yt_m, yp_m, yp_b, idx_m
                     aligned = ""
 
-                boot = paired_bootstrap_delta(yt_m2, yp_m2, yp_b2)
+                cluster_ids = None
+                if event_dates is not None and idx_m2 is not None:
+                    dates = pd.Series(event_dates).reindex(idx_m2)
+                    if dates.notna().all():
+                        cluster_ids = build_episode_ids(dates.to_numpy(), gap_days=episode_gap_days)
+
+                boot = paired_bootstrap_delta(yt_m2, yp_m2, yp_b2, cluster_ids=cluster_ids)
                 dm = diebold_mariano(yt_m2, yp_m2, yp_b2)
                 rows.append({
                     "target": target, "model": model, "baseline": base, "n": boot["n"],
@@ -177,6 +249,8 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
                     "delta_rmse": boot["delta"],
                     "ci_low": boot["ci_low"], "ci_high": boot["ci_high"],
                     "boot_beats": boot["significant"],
+                    "p_model_worse": boot["p_model_worse"],
+                    "clustered_by_episode": cluster_ids is not None,
                     "dm_stat": dm["dm_stat"], "dm_p": dm["p_value"],
                     "dm_beats": dm["significant"],
                     # Bootstrap is PRIMARY (see module docstring); DM is reported, not
@@ -187,7 +261,16 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
                                 else "worse than baseline"),
                     "note": " ".join(filter(None, [aligned, boot["note"], dm["note"]])),
                 })
-    return pd.DataFrame(rows)
+
+    table = pd.DataFrame(rows)
+    if len(table):
+        # NaN p-values (n too small to bootstrap) can't be corrected -- treated as
+        # non-significant rather than dropped, so the row count here matches `table`.
+        pvals = table["p_model_worse"].fillna(1.0).to_numpy()
+        _, p_holm, _, _ = multipletests(pvals, alpha=0.05, method="holm")
+        table["p_holm"] = p_holm
+        table["holm_significant"] = (p_holm < 0.05) & table["boot_beats"]
+    return table
 
 
 if __name__ == "__main__":
@@ -211,5 +294,18 @@ if __name__ == "__main__":
 
     small = paired_bootstrap_delta(truth[:5], good[:5], bad[:5])
     assert not small["significant"] and "too small" in small["note"]
+
+    # Episode clustering: three events 5 days apart chain into one episode; a 4th event
+    # 30 days later is its own episode.
+    dates = pd.to_datetime(["2020-01-01", "2020-01-06", "2020-01-11", "2020-02-10"])
+    eids = build_episode_ids(dates, gap_days=14)
+    assert eids[0] == eids[1] == eids[2] != eids[3]
+
+    # Cluster bootstrap must still detect a real effect, same as the plain bootstrap
+    # above, when every event happens to be its own episode (well-separated dates).
+    wide_dates = pd.date_range("2000-01-01", periods=n, freq="60D")
+    cids = build_episode_ids(wide_dates, gap_days=14)
+    rc = paired_bootstrap_delta(truth, good, bad, n_boot=2000, cluster_ids=cids)
+    assert rc["significant"] and rc["delta"] > 0, rc
 
     print("verification.py self-check passed")

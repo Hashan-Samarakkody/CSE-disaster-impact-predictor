@@ -53,7 +53,8 @@ from src.evaluation.metrics import (
     bootstrap_metric_ci, evaluate_regression, extended_regression_metrics, skill_score,
 )
 from src.sampling.time_aware_smogn import time_aware_smogn
-from src.training.walk_forward import generate_walk_forward_splits, purge_horizon_overlap
+from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
+                                       median_impute_from_train, purge_horizon_overlap)
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -89,8 +90,13 @@ def select_top_features(X_train, y_series, k=20, random_state=RANDOM_STATE):
 
 def augment_fold(X_train, y_train, dates_train, type_cols, gdp_train=None,
                   max_year_gap=5.0, random_state=RANDOM_STATE):
+    # Y1's own relevance function (methodology-audit followup, item 15) -- this script
+    # only ever scores Y1, so the minority class it should oversample is Y1's own
+    # severe-negative-return tail, not Y3's recovery-days threshold left over from
+    # copy-pasting the main pipeline's old (pre-fix) helper.
     complete = y_train.notna().all(axis=1)
-    minority_mask = complete & (y_train["Y3_recovery_days"] > 30)
+    thresh = y_train[TARGET].quantile(0.20)
+    minority_mask = complete & (y_train[TARGET] < thresh)
     X_aug, y_aug, report = time_aware_smogn(
         X_train, y_train, minority_mask, event_dates=dates_train,
         max_year_gap=max_year_gap, random_state=random_state,
@@ -201,7 +207,12 @@ def load_data():
     dataset = pd.read_parquet(ARTIFACTS / "dataset.parquet")
     spec = json.loads((ARTIFACTS / "feature_spec.json").read_text(encoding="utf-8"))
     feature_cols, type_cols = spec["FEATURE_COLS"], spec["TYPE_COLS"]
-    X_all = dataset[feature_cols].fillna(0.0)
+    X_all = dataset[feature_cols].copy()
+    # MEDIAN_IMPUTE_COLS keep real NaN, imputed per-fold in the walk-forward loops;
+    # everything else is a safety-net zero-fill only (methodology-audit finding #14,
+    # matching notebook 04 -- this script had kept its own blanket fillna(0.0)).
+    _non_median_cols = [c for c in feature_cols if c not in MEDIAN_IMPUTE_COLS]
+    X_all[_non_median_cols] = X_all[_non_median_cols].fillna(0.0)
     y_all = dataset[["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y3_recovery_days"]].copy()
     dates_all = dataset["event_date"]
     horizon_end_all = dataset["Y1_horizon_end_date"]
@@ -321,6 +332,10 @@ def run_single_target(X_all, y_all, dates_all, horizon_end_all, gdp_all, splits,
         y_tr_real, y_te = y_all.iloc[s.train_index], y_all.iloc[s.test_index]
         dates_tr = dates_all.iloc[s.train_index]
         gdp_tr = None if gdp_all is None else gdp_all.iloc[s.train_index]
+        # Train-fold median imputation (methodology-audit finding #14) -- this script
+        # had kept its own blanket `.fillna(0.0)` at load time even after the main
+        # pipeline stopped doing that; fixed to match.
+        X_tr_real, X_te = median_impute_from_train(X_tr_real, X_te)
 
         real_ok, te_ok = y_tr_real[TARGET].notna(), y_te[TARGET].notna()
         if int(real_ok.sum()) < 10 or int(te_ok.sum()) < 1:
@@ -472,6 +487,7 @@ def main():
         y_tr_real, y_te = y_all.iloc[s.train_index], y_all.iloc[s.test_index]
         dates_tr = dates_all.iloc[s.train_index]
         gdp_tr = None if gdp_all is None else gdp_all.iloc[s.train_index]
+        X_tr_real, X_te = median_impute_from_train(X_tr_real, X_te)
         real_ok, te_ok = y_tr_real[TARGET].notna(), y_te[TARGET].notna()
         if int(real_ok.sum()) < 10 or int(te_ok.sum()) < 1:
             continue

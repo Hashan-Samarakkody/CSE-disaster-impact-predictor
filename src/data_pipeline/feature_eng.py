@@ -306,21 +306,46 @@ class FeatureEngineer:
             effective_cap = c.max_recovery_days
             if next_event_pos is not None:
                 effective_cap = max(0, min(c.max_recovery_days, next_event_pos - pos))
-            recovery_window = market.iloc[pos : pos + effective_cap + 1]
-            recovered = recovery_window[recovery_window[c.price_col] >= pre_disaster_baseline]
-            if recovered.empty:
-                # TRADING days, per thesis Sec. 3.2.2. The previous version returned calendar days
-                # while searching a window of 91 trading ROWS, so the 90 cap actually bit at about
-                # 62 trading days and slow recoveries were indistinguishable from none at all.
-                y3 = effective_cap
-                y3_censored = True
-                y3_censor_reason = ("next_disaster" if effective_cap < c.max_recovery_days
-                                     else "cap_90")
-            else:
-                recovery_pos = market.index.get_loc(recovered.index[0])
-                y3 = min(recovery_pos - pos, effective_cap)
+
+            # Adverse-response gate (methodology-audit finding #11): searching for
+            # recovery starting AT the event session meant an event whose own close
+            # already sat above the pre-event baseline scored Y3=0 immediately, even if
+            # the index fell BELOW baseline on a later session within the same short
+            # window -- the recovery search never got the chance to see that drop
+            # because it had already "recovered" on day 0 by definition. Gate on the
+            # lowest close within a prespecified 5-trading-day post-event window (or
+            # `effective_cap`, if a competing disaster arrives first): if the index never
+            # falls below the pre-event baseline in that window, this event is
+            # genuinely resilient and Y3=0 stands; if it does, the recovery clock starts
+            # at that trough, not at the event session, so a session that fell after an
+            # initially resilient day-0 is no longer invisible to the search.
+            gate_end_pos = min(pos + 5, pos + effective_cap, len(market) - 1)
+            gate_window = market.iloc[pos : gate_end_pos + 1]
+            trough_idx = gate_window[c.price_col].idxmin()
+            trough_pos = market.index.get_loc(trough_idx)
+            trough_price = float(market.loc[trough_idx, c.price_col])
+            y3_drawdown_occurred = bool(trough_price < pre_disaster_baseline)
+
+            if not y3_drawdown_occurred:
+                y3 = 0.0
                 y3_censored = False
                 y3_censor_reason = "recovered"
+            else:
+                recovery_window = market.iloc[trough_pos : pos + effective_cap + 1]
+                recovered = recovery_window[recovery_window[c.price_col] >= pre_disaster_baseline]
+                if recovered.empty:
+                    # TRADING days, per thesis Sec. 3.2.2. The previous version returned calendar
+                    # days while searching a window of 91 trading ROWS, so the 90 cap actually bit
+                    # at about 62 trading days and slow recoveries were indistinguishable from none.
+                    y3 = float(effective_cap)
+                    y3_censored = True
+                    y3_censor_reason = ("next_disaster" if effective_cap < c.max_recovery_days
+                                         else "cap_90")
+                else:
+                    recovery_pos = market.index.get_loc(recovered.index[0])
+                    y3 = float(min(recovery_pos - pos, effective_cap))
+                    y3_censored = False
+                    y3_censor_reason = "recovered"
             # The date Y3's label is actually settled: the trading session it recovered
             # on, or the session its censoring (90-day cap OR the next disaster,
             # whichever bound this row) was confirmed on -- whichever is earlier. A
@@ -371,6 +396,9 @@ class FeatureEngineer:
                 # censoring-aware fit/evaluation and reported diagnostics.
                 "Y3_censored": y3_censored,
                 "Y3_censor_reason": y3_censor_reason,
+                # Adverse-response gate detail (methodology-audit finding #11) -- NOT a
+                # model feature (computed from post-event prices), diagnostic only.
+                "Y3_drawdown_occurred": y3_drawdown_occurred,
                 **cars,
                 **car_end_dates,
             })

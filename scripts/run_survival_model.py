@@ -1,5 +1,12 @@
-"""Y3 (recovery days): compare the right-censored AFT survival model against the
-existing point-regression models on the SAME walk-forward folds.
+"""Y3 (recovery days): the right-censored AFT survival model is the PRIMARY reported
+result for Y3 (methodology-audit followup, item 12) -- plain point-regression (RF/
+Ridge/XGBoost fit directly on Y3_recovery_days, as if every 90-day cap and
+competing-risk censor were an observed recovery time) is a SECONDARY diagnostic here,
+not a co-equal alternative. Treating >=90-day non-recoveries as if they equalled 90 and
+minimising squared error against that fabricated observation is exactly the distortion
+survival analysis exists to avoid; c-index and the survival curve are what this study
+actually stands behind for Y3, and the point-regression comparison exists only to show
+the SIZE of that distortion, not to compete with the survival number for primacy.
 
 Mirrors `notebooks/04_modeling_regression.ipynb` §`run_walk_forward` for a single
 target (Y3_recovery_days) so the numbers are directly comparable to
