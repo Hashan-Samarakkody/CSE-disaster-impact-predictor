@@ -392,10 +392,10 @@ st.markdown('<div class="mui-card">', unsafe_allow_html=True)
 st.dataframe(clf_df.style.apply(_highlight, axis=1), use_container_width=True, hide_index=True)
 st.markdown("</div>", unsafe_allow_html=True)
 st.caption(
-    "Only the two green rows (`C2_volume_spike`, `C4_car5_negative`) clear both the "
-    "majority rule and chance in the recorded walk-forward audit. The red rows are "
-    "shown for completeness -- their predictions here are no more trustworthy than a "
-    "coin flip, regardless of how confident the number looks."
+    "Only the green row (`C2_volume_spike`) clears both the majority rule and chance "
+    "in the recorded walk-forward audit. The red rows are shown for completeness -- "
+    "their predictions here are no more trustworthy than a coin flip, regardless of "
+    "how confident the number looks."
 )
 
 st.divider()

@@ -2,7 +2,8 @@
 
 Maps EM-DAT's 47-column public-table schema onto the columns `FeatureEngineer` expects,
 CPI-adjusts damage to a common base year, and records how precisely each event is dated.
-Absent damage figures are zero-filled with a `damage_source` flag, never silently."""
+Absent damage figures are left NaN (median-imputed per walk-forward fold, methodology-
+audit finding #14), with `damage_source`/`financial_damage_observed` flagging why."""
 
 from __future__ import annotations
 
@@ -42,9 +43,13 @@ def load_emdat(path: Path, sheet_name: str = "EM-DAT Data") -> pd.DataFrame:
     damage_source = np.select(
         [adjusted.notna(), raw_damage.notna()],
         ["emdat_cpi_adjusted", "emdat_unadjusted_fallback"],
-        default="missing_zero_filled",
+        default="missing_median_imputed",  # was "missing_zero_filled" before finding #14
     )
-    financial_damage = adjusted.fillna(raw_damage).fillna(0.0) * 1000.0  # EM-DAT reports in '000 US$
+    # NOT zero-filled here any more (methodology-audit finding #14, 2026-09-16): stays
+    # NaN when EM-DAT records no figure, so it can be median-imputed from each walk-
+    # forward fold's TRAIN rows only (`src.training.walk_forward.median_impute_from_train`)
+    # instead of a single global constant baked in before any fold split exists.
+    financial_damage = adjusted.fillna(raw_damage) * 1000.0  # EM-DAT reports in '000 US$
 
     # Magnitude's unit varies by hazard (Km2 inundated for floods, Kph wind for storms), so
     # it is split by scale with a flag each. It is populated more often than Total Damage
@@ -71,10 +76,11 @@ def load_emdat(path: Path, sheet_name: str = "EM-DAT Data") -> pd.DataFrame:
             # `damage_source` is a string and excluded from FEATURE_COLS entirely
             # (notebook 02's EXCLUDE_COLS), so the model never actually saw the
             # missingness signal it names -- exactly finding #13 in the 2026-09-16
-            # methodology-audit review. This numeric flag is the fix: 47/64 events'
-            # financial_damage is zero-filled with no EM-DAT figure at all, previously
-            # indistinguishable from a genuinely-recorded zero-damage event.
-            "financial_damage_observed": (damage_source != "missing_zero_filled").astype(float),
+            # methodology-audit review. This numeric flag is the fix: 47/64 events have
+            # no EM-DAT damage figure at all, previously zero-filled and indistinguishable
+            # from a genuinely-recorded zero-damage event; now NaN, median-imputed per
+            # fold (finding #14) with this flag marking which rows were imputed.
+            "financial_damage_observed": (damage_source != "missing_median_imputed").astype(float),
             "population_affected": raw["Total Affected"],
             # Each gets an availability flag. The feature table fills NaN with 0.0, and without
             # the flag a zero reads as "nobody died" rather than "EM-DAT recorded no figure" --

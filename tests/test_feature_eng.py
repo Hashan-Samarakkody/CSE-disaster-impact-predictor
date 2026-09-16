@@ -206,32 +206,31 @@ def test_car_targets_accumulate_from_the_pre_event_close():
     fe = FeatureEngineer(FeatureEngineeringConfig())
     t = fe.build_targets(market, events).iloc[0]
 
-    # Y1 = ASPI_5D_Log_Return_Pct = 100 * ln(P[pos+5] / P[pos]). Price is already flat
-    # at 110 on the event day and stays there, so the 5-trading-day-forward move is 0
-    # -- the jump itself happened AT the reference day, not after it.
-    assert t.Y1_ASPI_5D_Forward_LogReturn_Pct == pytest.approx(0.0)
-    # EventWindow targets: log return from the pre-event close (P[pos-1]), in percent.
+    # Y1 = 100 * ln(P[pos+5] / P[pos-1]) (methodology-audit finding #8, 2026-09-16:
+    # rebaselined onto the PRE-event close, matching what X actually knows at prediction
+    # time). This makes Y1 numerically identical to what was formerly a separate
+    # EventWindow_0_5 column -- there is no such column any more, Y1 IS it.
     expected_car = float(100.0 * np.log(110.0 / 100.0))
-    assert t.Y1_EventWindow_0_5_LogReturn_Pct == pytest.approx(expected_car)
+    assert t.Y1_ASPI_5D_Forward_LogReturn_Pct == pytest.approx(expected_car)
     assert t.Y1_EventWindow_0_10_LogReturn_Pct == pytest.approx(expected_car)
 
 
-def test_car_targets_capture_drift_the_day0_return_misses():
+def test_y1_now_includes_the_day0_reaction_pre_event_denominator():
+    """Methodology-audit finding #8: Y1's denominator is the PRE-event close, so the
+    immediate day-0 reaction is now part of what Y1 measures (previously excluded from
+    both X and Y1, a prediction-origin mismatch)."""
     days = pd.bdate_range("2020-01-01", periods=60)
     price = np.full(len(days), 100.0)
-    price[10] = 99.0            # small dip on the event day
+    price[10] = 99.0            # small dip on the event day itself
     price[11:] = 90.0           # the real damage shows up afterwards
     market = pd.DataFrame({"date": days, "aspi_close": price, "trading_volume": 1e6})
     events = pd.DataFrame({"event_date": [days[10]]})
 
     t = FeatureEngineer(FeatureEngineeringConfig()).build_targets(market, events).iloc[0]
-    # Y1 = 100 * ln(P[pos+5] / P[pos]) = 100 * ln(90 / 99): event-day close (99) as
-    # denominator, 5th-trading-day-forward close (90) as numerator.
-    assert t.Y1_ASPI_5D_Forward_LogReturn_Pct == pytest.approx(100.0 * np.log(90.0 / 99.0))
-    assert t.Y1_EventWindow_0_5_LogReturn_Pct == pytest.approx(100.0 * np.log(90.0 / 100.0))
-    # The EventWindow (from the pre-event close) shows a bigger loss than Y1 (from the
-    # event-day close itself, which had already partly dipped).
-    assert t.Y1_EventWindow_0_5_LogReturn_Pct < -5.0
+    # Y1 = 100 * ln(P[pos+5] / P[pos-1]) = 100 * ln(90 / 100): pre-event close (100) as
+    # denominator -- the day-0 dip (100 -> 99) is included in this move, not excluded.
+    assert t.Y1_ASPI_5D_Forward_LogReturn_Pct == pytest.approx(100.0 * np.log(90.0 / 100.0))
+    assert t.Y1_ASPI_5D_Forward_LogReturn_Pct < -5.0
 
 
 def test_car_is_nan_rather_than_a_truncated_window():
@@ -241,7 +240,7 @@ def test_car_is_nan_rather_than_a_truncated_window():
                            "trading_volume": 1e6})
     events = pd.DataFrame({"event_date": [days[10]]})   # only 3 rows remain after it
     t = FeatureEngineer(FeatureEngineeringConfig()).build_targets(market, events).iloc[0]
-    assert np.isnan(t.Y1_EventWindow_0_5_LogReturn_Pct) and np.isnan(t.Y1_EventWindow_0_10_LogReturn_Pct)
+    assert np.isnan(t.Y1_ASPI_5D_Forward_LogReturn_Pct) and np.isnan(t.Y1_EventWindow_0_10_LogReturn_Pct)
 
 
 def test_inclusion_threshold_is_read_from_config():

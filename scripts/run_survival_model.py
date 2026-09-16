@@ -32,7 +32,8 @@ from src.data_pipeline.feature_eng import FeatureEngineeringConfig
 from src.evaluation.metrics import bootstrap_metric_ci, evaluate_regression, skill_score
 from src.models.survival_recovery import AFTRecoveryModel
 from src.sampling.time_aware_smogn import time_aware_smogn
-from src.training.walk_forward import generate_walk_forward_splits, purge_horizon_overlap
+from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
+                                       median_impute_from_train, purge_horizon_overlap)
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -68,7 +69,12 @@ def main() -> None:
     spec = json.loads((ARTIFACTS / "feature_spec.json").read_text(encoding="utf-8"))
     feature_cols, type_cols = spec["FEATURE_COLS"], spec["TYPE_COLS"]
 
-    X_all = dataset[feature_cols].fillna(0.0)
+    # Flagged columns (methodology-audit finding #14, MEDIAN_IMPUTE_COLS) keep real NaN
+    # here -- imputed per fold from train rows only, below. Everything else is a
+    # safety-net zero-fill (none of them actually have missing values).
+    X_all = dataset[feature_cols].copy()
+    _non_median_cols = [c for c in feature_cols if c not in MEDIAN_IMPUTE_COLS]
+    X_all[_non_median_cols] = X_all[_non_median_cols].fillna(0.0)
     y_all = dataset[[TARGET]].copy()
     dates_all = dataset["event_date"]
     gdp_all = dataset["gdp_current_usd"] if "gdp_current_usd" in dataset.columns else None
@@ -94,6 +100,7 @@ def main() -> None:
         y_tr_real, y_te = y_all.iloc[s.train_index], y_all.iloc[s.test_index]
         dates_tr = dates_all.iloc[s.train_index]
         gdp_tr = None if gdp_all is None else gdp_all.iloc[s.train_index]
+        X_tr_real, X_te = median_impute_from_train(X_tr_real, X_te)
 
         real_ok, te_ok = y_tr_real[TARGET].notna(), y_te[TARGET].notna()
         if int(real_ok.sum()) < 10 or int(te_ok.sum()) < 1:
@@ -213,7 +220,15 @@ def main() -> None:
     if uncensored_mask.sum() >= 6:
         yt_u, yp_u = yt_aft[uncensored_mask], yp_aft[uncensored_mask]
         corr = float(np.corrcoef(yt_u, yp_u)[0, 1])
-        terciles = pd.qcut(yp_u, q=3, labels=["low_pred", "mid_pred", "high_pred"], duplicates="drop")
+        # duplicates="drop" can collapse fewer than 3 distinct bin edges when many
+        # predictions tie (e.g. a near-degenerate fold) -- pandas then rejects the
+        # fixed 3-label list outright, so fall back to pandas' own integer bin labels
+        # rather than crash the whole report over a display label.
+        try:
+            terciles = pd.qcut(yp_u, q=3, labels=["low_pred", "mid_pred", "high_pred"],
+                               duplicates="drop")
+        except ValueError:
+            terciles = pd.qcut(yp_u, q=3, duplicates="drop")
         calib = pd.DataFrame({"actual": yt_u, "predicted": yp_u, "bucket": terciles}).groupby(
             "bucket", observed=True)[["actual", "predicted"]].mean()
         print()

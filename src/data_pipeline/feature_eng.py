@@ -240,7 +240,6 @@ class FeatureEngineer:
             if pos == 0:
                 continue
 
-            price_t = market.iloc[pos][c.price_col]
             price_tm1 = market.iloc[pos - 1][c.price_col]
 
             # Y3 competing-risk censoring (methodology-audit finding #7): if a LATER
@@ -259,17 +258,23 @@ class FeatureEngineer:
                     next_event_pos = market.index.get_loc(next_idx[0])
 
             # Y1 = ASPI_5D_Log_Return_Pct -- five-trading-day forward cumulative log
-            # return, in percent: 100 * ln(ASPI_(t+5) / ASPI_t). `pos` is the reference
-            # trading day (first trading session on/after the event date -- the existing
-            # alignment rule, reused as-is). `market` is already indexed one row per
-            # TRADING session (non-trading days never appear in it), so pos+5 is exactly
-            # the fifth subsequent CSE trading session, not five calendar days.
-            # NaN (and the row excluded downstream) if fewer than 5 trading sessions
-            # remain after the event -- never fabricate a truncated horizon.
+            # return, in percent: 100 * ln(ASPI_(t+5) / ASPI_(t-1)). Denominator is the
+            # PRE-EVENT close, not the event-day close (methodology-audit finding #8,
+            # 2026-09-16, "prediction origin"): every feature in X is snapshotted at
+            # asof_date = event_date - 1, so a label baselined on P_t (already knowable
+            # only AFTER the event) was inconsistent with what the model is actually
+            # given to predict FROM. Baselining on P_(t-1) instead means the day-0
+            # reaction itself is now part of what Y1 measures, matching the
+            # already-pre-declared EventWindow_0_5 formula exactly -- see the
+            # consolidation note where EventWindow_0_5 is no longer computed separately.
+            # `pos` is the reference trading day (first session on/after the event date,
+            # the existing alignment rule). NaN (row excluded downstream) if fewer than 5
+            # trading sessions remain after the event -- never fabricate a truncated
+            # horizon.
             y1_horizon_pos = pos + 5
             if y1_horizon_pos < len(market):
                 price_t5 = market.iloc[y1_horizon_pos][c.price_col]
-                y1 = float(100.0 * np.log(price_t5 / price_t))
+                y1 = float(100.0 * np.log(price_t5 / price_tm1))
                 y1_horizon_end_date = market.iloc[y1_horizon_pos][c.date_col]
             else:
                 y1 = np.nan
@@ -324,16 +329,24 @@ class FeatureEngineer:
             y3_label_end_pos = min(pos + int(y3), len(market) - 1)
             y3_label_end_date = market.iloc[y3_label_end_pos][c.date_col]
 
-            # Cumulative event-window returns, pre-declared in
-            # docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2 before anything scored them. NaN rather
-            # than a truncated window, so a partial accumulation is never reported as a full one.
-            # Named EventWindow (not CAR) and expressed in percent (matching Y1's _Pct units)
-            # per the 2026-09-16 methodology-audit freeze: this is a raw cumulative log return
-            # from the pre-event close, not an abnormal return against an expected-return model,
-            # so calling it "CAR" was inaccurate.
+            # Cumulative event-window return, pre-declared in
+            # docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2 before anything scored it. NaN
+            # rather than a truncated window, so a partial accumulation is never reported
+            # as a full one. Named EventWindow (not CAR) and expressed in percent
+            # (matching Y1's _Pct units) per the 2026-09-16 methodology-audit freeze: this
+            # is a raw cumulative log return from the pre-event close, not an abnormal
+            # return against an expected-return model, so calling it "CAR" was inaccurate.
+            #
+            # EventWindow_0_5 is NOT computed separately here (methodology-audit finding
+            # #8, same date): once Y1 was rebaselined onto the pre-event close, its
+            # formula -- 100*ln(P_(t+5)/P_(t-1)) -- became numerically IDENTICAL to
+            # EventWindow_0_5's. Keeping both would ship two columns with the same value
+            # under different names, feeding SMOGN/every model a duplicated feature as if
+            # it were independent information. Y1 IS the consolidated column; only the
+            # 10-day window remains a distinct target.
             cars = {}
             car_end_dates = {}
-            for k in (5, 10):
+            for k in (10,):
                 in_range = pos + k < len(market)
                 cars[f"Y1_EventWindow_0_{k}_LogReturn_Pct"] = (
                     float(100.0 * np.log(market.iloc[pos + k][c.price_col] / price_tm1))

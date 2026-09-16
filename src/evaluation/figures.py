@@ -55,21 +55,21 @@ NEUTRAL = "0.92"        # masked / not-distinguishable-from-zero cells
 WIDTH_FULL, WIDTH_HALF = 6.3, 3.1
 H_SHORT, H_MED, H_TALL = 2.4, 3.6, 5.0
 
+# Y1 rebaselined onto the pre-event close (methodology-audit finding #8, 2026-09-16),
+# absorbing EventWindow_0_5's formula -- there is no separate CAR[0,+5] entry below.
 TARGET_LABELS = {
-    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · ASPI % dev. vs 30d pre-mean, event day",
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · 5-day cumulative return from pre-event close",
     "Y2_abnormal_volume": "Y2 · abnormal volume (V / 30-day mean − 1)",
     "Y3_recovery_days": "Y3 · recovery time (trading days, capped 90)",
-    "Y1_EventWindow_0_5_LogReturn_Pct": "CAR[0,+5] · cumulative return, 5 trading days",
     "Y1_EventWindow_0_10_LogReturn_Pct": "CAR[0,+10] · cumulative return, 10 trading days",
 }
 # Short forms for multi-panel figures, where the full labels collide.
 SHORT_TARGET_LABELS = {
-    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · % dev.",
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · CAR[0,+5]",
     "Y2_abnormal_volume": "Y2 · abnormal volume",
     "Y3_recovery_days": "Y3 · recovery days",
     "Y1_sector_log_return": "Y1 · sector log return",
     "Y3_sector_recovery_days": "Y3 · sector recovery",
-    "Y1_EventWindow_0_5_LogReturn_Pct": "CAR[0,+5]",
     "Y1_EventWindow_0_10_LogReturn_Pct": "CAR[0,+10]",
 }
 

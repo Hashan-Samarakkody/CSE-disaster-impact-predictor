@@ -101,7 +101,12 @@ def fit_final_hurdle(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFrame) ->
 def main() -> None:
     dataset = pd.read_parquet(ARTIFACTS / "dataset.parquet")
     spec = _load_json("feature_spec")
-    X = dataset[spec["FEATURE_COLS"]].fillna(0.0)
+    # Global (all-real-rows) median for the flagged columns (methodology-audit finding
+    # #14) -- these models are already refit on ALL data (documented as demonstration
+    # artifacts, not a held-out result), so there is no fold to impute per-fold from;
+    # this uses the SAME saved medians notebook 04's final SHAP refit and
+    # src/inference.py's live demo use, rather than each recomputing its own.
+    X = dataset[spec["FEATURE_COLS"]].fillna(spec.get("MEDIAN_IMPUTE_VALUES", {})).fillna(0.0)
     y = dataset[spec["TARGET_COLS"]].copy()
 
     print("Fitting final classifiers (one per label, on all real rows)...")

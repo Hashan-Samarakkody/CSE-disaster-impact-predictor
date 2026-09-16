@@ -30,7 +30,6 @@ TARGET_BOUNDS = {
     "Y1_ASPI_5D_Forward_LogReturn_Pct": (None, None),
     "Y2_abnormal_volume": (-1.0, None),
     "Y3_recovery_days": (0.0, 90.0),
-    "Y1_EventWindow_0_5_LogReturn_Pct": (None, None),
     "Y1_EventWindow_0_10_LogReturn_Pct": (None, None),
 }
 

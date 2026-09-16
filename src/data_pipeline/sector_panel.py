@@ -57,9 +57,12 @@ def build_sector_panel(sector_long: pd.DataFrame, events: pd.DataFrame,
 
     panel = pd.concat(rows, ignore_index=True)
     panel = panel.merge(events[["event_date"] + disaster_cols], on="event_date", how="left")
+    # Y1_EventWindow_0_5_LogReturn_Pct no longer exists as a separate column
+    # (methodology-audit finding #8, 2026-09-16): Y1 itself absorbed that formula once
+    # rebaselined onto the pre-event close, so "Y1_sector_log_return" below already IS
+    # the 5-day sector-level cumulative return.
     panel = panel.rename(columns={"Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1_sector_log_return",
                                   "Y3_recovery_days": "Y3_sector_recovery_days",
-                                  "Y1_EventWindow_0_5_LogReturn_Pct": "Y1_sector_car_5",
                                   "Y1_EventWindow_0_10_LogReturn_Pct": "Y1_sector_car_10"})
     panel = panel.drop(columns=[c for c in ("Y2_abnormal_volume",) if c in panel.columns])
 

@@ -1464,3 +1464,131 @@ already-small-N target, and one fold now scores below chance (0.333) where it
 previously did not. Reported as measured, not as a regression to explain away: adding a
 methodologically-correct feature does not guarantee a better fit at N~74, and this
 document's standing rule is to report the number either direction. 97/97 tests pass.
+
+### 2026-09-16: prediction-origin alignment (methodology-audit finding #8) -- Y1 rebaselined, EventWindow_0_5 and C4 consolidated
+
+Every feature in X is snapshotted at `asof_date = event_date - 1` (the pre-event close).
+Y1 was `100*ln(P_t+5 / P_t)` -- baselined on the EVENT-DAY close, a value only knowable
+AFTER the event, and therefore not itself part of X's information set. That mismatch is
+the actual defect: the day-0 reaction (P_(t-1) -> P_t) was silently excluded from BOTH
+the predictors and the label, and the label's own baseline used information the model
+was never given.
+
+Presented as an explicit choice, not decided silently: **Option A** (rebaseline Y1's
+denominator to the pre-event close, so the day-0 reaction becomes part of what Y1
+measures) vs **Option B** (keep Y1 as-is, add day-0 features to X instead, which
+reframes the research question from "predict the reaction" to "predict the
+continuation given the reaction is already known"). User selected **Option A**.
+
+Implemented: `feature_eng.build_targets` now computes
+`Y1_ASPI_5D_Forward_LogReturn_Pct = 100*ln(P_(t+5) / P_(t-1))`. This is EXACTLY the
+formula the pre-declared `Y1_EventWindow_0_5_LogReturn_Pct` already used -- so Y1 is now
+numerically identical to that column. Rather than ship two columns with the same value
+under different names (feeding SMOGN and every model a duplicated feature as if it were
+independent information), `EventWindow_0_5` is no longer computed as a separate target;
+Y1 IS the consolidated column. `EventWindow_0_10` remains distinct.
+
+**Cascading consolidation, not a separate decision**: `C4_car5_negative`
+("`Y1_EventWindow_0_5 < 0`") became identical to `C1_negative_return`
+("`Y1_ASPI_5D_Forward_LogReturn_Pct < 0`") for the same reason, one level up in the
+classification labels. Removed rather than duplicated -- `LABELS` now has 5 entries, not
+6. The `docs/EXTERNAL_DATA_PRE_DECLARATION.md` pre-declarations for both removed
+columns are left UNCHANGED (that document records what was decided before any result
+was seen, so it is not retroactively edited); this section and the removal comments in
+`src/models/classifiers.py`/`feature_eng.py` are the record of what superseded them.
+
+**Every consumer updated**: `notebooks/_shared.py` (`TARGET_COLS`, `TARGET_BOUNDS`,
+`TARGET_LABEL_END_DATE_COL`, `LABEL_END_DATE_COL`), `src/inference.py`
+(`TARGET_LABELS`, `LABEL_DESCRIPTIONS`, `target_bounds` -- also fixed two OTHER stale
+Y1 descriptions this surfaced: "day-0 return"/"event day" language left over from
+before this session's earlier Y1 redefinition), `src/evaluation/metrics.py` and
+`src/evaluation/figures.py` (`TARGET_BOUNDS`/`TARGET_LABELS`, same stale-description
+fix), `src/data_pipeline/sector_panel.py` (rename map), `notebooks/08_sector_panel.ipynb`
+(classification cell), `app.py` (a caption naming C4 by name), and every test that
+constructed a target/label fixture or asserted `LABELS`/`TARGET_LABELS` membership.
+
+**Effect on results**: TARGET_COLS 5 -> 4, LABELS 6 -> 5. Y1's value itself changed
+for every event (it now includes the day-0 move) -- verified numerically identical to
+the pre-change `Y1_EventWindow_0_5_LogReturn_Pct` value for a sample event
+(1.4839099892177814 either way). Y2/Y3/EventWindow_0_10 and the AFT survival model are
+untouched (none of them read Y1). Full pipeline re-run (02 through train_final_models);
+97/97 tests pass.
+
+**What this does not do**: it does not touch feature construction (X is still
+snapshotted at t-1, unchanged) or resolve whether the ex-post severity-informed
+specification (the whole app/thesis's stated scope) is itself a "prediction" in the
+forecasting sense -- that scope statement (README, `src/inference.py` docstring)
+already exists and is unaffected by this fix.
+
+### 2026-09-16: train-fold median imputation (methodology-audit finding #14's other half)
+
+Finding #14 allows either "train-fold median or predefined constant + missing
+indicator" -- the earlier fix this session (finding #13/#14, above) used the constant
+(zero) half, with a flag. Asked directly why not the more defensible median half, the
+answer was: it cannot be a single global median computed once, the same as any other
+per-fold statistic in this pipeline (RF-importance selection, SMOGN, Ridge's alpha
+search) -- a global median computed before the fold split leaks future rows' values
+into early folds' imputation.
+
+Implemented `median_impute_from_train` (`src/training/walk_forward.py`): median of
+`MEDIAN_IMPUTE_COLS` (the 16 columns from the finding #13/#14 fix, now including two
+DERIVED columns, `log_financial_damage`/`log_damage_x_flood`, imputed independently by
+their own median rather than recomputed from an imputed `financial_damage` -- a known,
+accepted simplification, not a further target for this fix) computed from a fold's REAL
+training rows only, applied to that fold's train and test frames; falls back to 0.0 only
+if a column is entirely NaN in that fold's training rows (a real degenerate-fold
+fallback, not a silent global default).
+
+**Required un-baking a zero-fill that happened upstream of any fold split**:
+`financial_damage` was zero-filled inside `emdat_loader.load_emdat` itself, before
+`dataset.parquet` was ever written -- median imputation is impossible after that point,
+so the loader now leaves it (and its EM-DAT-provenance category, renamed
+`"missing_median_imputed"`, was `"missing_zero_filled"`) as real NaN. Every other flagged
+column (volume ratios, GARCH, macro) was already real NaN in `dataset.parquet`, just
+blanket-zero-filled at each notebook's own `X = dataset[FEATURE_COLS].fillna(0.0)` --
+those call sites now skip `MEDIAN_IMPUTE_COLS` in that blanket fill instead, leaving them
+for the per-fold step.
+
+**A latent bug this surfaced, fixed alongside it**: `log_damage_x_flood =
+log_financial_damage * disaster_Flood` relies on multiplying by a 0/1 indicator to zero
+out non-Flood events -- but `NaN * 0.0 == NaN` in float arithmetic, not `0.0`. While
+`financial_damage` was always zero-filled (never NaN), this was silently safe; once it
+can be real NaN, every non-Flood event with missing damage would have gone spuriously
+NaN on a term that is definitionally 0 for non-Flood events. Fixed with an explicit
+`np.where(disaster_Flood == 1, log_financial_damage, 0.0)` in both `feature_eng.py`
+(historical dataset) and `src/inference.py`'s `build_feature_row` (which recomputes the
+same term on every call, live-app included).
+
+**Wired into every model-fitting consumer**, not just the primary walk-forward loop:
+notebook 04 (main loop, the shared-MLP loop, the PCA ablation -- the dense/K10/feature-
+block ablations inherit it automatically through the shared `run_walk_forward`),
+notebook 05 (the classification loop and the hurdle-model cell), `run_survival_model.py`.
+Two paths have no fold at all because they refit on ALL real data by design (already
+documented elsewhere as in-sample, not held-out) -- notebook 04's final SHAP refit and
+`scripts/train_final_models.py` -- so they use one GLOBAL median instead, computed once
+in notebook 02 and persisted in `feature_spec.json` (`MEDIAN_IMPUTE_VALUES`) precisely so
+every "refit on everything" consumer, including `src/inference.py`'s live demo, imputes
+with the identical numbers rather than each recomputing its own. Notebook 07's SHAP
+values now use that same global fill too -- explaining a model on differently-imputed
+inputs than it was trained on would have been a real, if quiet, inconsistency.
+`notebooks/08_sector_panel.ipynb`'s classification cell still blanket-zero-fills (its
+own `PANEL_FEATURES` construction, unchanged) -- noted as a residual gap, not silently
+left inconsistent.
+
+**A second bug caught only by running it**: `scripts/run_survival_model.py`'s
+calibration section calls `pd.qcut(..., q=3, labels=[...], duplicates="drop")`, which
+raises when tied predicted values collapse the bin count below 3 and pandas then rejects
+the fixed 3-label list. This did not fire before (the previous prediction distribution
+never had that many ties) but did after this fix changed the model's inputs -- caught
+by actually running the script rather than assuming a passing test suite meant the
+scripts were fine too. Fixed with a fallback to pandas' own integer bin labels when the
+named ones don't fit.
+
+**Effect on results**: Y3 AFT c-index 0.508 -> **0.553** (a real improvement, not
+guaranteed by the fix -- reported either direction per this document's standing rule).
+More notably, **`C1_negative_return` now clears both the majority rule and chance**
+(full-refit AUC 0.711, `beats_baseline=True`) -- a second confirmed classification
+result alongside `C2_volume_spike`, where before this fix only one label cleared the
+bar. 97/97 tests pass (two updated: the round-trip test now expects the global median
+for a missing feature, not 0.0; the classification test now expects `C1_negative_return`
+confirmed).

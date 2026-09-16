@@ -45,13 +45,23 @@ FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+# Re-exported so every notebook's `X = dataset[FEATURE_COLS]...` construction can skip
+# these columns in its blanket `.fillna(0.0)` and instead impute them per fold (below;
+# methodology-audit finding #14) -- one definition, matching `TARGET_LABEL_END_DATE_COL`'s
+# own reasoning for living in `src/` rather than being redeclared per notebook.
+from src.training.walk_forward import MEDIAN_IMPUTE_COLS, median_impute_from_train  # noqa: E402
+
 RANDOM_STATE = 42
 
-# Y1_EventWindow_0_5_LogReturn_Pct / Y1_EventWindow_0_10_LogReturn_Pct are cumulative event-window returns, pre-declared in
-# docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2. They are regression targets and
-# drive the C4 label, so they must appear here -- stage 05 slices dataset[TARGET_COLS].
+# Y1_EventWindow_0_10_LogReturn_Pct is a cumulative event-window return, pre-declared in
+# docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2. It is a regression target -- stage 05
+# slices dataset[TARGET_COLS]. Y1_EventWindow_0_5_LogReturn_Pct is NOT a separate column
+# here (methodology-audit finding #8, 2026-09-16): rebaselining Y1 onto the pre-event
+# close made its formula numerically identical to EventWindow_0_5's, so Y1 IS that
+# column now -- see feature_eng.build_targets for the consolidation note. C4_car5_negative
+# (below) reads Y1 directly rather than a since-removed duplicate.
 TARGET_COLS = ["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_abnormal_volume", "Y3_recovery_days",
-               "Y1_EventWindow_0_5_LogReturn_Pct", "Y1_EventWindow_0_10_LogReturn_Pct"]
+               "Y1_EventWindow_0_10_LogReturn_Pct"]
 
 # Definitional bounds from thesis Sec. 3.2.2. Clipping to them is projection onto the
 # target's support: every true value already lies inside, so absolute error cannot
@@ -61,7 +71,6 @@ TARGET_BOUNDS = {
     "Y2_abnormal_volume": (-1.0, None),
     "Y3_recovery_days": (0.0, 90.0),
     # Cumulative log returns are unbounded in both directions, exactly like Y1.
-    "Y1_EventWindow_0_5_LogReturn_Pct": (None, None),
     "Y1_EventWindow_0_10_LogReturn_Pct": (None, None),
 }
 
@@ -81,7 +90,6 @@ def clip_to_bounds(target: str, values):
 # now gets its own column, built in `feature_eng.build_targets`.
 TARGET_LABEL_END_DATE_COL = {
     "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1_horizon_end_date",
-    "Y1_EventWindow_0_5_LogReturn_Pct": "Y1_EventWindow_0_5_horizon_end_date",
     "Y1_EventWindow_0_10_LogReturn_Pct": "Y1_EventWindow_0_10_horizon_end_date",
     "Y2_abnormal_volume": "Y2_label_end_date",
     "Y3_recovery_days": "Y3_label_end_date",
@@ -98,7 +106,8 @@ LABEL_END_DATE_COL = {
     "C2_volume_spike": TARGET_LABEL_END_DATE_COL["Y2_abnormal_volume"],
     "C3_recovers_in_90": TARGET_LABEL_END_DATE_COL["Y3_recovery_days"],
     "C3b_slow_recovery": TARGET_LABEL_END_DATE_COL["Y3_recovery_days"],
-    "C4_car5_negative": TARGET_LABEL_END_DATE_COL["Y1_EventWindow_0_5_LogReturn_Pct"],
+    # C4_car5_negative removed (methodology-audit finding #8 consolidation, above) --
+    # it is now identical to C1_negative_return.
 }
 
 
@@ -242,6 +251,7 @@ __all__ = [
     "NOTEBOOK_DIR", "REPO_ROOT", "DATA_DIR", "ARTIFACT_DIR", "FIGURE_DIR",
     "RANDOM_STATE", "TARGET_COLS", "TARGET_BOUNDS", "clip_to_bounds",
     "TARGET_LABEL_END_DATE_COL", "LABEL_END_DATE_COL", "purged_inner_cv",
+    "MEDIAN_IMPUTE_COLS", "median_impute_from_train",
     "save_frame", "load_frame", "save_object", "load_object", "save_json", "load_json",
     "artifact_status",
 ]

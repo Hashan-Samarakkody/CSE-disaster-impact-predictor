@@ -47,7 +47,13 @@ def _binarise(values, mask):
 
 def label_negative_return(y, train_idx=None, dataset=None):
     """C1: Y1 < 0. The sign split, kept for continuity with the directional-accuracy
-    section. No free parameter."""
+    section. No free parameter.
+
+    Was originally the DAY-0 return's sign; Y1 itself was rebaselined onto the pre-event
+    close (methodology-audit finding #8, 2026-09-16), so this is now the same 5-day
+    cumulative-return sign question the since-retired `C4_car5_negative` asked --
+    identically, not just similarly, once Y1 absorbed EventWindow_0_5's formula. See
+    that removal note below."""
     v = y["Y1_ASPI_5D_Forward_LogReturn_Pct"]
     return pd.Series(_binarise(v < 0, v.notna()), index=v.index)
 
@@ -113,17 +119,14 @@ def label_adverse_move_sigma(y, train_idx=None, dataset=None):
     return pd.Series(_binarise(v < -sigma, v.notna() & sigma.notna()), index=v.index)
 
 
-def label_car5_negative(y, train_idx=None, dataset=None):
-    """C4: the 5-trading-day cumulative return is negative.
-
-    The same sign question as C1, asked of a less noisy measurement. A single day's
-    return is the noisiest possible read on an event's effect; accumulating over the
-    conventional 5-day event window raises signal-to-noise without using any information
-    the study does not already have. Pre-declared in
-    docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.3.
-    """
-    v = y["Y1_EventWindow_0_5_LogReturn_Pct"]
-    return pd.Series(_binarise(v < 0, v.notna()), index=v.index)
+# label_car5_negative (C4) REMOVED, methodology-audit finding #8 (2026-09-16): it asked
+# "is the 5-trading-day cumulative return (from the pre-event close) negative", which is
+# now EXACTLY what C1_negative_return asks -- Y1 was rebaselined onto the pre-event close
+# and absorbed EventWindow_0_5's formula (see feature_eng.build_targets). Keeping both
+# would score the same classifier twice under two names. Pre-declared in
+# docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.3 -- that pre-declaration is not rewritten
+# (it describes what was decided before any result was seen), this removal is recorded
+# here and in docs/METHODOLOGY_AUDIT.md instead.
 
 
 def label_slow_recovery(y, train_idx, dataset=None):
@@ -155,7 +158,6 @@ LABELS = {
     "C2_volume_spike": label_volume_spike,
     "C3_recovers_in_90": label_recovers_in_90,
     "C3b_slow_recovery": label_slow_recovery,
-    "C4_car5_negative": label_car5_negative,
 }
 
 

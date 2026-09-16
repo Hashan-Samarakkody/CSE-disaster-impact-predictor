@@ -16,10 +16,12 @@ def _targets(n=64, seed=0):
         "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n),
         "Y2_abnormal_volume": rng.normal(-0.13, 0.58, n),
         "Y3_recovery_days": np.where(rng.random(n) < 0.14, 90.0, rng.exponential(6, n).round()),
-        # Cumulative event-window returns, added 2026-09-12. The shared fixture must
-        # carry every column any label reads, otherwise a new label silently breaks the
-        # "all labels" sweep below rather than being exercised by it.
-        "Y1_EventWindow_0_5_LogReturn_Pct": rng.normal(0, 0.03, n),
+        # Y1_EventWindow_0_10_LogReturn_Pct: cumulative event-window return, added
+        # 2026-09-12. Y1_EventWindow_0_5_LogReturn_Pct is NOT a separate column
+        # (methodology-audit finding #8, 2026-09-16): Y1 absorbed its formula once
+        # rebaselined onto the pre-event close. The shared fixture must carry every
+        # column any label reads, otherwise a new label silently breaks the "all
+        # labels" sweep below rather than being exercised by it.
         "Y1_EventWindow_0_10_LogReturn_Pct": rng.normal(0, 0.04, n),
     })
 
@@ -164,14 +166,19 @@ def test_missing_labels_are_dropped_by_a_notna_mask():
 
 
 def test_new_labels_are_registered_and_balanced():
-    """C3b and C4, pre-declared in EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.3."""
+    """C3b, pre-declared in EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.3.
+
+    C4_car5_negative (also pre-declared there) was removed 2026-09-16
+    (methodology-audit finding #8): once Y1 was rebaselined onto the pre-event close it
+    absorbed EventWindow_0_5's formula, making C4 identical to C1_negative_return --
+    see src/models/classifiers.py's removal note."""
     import numpy as np
     import pandas as pd
 
     from src.models.classifiers import LABELS
 
     assert "C3b_slow_recovery" in LABELS
-    assert "C4_car5_negative" in LABELS
+    assert "C4_car5_negative" not in LABELS
 
     rng = np.random.default_rng(0)
     n = 40
@@ -179,7 +186,6 @@ def test_new_labels_are_registered_and_balanced():
         "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n),
         "Y2_abnormal_volume": rng.normal(0, 0.5, n),
         "Y3_recovery_days": np.arange(n, dtype=float),      # 0..39, median 19.5
-        "Y1_EventWindow_0_5_LogReturn_Pct": rng.normal(0, 0.03, n),
         "Y1_EventWindow_0_10_LogReturn_Pct": rng.normal(0, 0.04, n),
     })
     train_idx = np.arange(n)
@@ -189,10 +195,6 @@ def test_new_labels_are_registered_and_balanced():
     assert 0.45 <= slow.mean() <= 0.55, slow.mean()
     # And it must actually be the median cut, not the 90-day cap.
     assert slow.iloc[0] == 0.0 and slow.iloc[-1] == 1.0
-
-    car = LABELS["C4_car5_negative"](y, train_idx)
-    assert set(np.unique(car)) <= {0.0, 1.0}
-    assert (car == (y["Y1_EventWindow_0_5_LogReturn_Pct"] < 0).astype(float)).all()
 
 
 def test_slow_recovery_cut_comes_from_training_rows_only():
@@ -209,7 +211,6 @@ def test_slow_recovery_cut_comes_from_training_rows_only():
         "Y2_abnormal_volume": np.zeros(20),
         "Y3_recovery_days": np.concatenate([np.arange(10, dtype=float),
                                             np.full(10, 500.0)]),
-        "Y1_EventWindow_0_5_LogReturn_Pct": np.zeros(20),
         "Y1_EventWindow_0_10_LogReturn_Pct": np.zeros(20),
     })
     lab = LABELS["C3b_slow_recovery"](y, np.arange(10))   # train on the first 10 only
@@ -227,8 +228,6 @@ def test_new_labels_propagate_missing_targets():
         "Y1_ASPI_5D_Forward_LogReturn_Pct": [0.01] * 4,
         "Y2_abnormal_volume": [0.1] * 4,
         "Y3_recovery_days": [1.0, 2.0, np.nan, 4.0],
-        "Y1_EventWindow_0_5_LogReturn_Pct": [0.01, -0.01, 0.02, np.nan],
         "Y1_EventWindow_0_10_LogReturn_Pct": [0.0] * 4,
     })
-    assert LABELS["C4_car5_negative"](y, np.arange(4)).isna().sum() == 1
     assert LABELS["C3b_slow_recovery"](y, np.arange(4)).isna().sum() == 1

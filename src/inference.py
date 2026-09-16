@@ -24,21 +24,28 @@ ARTIFACTS = ROOT / "artifacts"
 
 DISASTER_TYPES = ["Drought", "Flood", "Other", "Storm"]
 
+# Y1's description was stale twice over before this fix (methodology-audit findings #1
+# and #8): it once described a day-0 return, then a 5-day-forward return baselined on
+# the EVENT-day close; it now shares its formula with the pre-declared EventWindow_0_5
+# term (pre-event close baseline -- matches what X actually knows), so there is no
+# longer a separate 5-day-cumulative-return entry below.
 TARGET_LABELS = {
-    "Y1_ASPI_5D_Forward_LogReturn_Pct": "ASPI % deviation, event day vs 30d pre-disaster mean",
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "5-day cumulative return from the pre-event close",
     "Y2_abnormal_volume": "Abnormal trading volume (V / 30d avg - 1)",
     "Y3_recovery_days": "Recovery time (trading days, capped at 90)",
-    "Y1_EventWindow_0_5_LogReturn_Pct": "5-day cumulative return",
     "Y1_EventWindow_0_10_LogReturn_Pct": "10-day cumulative return",
 }
 
+# C1/C1b's "day-0" descriptions were also stale (same fix, finding #8) -- there is no
+# day-0-only quantity left in the target set; both now read Y1's 5-day cumulative
+# return. C4_car5_negative was removed: identical to C1_negative_return once Y1
+# absorbed EventWindow_0_5's formula (see src/models/classifiers.py).
 LABEL_DESCRIPTIONS = {
-    "C1_negative_return": "Day-0 return is negative",
-    "C1b_adverse_move": "Day-0 return below this fold's bottom tercile",
+    "C1_negative_return": "5-day cumulative return is negative",
+    "C1b_adverse_move": "5-day cumulative return below this fold's bottom tercile",
     "C2_volume_spike": "Volume exceeds its own 30-day baseline",
     "C3_recovers_in_90": "Price recovers within 90 trading days",
     "C3b_slow_recovery": "Recovery slower than this fold's training median",
-    "C4_car5_negative": "5-day cumulative return is negative",
 }
 
 
@@ -60,14 +67,18 @@ class ModelBundle:
         with open(ARTIFACTS / "final_hurdle_model.pkl", "rb") as fh:
             self.hurdle = pickle.load(fh)
 
-        self.X = self.dataset[self.feature_cols].fillna(0.0)
+        # Same global-median fill as the models this bundle serves were actually fit
+        # with (methodology-audit finding #14) -- `final_rf_models.pkl`/
+        # `final_classifiers.pkl`/`final_hurdle_model.pkl` all use
+        # `MEDIAN_IMPUTE_VALUES`, not a blanket zero, for their flagged columns.
+        self.median_impute_values = self.spec.get("MEDIAN_IMPUTE_VALUES", {})
+        self.X = self.dataset[self.feature_cols].fillna(self.median_impute_values).fillna(0.0)
         self.y = self.dataset[self.target_cols]
 
         self.target_bounds = {
             "Y1_ASPI_5D_Forward_LogReturn_Pct": (None, None),
             "Y2_abnormal_volume": (-1.0, None),
             "Y3_recovery_days": (0.0, 90.0),
-            "Y1_EventWindow_0_5_LogReturn_Pct": (None, None),
             "Y1_EventWindow_0_10_LogReturn_Pct": (None, None),
         }
 
@@ -130,9 +141,18 @@ class ModelBundle:
             row["mag_wind_kph"] = float(overrides["mag_wind_kph"])
             row["mag_wind_available"] = 1.0
 
-        row["log_damage_x_flood"] = float(row["log_financial_damage"] * row["disaster_Flood"])
+        # Not a plain product: NaN * 0.0 == NaN, which would make every non-Flood
+        # event's interaction term spuriously NaN whenever the historical financial_damage
+        # is missing (methodology-audit finding #14 -- financial_damage/
+        # log_financial_damage are real NaN now, not zero-filled). Only a FLOOD event can
+        # have a genuinely missing interaction value; every non-Flood event is
+        # definitionally 0 -- same fix as feature_eng.build_targets/notebook 02.
+        row["log_damage_x_flood"] = (float(row["log_financial_damage"])
+                                     if row["disaster_Flood"] == 1.0 else 0.0)
         numeric = pd.to_numeric(row.reindex(self.feature_cols), errors="coerce")
-        return numeric.fillna(0.0)
+        # Global-median fill (methodology-audit finding #14), matching the models this
+        # row is about to be scored by -- not a blanket zero.
+        return numeric.fillna(self.median_impute_values).fillna(0.0)
 
     # ------------------------------------------------------------ prediction
 

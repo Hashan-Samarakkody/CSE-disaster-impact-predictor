@@ -33,13 +33,20 @@ def test_lists_all_real_events(bundle):
 
 def test_unmodified_event_round_trips_through_the_same_feature_values(bundle):
     """No override applied -> the feature row must equal the real cached row exactly,
-    so a prediction with no override reproduces the real, already-scored input."""
+    so a prediction with no override reproduces the real, already-scored input.
+
+    A NaN feature falls back to the global median (methodology-audit finding #14,
+    2026-09-16), not a blanket 0.0 -- matching the same fill the models this bundle
+    serves were actually trained with."""
     events = bundle.list_events()
     event_id = int(events["event_id"].iloc[0])
     row = bundle.build_feature_row(event_id, {})
     real = bundle.event_row(event_id)
     for col in bundle.feature_cols:
-        expected = real[col] if col in real.index and real[col] == real[col] else 0.0
+        if col in real.index and real[col] == real[col]:
+            expected = real[col]
+        else:
+            expected = bundle.median_impute_values.get(col, 0.0)
         assert row[col] == pytest.approx(float(expected)), col
 
 
@@ -72,19 +79,19 @@ def test_classification_predictions_are_valid_probabilities_with_verdict_metadat
     row = bundle.build_feature_row(event_id, {})
     pred = bundle.predict_classification(row)
 
+    # C4_car5_negative removed 2026-09-16 (methodology-audit finding #8): identical to
+    # C1_negative_return once Y1 absorbed EventWindow_0_5's formula.
     assert set(pred) == {"C1_negative_return", "C1b_adverse_move", "C2_volume_spike",
-                         "C3_recovers_in_90", "C3b_slow_recovery", "C4_car5_negative"}
+                         "C3_recovers_in_90", "C3b_slow_recovery"}
     for name, info in pred.items():
         assert 0.0 <= info["probability"] <= 1.0, name
         assert isinstance(info["beats_baseline"], bool), name
 
-    # Measured result under the frozen >=1000 threshold (n=74, 2026-09-16): only
-    # C2_volume_spike clears the majority rule and chance. C4_car5_negative cleared it
-    # at the earlier, since-reverted n=76 (700/500 threshold) but does not here --
-    # recorded as a real result change from the threshold freeze, not a regression bug.
+    # Measured result after the finding #14 median-imputation fix (2026-09-16):
+    # C2_volume_spike and C1_negative_return both clear the majority rule and chance --
+    # C1 is a genuinely new confirmed result from this fix, not a stale assumption.
     assert pred["C2_volume_spike"]["beats_baseline"]
-    assert not pred["C4_car5_negative"]["beats_baseline"]
-    assert not pred["C1_negative_return"]["beats_baseline"]
+    assert pred["C1_negative_return"]["beats_baseline"]
 
 
 def test_hurdle_prediction_stays_inside_the_censored_support(bundle):
