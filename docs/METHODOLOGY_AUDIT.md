@@ -1293,6 +1293,39 @@ This closes plan item 4 from the collinearity/nonlinear-models plan (PCA/GP/SVR/
 were already wired into the regression side only; the classification side was the one
 piece left incomplete).
 
+### 2026-09-16: bootstrap made the primary verdict criterion, Diebold-Mariano demoted
+to a diagnostic (P1 queue: "replace/supplement DM test as primary inferential tool")
+
+`src/evaluation/verification.py::verdict_table` previously required BOTH the paired
+event bootstrap AND Diebold-Mariano to agree before printing "BEATS BASELINE". DM's
+own theory assumes a roughly stationary, weakly dependent h-step-ahead forecast-error
+series -- a progressively worse fit the more a target's horizon overlaps neighbouring
+events (Y3 up to 90 trading days, Y1_EventWindow_0_10 up to 10; two of the findings
+this document already accepts as an unfixed, disclosed limitation, see §20
+"Embargo/purging"). The bootstrap only assumes exchangeability of events, which this
+irregular, non-time-uniform panel of disasters actually satisfies. Requiring the
+shakier test to also agree meant a real, bootstrap-confirmed effect could get vetoed
+for no reason better than DM's own mismatch to this data.
+
+Changed `verdict_table` so `verdict == "BEATS BASELINE"` iff the bootstrap CI excludes
+zero (`boot["significant"]`) alone; DM is still computed and reported per row as a new
+`dm_agrees` diagnostic column, not a gate. Nested feature selection was considered as
+the other queued P1 item but is NOT changed: §21 already recorded the panel's own
+verdict that full nested CV is unsupportable at this N (inner folds of 9/16/23 rows)
+and that the correct response is a smaller search space, not a deeper search -- current
+code already matches that accepted compromise, so there was nothing to fix there.
+
+Re-ran `06_evaluation.ipynb` + `scripts/audit_results.py`. Effect: 6 (model, target,
+baseline) pairs now read BEATS BASELINE (was however many survived the AND-gate before
+-- not separately recorded pre-change, since `verdict_table.parquet` only ever stored
+the combined result). Of these 6, only 2 (`Y2_abnormal_volume` svr vs naive_train_mean,
+`Y2_abnormal_volume` ensemble vs naive_zero) also have `dm_agrees=True`; the other 4
+clear the bootstrap alone -- now visible in the table instead of silently downgraded to
+"better, not distinguishable". Reported as the actual, more permissive direction the
+change produces, not spun: this makes more comparisons pass, which is the expected
+consequence of removing a stricter, worse-fitting second gate, not evidence of a
+methodological win. 97/97 tests pass.
+
 ### Y1-specific experiment suite (SMOGN ablation, compact features, regime features,
 ExtraTrees, single-task modeling, OOF ensemble weighting, shrinkage)
 

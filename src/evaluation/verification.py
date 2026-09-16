@@ -2,7 +2,18 @@
 
 Two tests on every (model, target, baseline) triple: a paired bootstrap that resamples
 events, and a Diebold-Mariano test with the Harvey-Leybourne-Newbold small-sample
-correction. A verdict counts only when both agree."""
+correction.
+
+The paired event bootstrap is the PRIMARY criterion (methodology-audit followup,
+2026-09-16): it makes no assumption beyond exchangeability of events, which matches
+this dataset (disasters are irregular, overlapping-horizon events, not a regularly
+spaced time series). Diebold-Mariano assumes a roughly stationary, weakly dependent
+h-step-ahead forecast-error series -- a fit that gets worse the more a target's
+horizon overlaps neighbouring events (Y3 up to 90 trading days, Y1_EventWindow_0_10 up
+to 10). Requiring DM to ALSO agree before a verdict counts (the original rule) let a
+bootstrap-confirmed effect get vetoed by a test whose own assumptions are the shakier
+fit here -- backwards for events this irregular. DM is still computed and reported
+(`dm_agrees`) as a secondary diagnostic, not a gate."""
 
 from __future__ import annotations
 
@@ -168,7 +179,10 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
                     "boot_beats": boot["significant"],
                     "dm_stat": dm["dm_stat"], "dm_p": dm["p_value"],
                     "dm_beats": dm["significant"],
-                    "verdict": ("BEATS BASELINE" if (boot["significant"] and dm["significant"])
+                    # Bootstrap is PRIMARY (see module docstring); DM is reported, not
+                    # required. dm_agrees is a diagnostic flag, not part of the gate.
+                    "dm_agrees": dm["significant"] == boot["significant"],
+                    "verdict": ("BEATS BASELINE" if boot["significant"]
                                 else "better, not distinguishable" if boot["delta"] > 0
                                 else "worse than baseline"),
                     "note": " ".join(filter(None, [aligned, boot["note"], dm["note"]])),
