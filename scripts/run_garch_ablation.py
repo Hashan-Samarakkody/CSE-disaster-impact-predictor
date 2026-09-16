@@ -38,7 +38,7 @@ from src.training.walk_forward import generate_walk_forward_splits, purge_horizo
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
-TARGET = "Y1_aspi_log_return"
+TARGET = "Y1_ASPI_5D_Forward_LogReturn_Pct"
 TRAIN_WINDOW, TEST_WINDOW, STEP = 30, 10, 10
 RIDGE_ALPHAS = np.logspace(-3, 3, 13)
 
@@ -115,7 +115,7 @@ def main() -> None:
             "notebooks/02_features_targets.ipynb first.")
 
     X_all = dataset[feature_cols].fillna(0.0)
-    y_all = dataset[["Y1_aspi_log_return", "Y3_recovery_days"]].copy()
+    y_all = dataset[["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y3_recovery_days"]].copy()
     dates_all = dataset["event_date"]
     horizon_end_all = dataset["Y1_horizon_end_date"]
     gdp_all = dataset["gdp_current_usd"] if "gdp_current_usd" in dataset.columns else None
@@ -128,7 +128,7 @@ def main() -> None:
     yt_wo, yp_wo, m_wo = run(without_garch, X_all, y_all, dates_all, gdp_all, splits, type_cols, horizon_end_all)
 
     print("=" * 100)
-    print("Y1_aspi_log_return (ASPI_5D_Log_Return_Pct) -- Ridge, with vs without garch_cond_vol "
+    print("Y1_ASPI_5D_Forward_LogReturn_Pct (ASPI_5D_Log_Return_Pct) -- Ridge, with vs without garch_cond_vol "
           "(identical folds/SMOGN/selection, purged for label-horizon/fold-boundary overlap)")
     print("=" * 100)
     print(f"{'variant':>18s} {'n':>4s} {'RMSE':>9s} {'MAE':>9s} {'pooled_R2':>10s}")

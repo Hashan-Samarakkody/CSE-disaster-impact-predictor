@@ -57,10 +57,10 @@ def build_sector_panel(sector_long: pd.DataFrame, events: pd.DataFrame,
 
     panel = pd.concat(rows, ignore_index=True)
     panel = panel.merge(events[["event_date"] + disaster_cols], on="event_date", how="left")
-    panel = panel.rename(columns={"Y1_aspi_log_return": "Y1_sector_log_return",
+    panel = panel.rename(columns={"Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1_sector_log_return",
                                   "Y3_recovery_days": "Y3_sector_recovery_days",
-                                  "Y1_car_5": "Y1_sector_car_5",
-                                  "Y1_car_10": "Y1_sector_car_10"})
+                                  "Y1_EventWindow_0_5_LogReturn_Pct": "Y1_sector_car_5",
+                                  "Y1_EventWindow_0_10_LogReturn_Pct": "Y1_sector_car_10"})
     panel = panel.drop(columns=[c for c in ("Y2_abnormal_volume",) if c in panel.columns])
 
     # event_id groups the rows that must never be split across a fold boundary.

@@ -1262,3 +1262,33 @@ ExtraTrees, single-task modeling, OOF ensemble weighting, shrinkage)
 See `scripts/run_y1_experiments.py` for the full implementation and
 `artifacts/y1_experiments_ranked.csv` / `artifacts/y1_feature_stability.csv` for results.
 Numbers appended below once the run completes.
+
+### 2026-09-16: methodology-audit freeze -- target names, units, inclusion threshold
+
+An external methodology review (ML/CSE/thesis-panel style audit, 44 numbered findings)
+flagged three sources of drift that this section freezes, so every earlier mention of the
+old names/threshold above is historical and describes runs made under them -- it is not
+retroactively edited, per the same "report deviations, don't hide them" discipline used
+throughout this document.
+
+1. **Target renaming.** `Y1_aspi_log_return` -> `Y1_ASPI_5D_Forward_LogReturn_Pct` (the
+   name now matches the actual formula, 100*ln(P_t+5/P_t), fixing finding #1: stale
+   day-0 descriptions elsewhere in the repo no longer match a name that says "5D_Forward").
+   `Y1_car_5`/`Y1_car_10` -> `Y1_EventWindow_0_5_LogReturn_Pct` /
+   `Y1_EventWindow_0_10_LogReturn_Pct` and multiplied by 100 (finding #9: these are raw
+   cumulative log returns from the pre-event close, not abnormal returns against an
+   expected-return model, so "CAR" was never accurate; finding #10: all three return
+   targets now share the same percent units instead of mixing percent and decimal).
+2. **Inclusion threshold frozen at >=1000 affected** (the thesis's original
+   pre-registration), reverting the 700 (2026-09-12) then 500 (2026-09-15) reductions
+   explored earlier this project (findings #2/#3/#34: the threshold had drifted across
+   three values with a test still asserting the middle one, and the README's "no relaxed
+   inclusion criteria" claim was false while it stood at 700/500). Verified via
+   notebook 02's own diagnostic cell that raising 500->1000 changes nothing: only 2 raw
+   EM-DAT records exist between those thresholds and neither matches to a tradable CSE
+   session, so the final dataset is byte-for-byte the same 76 events either way -- this
+   revert is free.
+3. **What this does not fix.** Findings #5-#8, #11-#22 (target-specific label-horizon
+   purging, Y3 competing-risk censoring, missingness semantics, nested CV, and the
+   prediction-origin alignment question) are separate, larger changes and are tracked
+   as follow-on work, not resolved by this freeze.

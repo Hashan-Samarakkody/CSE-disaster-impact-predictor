@@ -281,8 +281,8 @@ Let `pos` be the first trading row on or after the event date (the existing anch
 
 | Target | Definition | Justification |
 |---|---|---|
-| `Y1_car_5` | `ln(P[pos+5] / P[pos-1])` | Cumulative return over the event day plus 5 trading days. The conventional short event window. Verified: **76/76 events have >=5 trading rows after `pos`.** |
-| `Y1_car_10` | `ln(P[pos+10] / P[pos-1])` | Two-week window, the other conventional choice. Verified: **76/76 events have >=10 trading rows after `pos`.** |
+| `Y1_EventWindow_0_5_LogReturn_Pct` | `ln(P[pos+5] / P[pos-1])` | Cumulative return over the event day plus 5 trading days. The conventional short event window. Verified: **76/76 events have >=5 trading rows after `pos`.** |
+| `Y1_EventWindow_0_10_LogReturn_Pct` | `ln(P[pos+10] / P[pos-1])` | Two-week window, the other conventional choice. Verified: **76/76 events have >=10 trading rows after `pos`.** |
 
 Both windows were fixed at 5 and 10 because those are the standard short-horizon event
 windows in the literature, not because either scored better. No other k is tried, and
@@ -307,7 +307,7 @@ while every model scores *below chance* on AUC (best 0.597, random forest 0.229)
 | Label | Definition | Prevalence | Justification |
 |---|---|---|---|
 | `C3b_slow_recovery` | `Y3 > median(Y3 over THIS fold's training rows)` | ~0.50 by construction | Median split makes accuracy and AUC informative instead of gameable. The cut is computed on training rows only -- same discipline as the existing `C1b_adverse_move` tercile rule -- so no test information reaches the label. |
-| `C4_car5_negative` | `Y1_car_5 < 0` | measured, ~0.5 expected | Direction over the 5-day window rather than the single noisiest day. Same sign question as `C1_negative_return`, asked of a less noisy measurement. |
+| `C4_car5_negative` | `Y1_EventWindow_0_5_LogReturn_Pct < 0` | measured, ~0.5 expected | Direction over the 5-day window rather than the single noisiest day. Same sign question as `C1_negative_return`, asked of a less noisy measurement. |
 
 `C1_negative_return`, `C1b_adverse_move` and `C2_volume_spike` are unchanged.
 `C3_recovers_in_90` is **retained and still reported** beside `C3b_slow_recovery`, because
@@ -316,7 +316,7 @@ to prevent.
 
 ## 7.4 Expected outcomes, fixed in advance
 
-1. **`Y1_car_5` / `Y1_car_10` will still not beat their nulls as regressions.** Widening
+1. **`Y1_EventWindow_0_5_LogReturn_Pct` / `Y1_EventWindow_0_10_LogReturn_Pct` will still not beat their nulls as regressions.** Widening
    the window reduces noise but does not create predictability. Expect R2 to stay negative.
 2. **`C4_car5_negative` is the most likely of the new labels to clear 0.6**, because the
    5-day sign is a less noisy question than the day-0 sign.

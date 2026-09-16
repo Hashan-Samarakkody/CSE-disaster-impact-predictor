@@ -2,9 +2,9 @@
 per the approved plan (see docs/METHODOLOGY_AUDIT.md "Y1 feature/model experiments").
 
 FROZEN REFERENCE BASELINE (never overwritten by this script):
-    ensemble (RF+XGBoost+MLP, inverse-RMSE weighted), Y1_aspi_log_return, n=40:
+    ensemble (RF+XGBoost+MLP, inverse-RMSE weighted), Y1_ASPI_5D_Forward_LogReturn_Pct, n=40:
     RMSE=2.489  MAE=1.929  pooled R2=+0.085
-This is `artifacts/results_regression.pkl`'s "ensemble"/"Y1_aspi_log_return" entry as of
+This is `artifacts/results_regression.pkl`'s "ensemble"/"Y1_ASPI_5D_Forward_LogReturn_Pct" entry as of
 the full-pipeline run that produced the numbers above. This script reads that pickle once
 at startup, asserts it still matches the frozen numbers (to fail loudly if the cache was
 regenerated from a different run), and never writes back to it -- every experiment below
@@ -57,7 +57,7 @@ from src.training.walk_forward import generate_walk_forward_splits, purge_horizo
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
-TARGET = "Y1_aspi_log_return"
+TARGET = "Y1_ASPI_5D_Forward_LogReturn_Pct"
 TRAIN_WINDOW, TEST_WINDOW, STEP = 30, 10, 10
 RIDGE_ALPHAS = np.logspace(-3, 3, 13)
 RF_PARAM_GRID = {"n_estimators": [100, 200], "max_depth": [4, None], "min_samples_leaf": [1, 4]}
@@ -202,7 +202,7 @@ def load_data():
     spec = json.loads((ARTIFACTS / "feature_spec.json").read_text(encoding="utf-8"))
     feature_cols, type_cols = spec["FEATURE_COLS"], spec["TYPE_COLS"]
     X_all = dataset[feature_cols].fillna(0.0)
-    y_all = dataset[["Y1_aspi_log_return", "Y3_recovery_days"]].copy()
+    y_all = dataset[["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y3_recovery_days"]].copy()
     dates_all = dataset["event_date"]
     horizon_end_all = dataset["Y1_horizon_end_date"]
     gdp_all = dataset["gdp_current_usd"] if "gdp_current_usd" in dataset.columns else None

@@ -35,7 +35,7 @@ def dataset():
     n = 60
     return pd.DataFrame({
         "event_date": pd.date_range("2005-01-01", periods=n, freq="90D"),
-        "Y1_aspi_log_return": rng.normal(0, 0.014, n),
+        "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n),
         "Y2_abnormal_volume": rng.normal(0, 0.5, n),
         "Y3_recovery_days": rng.integers(0, 90, n).astype(float),
         "financial_damage": np.where(rng.random(n) < 0.7, 0.0, rng.exponential(1e6, n)),
@@ -78,16 +78,16 @@ def test_outlier_table_finds_nothing_in_clean_data():
 
 def test_outlier_panel_writes_and_summarises(dataset, _tmp_figs):
     fig, summary = eda.plot_outlier_panel(
-        dataset, ["Y1_aspi_log_return", "Y2_abnormal_volume", "Y3_recovery_days"])
+        dataset, ["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_abnormal_volume", "Y3_recovery_days"])
     assert (_tmp_figs / "eda_03_outliers.png").exists()
-    assert set(summary.variable) == {"Y1_aspi_log_return", "Y2_abnormal_volume",
+    assert set(summary.variable) == {"Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_abnormal_volume",
                                      "Y3_recovery_days"}
     assert (summary.iqr_hi >= summary.iqr_lo).all()
 
 
 def test_feature_distributions_reports_shape_statistics(dataset, _tmp_figs):
     fig, stats_frame = eda.plot_feature_distributions(
-        dataset, ["hz_precip_max3d", "log_population_affected", "Y1_aspi_log_return"])
+        dataset, ["hz_precip_max3d", "log_population_affected", "Y1_ASPI_5D_Forward_LogReturn_Pct"])
     assert (_tmp_figs / "eda_04_feature_distributions.png").exists()
     assert {"skew", "excess_kurtosis", "median"} <= set(stats_frame.columns)
     # A gamma draw must register positive skew; the test would pass on any number
@@ -96,14 +96,14 @@ def test_feature_distributions_reports_shape_statistics(dataset, _tmp_figs):
 
 
 def test_qq_grid_writes_and_reports_shapiro(dataset, _tmp_figs):
-    fig, frame = eda.plot_qq_grid(dataset, ["Y1_aspi_log_return", "Y3_recovery_days"])
+    fig, frame = eda.plot_qq_grid(dataset, ["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y3_recovery_days"])
     assert (_tmp_figs / "eda_05_qq_targets.png").exists()
     assert frame.shapiro_p.between(0, 1).all()
 
 
 def test_scatter_matrix_writes_and_reports_critical_r(dataset, _tmp_figs):
     fig, frame = eda.plot_target_scatter_matrix(
-        dataset, ["Y1_aspi_log_return", "Y2_abnormal_volume"],
+        dataset, ["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_abnormal_volume"],
         ["log_population_affected", "hz_precip_max3d"])
     assert (_tmp_figs / "eda_06_scatter_matrix.png").exists()
     assert (frame.critical_r > 0).all()
@@ -113,9 +113,9 @@ def test_scatter_matrix_writes_and_reports_critical_r(dataset, _tmp_figs):
 
 def test_feature_target_correlation_writes(dataset, _tmp_figs):
     fig, frame = eda.plot_feature_target_correlation(
-        dataset, "Y1_aspi_log_return",
+        dataset, "Y1_ASPI_5D_Forward_LogReturn_Pct",
         ["log_population_affected", "hz_precip_max3d", "di_affected_log"])
-    assert (_tmp_figs / "eda_07_corr_Y1_aspi_log_return.png").exists()
+    assert (_tmp_figs / "eda_07_corr_Y1_ASPI_5D_Forward_LogReturn_Pct.png").exists()
     assert frame.abs_rho.is_monotonic_decreasing
 
 

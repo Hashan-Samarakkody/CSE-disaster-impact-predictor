@@ -11,7 +11,7 @@ from src.evaluation import figures as fx
 from src.evaluation.metrics import pooled_frame
 from src.training.walk_forward import generate_walk_forward_splits
 
-TARGETS = ["Y1_aspi_log_return", "Y2_abnormal_volume", "Y3_recovery_days"]
+TARGETS = ["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_abnormal_volume", "Y3_recovery_days"]
 
 
 def _bundle(n_events=40, n_folds_cfg=(20, 10, 10)):
@@ -33,7 +33,7 @@ def _bundle(n_events=40, n_folds_cfg=(20, 10, 10)):
         "disaster_Other": rng.integers(0, 2, n_events).astype(float),
     })
     y = pd.DataFrame({
-        "Y1_aspi_log_return": rng.normal(0, 0.014, n_events),
+        "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n_events),
         "Y2_abnormal_volume": rng.normal(0, 0.58, n_events),
         "Y3_recovery_days": np.clip(rng.exponential(12, n_events).round(), 0, 90),
     })
@@ -98,7 +98,7 @@ def test_pooled_frame_handles_a_model_that_skips_fold_zero():
     """The stacked model forfeits fold 0 to its meta-learner and stores one fewer fold.
     The offset must be inferred, not assumed."""
     dataset, X, y, splits, results = _bundle()
-    t = "Y1_aspi_log_return"
+    t = "Y1_ASPI_5D_Forward_LogReturn_Pct"
     results["stacked"] = {t: {k: v[1:] if isinstance(v, list) else v
                               for k, v in results["ridge"][t].items()}}
     frame = pooled_frame(results, "stacked", t, splits, dataset, y=y)
@@ -107,9 +107,9 @@ def test_pooled_frame_handles_a_model_that_skips_fold_zero():
 
 def test_pooled_frame_raises_on_a_mask_mismatch():
     dataset, X, y, splits, results = _bundle()
-    results["ridge"]["Y1_aspi_log_return"]["y_true"][0] = np.array([1.0, 2.0])
+    results["ridge"]["Y1_ASPI_5D_Forward_LogReturn_Pct"]["y_true"][0] = np.array([1.0, 2.0])
     with pytest.raises(ValueError):
-        pooled_frame(results, "ridge", "Y1_aspi_log_return", splits, dataset, y=y)
+        pooled_frame(results, "ridge", "Y1_ASPI_5D_Forward_LogReturn_Pct", splits, dataset, y=y)
 
 
 def test_redundant_drop_rule_keeps_the_more_primitive_column():

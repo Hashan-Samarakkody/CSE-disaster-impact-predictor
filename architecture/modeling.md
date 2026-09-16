@@ -110,7 +110,7 @@ which is a strictly easier question and the one this data can sometimes answer.
 | `C2_volume_spike` | `Y2 > 0` | balanced |
 | `C3_recovers_in_90` | `Y3 < 90` | 0.90 — barely informative |
 | `C3b_slow_recovery` | `Y3` above the median of **this fold's training window** | ~50% by construction |
-| `C4_car5_negative` | `Y1_car_5 < 0` | balanced |
+| `C4_car5_negative` | `Y1_EventWindow_0_5_LogReturn_Pct < 0` | balanced |
 
 Cut points that move per fold (`C1b`, `C3b`) are computed on training rows only. The
 *rule* is fixed in advance even though the *number* it produces differs by fold — that

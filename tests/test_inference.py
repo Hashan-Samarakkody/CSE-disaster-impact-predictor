@@ -23,9 +23,11 @@ def bundle():
     return get_bundle()
 
 
-def test_lists_all_76_real_events(bundle):
+def test_lists_all_real_events(bundle):
+    # N=74 under the inclusion threshold frozen at >=1000 affected (2026-09-16
+    # methodology-audit review); was 76 while the threshold had drifted to 700/500.
     events = bundle.list_events()
-    assert len(events) == 76
+    assert len(events) == 74
     assert "event_date" in events.columns
 
 
@@ -76,9 +78,12 @@ def test_classification_predictions_are_valid_probabilities_with_verdict_metadat
         assert 0.0 <= info["probability"] <= 1.0, name
         assert isinstance(info["beats_baseline"], bool), name
 
-    # Pre-declared, measured result: only these two clear the majority rule and chance.
+    # Measured result under the frozen >=1000 threshold (n=74, 2026-09-16): only
+    # C2_volume_spike clears the majority rule and chance. C4_car5_negative cleared it
+    # at the earlier, since-reverted n=76 (700/500 threshold) but does not here --
+    # recorded as a real result change from the threshold freeze, not a regression bug.
     assert pred["C2_volume_spike"]["beats_baseline"]
-    assert pred["C4_car5_negative"]["beats_baseline"]
+    assert not pred["C4_car5_negative"]["beats_baseline"]
     assert not pred["C1_negative_return"]["beats_baseline"]
 
 

@@ -30,13 +30,13 @@ pd.set_option("display.width", 250)
 # Pre-change baseline: N=64, 31 features, 3 folds, 30 pooled test points.
 # Source: git show 85590a8:...notebooks/04_modeling_regression.ipynb executed output.
 BASELINE_R2 = {
-    ("ridge", "Y1_aspi_log_return"): -0.5338,
+    ("ridge", "Y1_ASPI_5D_Forward_LogReturn_Pct"): -0.5338,
     ("ridge", "Y2_abnormal_volume"): 0.1307,
     ("ridge", "Y3_recovery_days"): -0.1853,
-    ("random_forest", "Y1_aspi_log_return"): -0.3151,
+    ("random_forest", "Y1_ASPI_5D_Forward_LogReturn_Pct"): -0.3151,
     ("random_forest", "Y2_abnormal_volume"): -0.1221,
     ("random_forest", "Y3_recovery_days"): -0.1608,
-    ("xgboost", "Y1_aspi_log_return"): -1.7660,
+    ("xgboost", "Y1_ASPI_5D_Forward_LogReturn_Pct"): -1.7660,
     ("xgboost", "Y2_abnormal_volume"): -0.4630,
     ("xgboost", "Y3_recovery_days"): -0.1693,
 }
@@ -193,7 +193,7 @@ def main():
     print(f"financial_damage real (the variable they were added to replace): "
           f"{int((ds.financial_damage > 0).sum())}/{len(ds)}")
     print(f"DesInventar matched: {int(ds.di_available.sum())}/{len(ds)}")
-    for t in ("Y1_aspi_log_return", "Y2_abnormal_volume", "Y3_recovery_days"):
+    for t in ("Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_abnormal_volume", "Y3_recovery_days"):
         print(f"  {t}: {int(ds[t].notna().sum())}/{len(ds)} observed")
 
 

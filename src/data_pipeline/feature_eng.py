@@ -94,11 +94,16 @@ class FeatureEngineeringConfig:
     disaster_type_col: str = "disaster_type"
     damage_col: str = "financial_damage"
     affected_col: str = "population_affected"
-    # Inclusion threshold on total affected. The thesis pre-registered >=1000; lowered to
-    # 700 on the author's instruction (2026-09-12, admitting 2 further Storm events), then
-    # to 500 on the author's instruction (2026-09-15) to admit further events.
-    # Declared here so the deviation is visible in the config every stage reads.
-    min_affected: int = 500
+    # Inclusion threshold on total affected, FROZEN at the thesis's original
+    # pre-registration (2026-09-16 methodology-audit review). Briefly lowered to 700
+    # (2026-09-12) then 500 (2026-09-15) while exploring whether more events were
+    # available; verified both admit zero additional matched events over 1000 (raw
+    # EM-DAT gains 2 records between 500 and 1000, neither of which lands on a
+    # tradable CSE session), so reverting costs nothing and removes the drift.
+    # Do not change this value based on downstream model performance -- see
+    # docs/METHODOLOGY_AUDIT.md "Inclusion threshold: frozen" for the sensitivity
+    # analysis this decision is based on.
+    min_affected: int = 1000
     max_recovery_days: int = 90
 
 
@@ -280,15 +285,19 @@ class FeatureEngineer:
             # Cumulative event-window returns, pre-declared in
             # docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.2 before anything scored them. NaN rather
             # than a truncated window, so a partial accumulation is never reported as a full one.
+            # Named EventWindow (not CAR) and expressed in percent (matching Y1's _Pct units)
+            # per the 2026-09-16 methodology-audit freeze: this is a raw cumulative log return
+            # from the pre-event close, not an abnormal return against an expected-return model,
+            # so calling it "CAR" was inaccurate.
             cars = {}
             for k in (5, 10):
-                cars[f"Y1_car_{k}"] = (
-                    float(np.log(market.iloc[pos + k][c.price_col] / price_tm1))
+                cars[f"Y1_EventWindow_0_{k}_LogReturn_Pct"] = (
+                    float(100.0 * np.log(market.iloc[pos + k][c.price_col] / price_tm1))
                     if pos + k < len(market) else np.nan)
 
             rows.append({
                 c.disaster_date_col: event_date,
-                "Y1_aspi_log_return": y1,
+                "Y1_ASPI_5D_Forward_LogReturn_Pct": y1,
                 # Date of the trading session Y1's numerator is read from -- used only to
                 # purge train/test fold-boundary overlap in `walk_forward.purge_horizon_overlap`,
                 # never as a model feature.

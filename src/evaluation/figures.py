@@ -56,21 +56,21 @@ WIDTH_FULL, WIDTH_HALF = 6.3, 3.1
 H_SHORT, H_MED, H_TALL = 2.4, 3.6, 5.0
 
 TARGET_LABELS = {
-    "Y1_aspi_log_return": "Y1 · ASPI % dev. vs 30d pre-mean, event day",
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · ASPI % dev. vs 30d pre-mean, event day",
     "Y2_abnormal_volume": "Y2 · abnormal volume (V / 30-day mean − 1)",
     "Y3_recovery_days": "Y3 · recovery time (trading days, capped 90)",
-    "Y1_car_5": "CAR[0,+5] · cumulative return, 5 trading days",
-    "Y1_car_10": "CAR[0,+10] · cumulative return, 10 trading days",
+    "Y1_EventWindow_0_5_LogReturn_Pct": "CAR[0,+5] · cumulative return, 5 trading days",
+    "Y1_EventWindow_0_10_LogReturn_Pct": "CAR[0,+10] · cumulative return, 10 trading days",
 }
 # Short forms for multi-panel figures, where the full labels collide.
 SHORT_TARGET_LABELS = {
-    "Y1_aspi_log_return": "Y1 · % dev.",
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · % dev.",
     "Y2_abnormal_volume": "Y2 · abnormal volume",
     "Y3_recovery_days": "Y3 · recovery days",
     "Y1_sector_log_return": "Y1 · sector log return",
     "Y3_sector_recovery_days": "Y3 · sector recovery",
-    "Y1_car_5": "CAR[0,+5]",
-    "Y1_car_10": "CAR[0,+10]",
+    "Y1_EventWindow_0_5_LogReturn_Pct": "CAR[0,+5]",
+    "Y1_EventWindow_0_10_LogReturn_Pct": "CAR[0,+10]",
 }
 
 MODEL_LABELS = {
@@ -201,7 +201,7 @@ def plot_target_distributions(dataset, target_cols, bins: int = 20):
     return fig
 
 
-def plot_target_dependence_y1_y3(dataset, y1="Y1_aspi_log_return", y3="Y3_recovery_days"):
+def plot_target_dependence_y1_y3(dataset, y1="Y1_ASPI_5D_Forward_LogReturn_Pct", y3="Y3_recovery_days"):
     """Make the `Y3 = 0 <=> Y1 >= 0` identity visible rather than only asserted in prose.
 
     The recovery window includes the event day and the baseline is the prior close, so a
@@ -341,7 +341,7 @@ def plot_vif(X, drop_reference: str = "disaster_Other", thresholds=(5.0, 10.0)):
     return fig
 
 
-def plot_walk_forward_folds(splits, dataset, y, target="Y1_aspi_log_return",
+def plot_walk_forward_folds(splits, dataset, y, target="Y1_ASPI_5D_Forward_LogReturn_Pct",
                             date_col="event_date", mark=("2004-12-26", "2005-11-21")):
     """Fold geometry over the event sequence, with the target stemmed above it.
 
@@ -566,7 +566,7 @@ def plot_overfitting_gap(train_fit_r2: dict, results, target_cols, model="random
     return fig
 
 
-def plot_roc_with_ci(results, models, target="Y1_aspi_log_return", n_boot=2000,
+def plot_roc_with_ci(results, models, target="Y1_ASPI_5D_Forward_LogReturn_Pct", n_boot=2000,
                      random_state=42, positive="negative_return"):
     """ROC with a bootstrap band, the chance diagonal, and an auto-flag when the CI covers 0.5.
 

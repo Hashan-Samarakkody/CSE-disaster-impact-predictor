@@ -306,8 +306,8 @@ st.caption(
 )
 
 st.plotly_chart(
-    importance_chart(bundle.regressors["Y1_aspi_log_return"],
-                      bundle.selected_features["Y1_aspi_log_return"]),
+    importance_chart(bundle.regressors["Y1_ASPI_5D_Forward_LogReturn_Pct"],
+                      bundle.selected_features["Y1_ASPI_5D_Forward_LogReturn_Pct"]),
     use_container_width=True,
 )
 st.caption(

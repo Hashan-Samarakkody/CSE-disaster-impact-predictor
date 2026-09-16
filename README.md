@@ -1,9 +1,9 @@
 # Predicting the impact of natural disasters on the Colombo Stock Exchange
 
 A multi-target machine learning study of how Sri Lanka's stock market responds to
-natural disasters. For each EM-DAT-qualifying disaster it models the ASPI day-0 log
-return, abnormal trading volume, recovery time, and two cumulative event-window
-returns — with SHAP explainability, on a data-scarce frontier market.
+natural disasters. For each EM-DAT-qualifying disaster it models the ASPI 5-trading-day
+forward log return, abnormal trading volume, recovery time, and two event-window
+cumulative log returns — with SHAP explainability, on a data-scarce frontier market.
 
 BSc (Hons) thesis project. **N = 76 real events, 2000–2025.** No synthetic events in
 any test set, no relaxed inclusion criteria, no gap-filled outcomes.

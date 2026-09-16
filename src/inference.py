@@ -25,11 +25,11 @@ ARTIFACTS = ROOT / "artifacts"
 DISASTER_TYPES = ["Drought", "Flood", "Other", "Storm"]
 
 TARGET_LABELS = {
-    "Y1_aspi_log_return": "ASPI % deviation, event day vs 30d pre-disaster mean",
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "ASPI % deviation, event day vs 30d pre-disaster mean",
     "Y2_abnormal_volume": "Abnormal trading volume (V / 30d avg - 1)",
     "Y3_recovery_days": "Recovery time (trading days, capped at 90)",
-    "Y1_car_5": "5-day cumulative return",
-    "Y1_car_10": "10-day cumulative return",
+    "Y1_EventWindow_0_5_LogReturn_Pct": "5-day cumulative return",
+    "Y1_EventWindow_0_10_LogReturn_Pct": "10-day cumulative return",
 }
 
 LABEL_DESCRIPTIONS = {
@@ -64,11 +64,11 @@ class ModelBundle:
         self.y = self.dataset[self.target_cols]
 
         self.target_bounds = {
-            "Y1_aspi_log_return": (None, None),
+            "Y1_ASPI_5D_Forward_LogReturn_Pct": (None, None),
             "Y2_abnormal_volume": (-1.0, None),
             "Y3_recovery_days": (0.0, 90.0),
-            "Y1_car_5": (None, None),
-            "Y1_car_10": (None, None),
+            "Y1_EventWindow_0_5_LogReturn_Pct": (None, None),
+            "Y1_EventWindow_0_10_LogReturn_Pct": (None, None),
         }
 
     # ------------------------------------------------------------ events

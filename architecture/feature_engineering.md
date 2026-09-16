@@ -69,11 +69,11 @@ in the trading-day index and `P` the ASPI close.
 
 | Target | Definition | Notes |
 |---|---|---|
-| `Y1_aspi_log_return` | `ln(P[pos] / P[pos-1])` | day-0 response; the noisiest possible measurement |
+| `Y1_ASPI_5D_Forward_LogReturn_Pct` | `ln(P[pos] / P[pos-1])` | day-0 response; the noisiest possible measurement |
 | `Y2_abnormal_volume` | `V[pos] / mean(V[pos-30..pos-1]) - 1` | `NaN` where volume was never recorded |
 | `Y3_recovery_days` | trading days until `P` regains its pre-event level, **capped at 90** | censored by construction |
-| `Y1_car_5` | `ln(P[pos+5] / P[pos-1])` | cumulative 5-day event window |
-| `Y1_car_10` | `ln(P[pos+10] / P[pos-1])` | cumulative 10-day event window |
+| `Y1_EventWindow_0_5_LogReturn_Pct` | `ln(P[pos+5] / P[pos-1])` | cumulative 5-day event window |
+| `Y1_EventWindow_0_10_LogReturn_Pct` | `ln(P[pos+10] / P[pos-1])` | cumulative 10-day event window |
 
 The two cumulative returns follow standard event-study practice: accumulating over a
 window raises signal-to-noise relative to a single day. The windows 5 and 10 are the

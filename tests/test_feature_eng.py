@@ -121,7 +121,7 @@ def test_y1_is_nan_when_fewer_than_5_trading_sessions_remain():
     disaster_df = pd.DataFrame({"event_date": [dates[-3]]})
 
     t = FeatureEngineer().build_targets(market_df, disaster_df).iloc[0]
-    assert np.isnan(t.Y1_aspi_log_return)
+    assert np.isnan(t.Y1_ASPI_5D_Forward_LogReturn_Pct)
     assert pd.isna(t.Y1_horizon_end_date)
 
 
@@ -160,11 +160,11 @@ def test_car_targets_accumulate_from_the_pre_event_close():
     # Y1 = ASPI_5D_Log_Return_Pct = 100 * ln(P[pos+5] / P[pos]). Price is already flat
     # at 110 on the event day and stays there, so the 5-trading-day-forward move is 0
     # -- the jump itself happened AT the reference day, not after it.
-    assert t.Y1_aspi_log_return == pytest.approx(0.0)
-    # CARs are unchanged: log return from the pre-event close (P[pos-1]).
-    expected_car = float(np.log(110.0 / 100.0))
-    assert t.Y1_car_5 == pytest.approx(expected_car)
-    assert t.Y1_car_10 == pytest.approx(expected_car)
+    assert t.Y1_ASPI_5D_Forward_LogReturn_Pct == pytest.approx(0.0)
+    # EventWindow targets: log return from the pre-event close (P[pos-1]), in percent.
+    expected_car = float(100.0 * np.log(110.0 / 100.0))
+    assert t.Y1_EventWindow_0_5_LogReturn_Pct == pytest.approx(expected_car)
+    assert t.Y1_EventWindow_0_10_LogReturn_Pct == pytest.approx(expected_car)
 
 
 def test_car_targets_capture_drift_the_day0_return_misses():
@@ -178,11 +178,11 @@ def test_car_targets_capture_drift_the_day0_return_misses():
     t = FeatureEngineer(FeatureEngineeringConfig()).build_targets(market, events).iloc[0]
     # Y1 = 100 * ln(P[pos+5] / P[pos]) = 100 * ln(90 / 99): event-day close (99) as
     # denominator, 5th-trading-day-forward close (90) as numerator.
-    assert t.Y1_aspi_log_return == pytest.approx(100.0 * np.log(90.0 / 99.0))
-    assert t.Y1_car_5 == pytest.approx(np.log(90.0 / 100.0))
-    # The CAR window (from the pre-event close) shows a bigger loss than Y1 (from the
+    assert t.Y1_ASPI_5D_Forward_LogReturn_Pct == pytest.approx(100.0 * np.log(90.0 / 99.0))
+    assert t.Y1_EventWindow_0_5_LogReturn_Pct == pytest.approx(100.0 * np.log(90.0 / 100.0))
+    # The EventWindow (from the pre-event close) shows a bigger loss than Y1 (from the
     # event-day close itself, which had already partly dipped).
-    assert t.Y1_car_5 < -0.05
+    assert t.Y1_EventWindow_0_5_LogReturn_Pct < -5.0
 
 
 def test_car_is_nan_rather_than_a_truncated_window():
@@ -192,12 +192,14 @@ def test_car_is_nan_rather_than_a_truncated_window():
                            "trading_volume": 1e6})
     events = pd.DataFrame({"event_date": [days[10]]})   # only 3 rows remain after it
     t = FeatureEngineer(FeatureEngineeringConfig()).build_targets(market, events).iloc[0]
-    assert np.isnan(t.Y1_car_5) and np.isnan(t.Y1_car_10)
+    assert np.isnan(t.Y1_EventWindow_0_5_LogReturn_Pct) and np.isnan(t.Y1_EventWindow_0_10_LogReturn_Pct)
 
 
 def test_inclusion_threshold_is_read_from_config():
-    """The 1000 -> 700 change must live in one declared place, not a literal."""
-    assert FeatureEngineeringConfig().min_affected == 700
+    """Frozen at the thesis's pre-registered >=1000 (2026-09-16 methodology-audit
+    review); must live in one declared place, not a literal, so a config override is
+    actually honoured rather than some code path hardcoding 1000."""
+    assert FeatureEngineeringConfig().min_affected == 1000
     events = pd.DataFrame({
         "event_date": pd.to_datetime(["2020-01-01", "2020-02-01", "2020-03-01"]),
         "disaster_type": ["Flood"] * 3,
@@ -205,6 +207,6 @@ def test_inclusion_threshold_is_read_from_config():
         "population_affected": [650.0, 800.0, 1500.0],
     })
     kept = FeatureEngineer(FeatureEngineeringConfig()).engineer_disaster_features(events)
-    assert len(kept) == 2                       # 650 excluded, 800 and 1500 kept
-    strict = FeatureEngineer(FeatureEngineeringConfig(min_affected=1000))
-    assert len(strict.engineer_disaster_features(events)) == 1
+    assert len(kept) == 1                       # 650, 800 excluded; 1500 kept
+    looser = FeatureEngineer(FeatureEngineeringConfig(min_affected=700))
+    assert len(looser.engineer_disaster_features(events)) == 2   # 650 excluded; 800, 1500 kept

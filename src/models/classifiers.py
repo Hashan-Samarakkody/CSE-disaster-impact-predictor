@@ -48,7 +48,7 @@ def _binarise(values, mask):
 def label_negative_return(y, train_idx=None, dataset=None):
     """C1: Y1 < 0. The sign split, kept for continuity with the directional-accuracy
     section. No free parameter."""
-    v = y["Y1_aspi_log_return"]
+    v = y["Y1_ASPI_5D_Forward_LogReturn_Pct"]
     return pd.Series(_binarise(v < 0, v.notna()), index=v.index)
 
 
@@ -58,7 +58,7 @@ def label_adverse_move(y, train_idx, dataset=None):
     Training rows only, so no test information reaches the label. ~33% prevalence by
     construction in training, but measured test-fold prevalence is 10% -- the held-out
     folds are calmer -- leaving ~3 positives in 30 pooled points. Report with that caveat."""
-    v = y["Y1_aspi_log_return"]
+    v = y["Y1_ASPI_5D_Forward_LogReturn_Pct"]
     cut = float(np.nanquantile(v.iloc[train_idx], 1 / 3))
     return pd.Series(_binarise(v < cut, v.notna()), index=v.index)
 
@@ -94,7 +94,7 @@ def label_adverse_move_sigma(y, train_idx=None, dataset=None):
     Standardised-abnormal-return form from the event-study literature, but at this N it
     leaves too few positives to support precision or recall. Never headline it.
     """
-    v = y["Y1_aspi_log_return"]
+    v = y["Y1_ASPI_5D_Forward_LogReturn_Pct"]
     # rolling_std_30 is computed on the daily log_return series (unchanged units), while
     # Y1 is now a %-deviation-from-30d-mean (see feature_eng.build_targets) -- scale sigma
     # to percent so the comparison stays meaningful.
@@ -111,7 +111,7 @@ def label_car5_negative(y, train_idx=None, dataset=None):
     the study does not already have. Pre-declared in
     docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.3.
     """
-    v = y["Y1_car_5"]
+    v = y["Y1_EventWindow_0_5_LogReturn_Pct"]
     return pd.Series(_binarise(v < 0, v.notna()), index=v.index)
 
 
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     rng = np.random.default_rng(0)
     n = 64
     y = pd.DataFrame({
-        "Y1_aspi_log_return": rng.normal(0, 0.014, n),
+        "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n),
         "Y2_abnormal_volume": rng.normal(-0.13, 0.58, n),
         "Y3_recovery_days": np.where(rng.random(n) < 0.14, 90.0,
                                      rng.exponential(6, n).round()),
