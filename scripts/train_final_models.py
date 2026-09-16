@@ -29,6 +29,7 @@ from sklearn.linear_model import LogisticRegression
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.evaluation.collinearity import redundant_drop_set
 from src.models.classifiers import LABELS, build_classifiers
 from src.models.hurdle import HurdleRecoveryModel
 
@@ -42,7 +43,11 @@ def _load_json(name):
 
 
 def _select_top_features(X, target, k=20, random_state=RANDOM_STATE):
-    """RF-importance top-K on the full table, mirroring each notebook's per-fold version."""
+    """Collinearity-drop, THEN RF-importance top-K on the full table, mirroring
+    notebook 05's per-fold version (same |rho|>=0.95 pre-declared rule, see
+    src/evaluation/collinearity.py)."""
+    keep, _dropped, _detail = redundant_drop_set(X)
+    X = X[keep]
     k = min(k, X.shape[1])
     probe = RandomForestClassifier(n_estimators=300, max_depth=4, min_samples_leaf=3,
                                    random_state=random_state, n_jobs=-1)

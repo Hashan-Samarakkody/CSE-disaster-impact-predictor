@@ -1256,6 +1256,43 @@ here, ponytail: shipped the lazy fixed-alpha version, this is exactly the case w
 measurably underperforms and the grid-search upgrade is warranted before using it for
 anything).
 
+### 2026-09-16: collinearity-drop composed into classification feature selection too
+(closing plan item 4 -- "re-run classification precision/recall/F1/AUC" after the
+collinearity-pruning work above)
+
+The composition above (`redundant_drop_set` |rho|>=0.95, then RF-importance top-K) had
+only been wired into `notebooks/04_modeling_regression.ipynb`'s `select_top_features`.
+`notebooks/05_modeling_classification.ipynb`'s own `select_top_features` (the
+classification walk-forward loop, and the Y3 hurdle cell that reuses it) and
+`scripts/train_final_models.py::_select_top_features` (the full-data refit that
+`src/inference.py`'s demo serves) still ranked from the full collinear feature set.
+Fixed by calling `redundant_drop_set` first in both, same as the regression side.
+
+Re-ran `05_modeling_classification.ipynb` and `scripts/train_final_models.py`. Effect on
+the full-data-refit classifiers the demo actually serves:
+
+| label | AUC before | AUC after | family before -> after | beats_baseline before -> after |
+|---|---|---|---|---|
+| C1_negative_return | 0.711 | 0.672 | logistic -> xgb_clf | True -> False |
+| C1b_adverse_move | 0.409 | 0.409 | xgb_clf -> xgb_clf | False -> False |
+| C2_volume_spike | 0.711 | 0.711 | logistic -> logistic | True -> True |
+| C3_recovers_in_90 | 0.824 | 0.824 | logistic -> logistic | False -> False |
+| C3b_slow_recovery | 0.616 | 0.616 | xgb_clf -> xgb_clf | False -> False |
+
+C1 is the only label collinearity-pruning changed, and it changed for the worse: the
+prior `beats_baseline=True` (from the finding #14 median-imputation fix, documented
+above) was riding a collinear feature the RF-importance probe had ranked highly only
+because it duplicated signal already present elsewhere -- removing the duplicate cost
+it enough discriminative power to drop below the majority-rule/chance bar. Reported as
+the actual direction of the result, not spun: `C2_volume_spike` remains the one
+classification label that survives both fixes. Updated
+`tests/test_inference.py::test_classification_predictions_are_valid_probabilities_with_verdict_metadata`
+to assert the new (opposite) direction. 97/97 tests pass.
+
+This closes plan item 4 from the collinearity/nonlinear-models plan (PCA/GP/SVR/Quantile
+were already wired into the regression side only; the classification side was the one
+piece left incomplete).
+
 ### Y1-specific experiment suite (SMOGN ablation, compact features, regime features,
 ExtraTrees, single-task modeling, OOF ensemble weighting, shrinkage)
 

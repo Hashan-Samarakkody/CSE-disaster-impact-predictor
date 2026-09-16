@@ -87,11 +87,14 @@ def test_classification_predictions_are_valid_probabilities_with_verdict_metadat
         assert 0.0 <= info["probability"] <= 1.0, name
         assert isinstance(info["beats_baseline"], bool), name
 
-    # Measured result after the finding #14 median-imputation fix (2026-09-16):
-    # C2_volume_spike and C1_negative_return both clear the majority rule and chance --
-    # C1 is a genuinely new confirmed result from this fix, not a stale assumption.
+    # Measured result after wiring collinearity-drop into feature selection here too
+    # (2026-09-16, closing the gap where only the regression notebook had it): C1's
+    # best family/AUC changed (0.711 -> 0.672, logistic -> xgb_clf) and it no longer
+    # beats baseline -- the median-imputation fix's earlier True was itself an artifact
+    # of C1 still picking from a collinear feature set. C2 is the only label that
+    # survives both fixes.
     assert pred["C2_volume_spike"]["beats_baseline"]
-    assert pred["C1_negative_return"]["beats_baseline"]
+    assert not pred["C1_negative_return"]["beats_baseline"]
 
 
 def test_hurdle_prediction_stays_inside_the_censored_support(bundle):
