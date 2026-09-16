@@ -1853,8 +1853,73 @@ document's standing rule):
   directly comparable to the pre-fix count given how much changed between them.
 - 99/99 tests pass (97 + 2 new Y3 gate-window tests).
 
-This closes every item from the second panel document's "13 real items still open" list
-except the two that were re-classified as not gaps on closer inspection: nested feature
-selection (finding #16, already an accepted panel-endorsed tradeoff per §21) and ADF/
-KPSS stationarity filtering (finding #26, moot -- no such filtering exists anywhere in
-the repo to be leakage-audited).
+This closed 11 of the 13 items; findings #16 and #26 were left as-is at the time, with
+the following (as it turned out, partly wrong) reasoning: #16 was called an already-
+accepted panel-endorsed tradeoff (§21), and #26 was called moot because a repo-wide grep
+for "adfuller|kpss" had returned nothing. Both calls were revisited the same day -- see
+the next section.
+
+### 2026-09-17: findings #16 and #26 re-examined -- #26's "moot" call was wrong, #16
+implemented anyway despite the accepted tradeoff
+
+**Finding #26 was NOT moot.** The grep that produced that verdict missed
+`notebooks/02_features_targets.ipynb` §2.2.1 (`from statsmodels.tsa.stattools import
+adfuller, kpss`), which runs a real ADF/KPSS unit-root test on every engineered market
+column and uses the verdict to decide `NON_STATIONARY_COLS` -- exactly the mechanism
+finding #26 describes, and it ran on `market_feats`, the FULL ~22-year daily series,
+before any walk-forward split existed. Every test fold's own date range was therefore
+inside the very computation that decided which columns that fold was even allowed to
+see -- a real, if narrow, leakage: the admissibility decision itself (not a model fit)
+used future-period data.
+
+Fixed with a genuine development-period cutoff: `_dev_cutoff_date` is the date of the
+31st qualifying disaster (`_DEV_TRAIN_WINDOW = 30`, matching `TRAIN_WINDOW` declared
+later in the same notebook -- fold 0's test period starts there, so no row used for the
+stationarity decision can be inside ANY walk-forward test fold, since every later fold's
+test period starts later still). `market_feats_dev = market_feats[market_feats["date"] <
+_dev_cutoff_date]` replaces the full series as the ADF/KPSS input. Re-running produced
+the IDENTICAL `NON_STATIONARY_COLS` (`sma_5/10/20`, `ema_5/10/20` -- the six raw
+price-level columns, whose unit root is obvious at any reasonable sample size) and the
+same 68 `FEATURE_COLS`, so this fix costs nothing in practice; it closes a real
+procedural leakage risk without changing a single admitted feature.
+
+**Finding #16 was reconsidered, not just re-affirmed.** §21's position -- full nested
+CV is unsupportable at N~9-16-23 inner-fold rows, and the correct response to noisy
+inner selection is a smaller search space, not a deeper search -- is not wrong on its
+own terms, and is not retracted here. But it was also a decision the panel's own
+diagram explicitly contradicts (`outer training -> inner training: impute, scale,
+remove collinearity, select features, tune hyperparameters -> inner validation`), so
+"already decided against it" was this document overriding the panel rather than
+following it. Implemented anyway: added `CollinearityDropper` and
+`CollinearityRFTopK` (`src/evaluation/collinearity.py`), two sklearn-compatible
+transformers wrapping the existing `redundant_drop_set` + RF-importance composition.
+Ridge's alpha search and RF/XGBoost's hyperparameter grids are now `Pipeline`s with the
+selector as the first step, handed the FULL real-training feature matrix (not a
+pre-selected subset) inside `GridSearchCV(cv=cv_real)` -- sklearn refits the selector
+independently on every inner-CV split and every hyperparameter candidate, so an
+inner-validation row's own label can no longer have quietly influenced which columns
+even reached the model being scored on that row. The FINAL refit (on all outer
+training, real+synthetic) is UNCHANGED -- still one `feat_cols`/`ridge_cols` selection
+per (fold, target), matching the panel's own diagram's next step exactly ("choose
+configuration -> refit on all outer training -> evaluate once on outer test").
+
+GP, SVR, and Quantile Regression are NOT nested -- they run no hyperparameter search at
+all (fixed kernel/config, see §6's model docstrings), so there is no inner-CV loop for
+a selector to nest inside; they still use the single outer-selected `feat_cols`.
+
+**Effect on results** (reported in whichever direction it actually moved): Ridge's
+Y2_abnormal_volume pooled R2 went **-0.612 -> -0.047** -- a large improvement, and
+informative about what the un-nested full-pruned-set alpha search (finding #17,
+2026-09-17 morning) had actually been doing: selecting an alpha against a set of
+inner-validation folds whose own labels the collinearity step (technically
+target-blind, but evaluated on the SAME rows the search then scored) had an easier time
+overfitting to than a genuinely re-derived-per-split selection does. Random Forest and
+XGBoost's pooled R2 moved by low single-digit percentage points on every target -- a
+real but much smaller effect than Ridge's, consistent with RF-importance already being
+fit fresh inside the (previously un-nested) search rather than being a fixed,
+leakage-prone constant the way the full pruned set effectively was for Ridge's
+`RidgeCV`. Full pipeline rerun (02 -> 04 -> 05 -> 08 -> 07 -> 06, plus all 4 scripts);
+99/99 tests pass unchanged (neither fix touched a target definition, a censoring rule,
+or anything a test's fixture asserts on directly).
+
+This closes all 13 items from the second panel document's re-verification pass.

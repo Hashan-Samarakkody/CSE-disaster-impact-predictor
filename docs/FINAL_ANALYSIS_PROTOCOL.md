@@ -83,11 +83,23 @@ same short window — that later drop was never seen because the search had alre
   selection criterion too is out of scope for this freeze (no obvious single "right"
   model-specific alternative for a kernel method or a boosted-tree ensemble the way
   regularization is for Ridge).
-- Full nested CV (redoing feature selection per inner-CV split) is **not** used, and
-  this is an accepted panel verdict, not an open gap: at inner-fold sizes of 9-16-23
-  rows, feature selection inside the inner split would be selecting on noise. The
-  correct response to a noisy inner search is a smaller search space, not a deeper one
-  (`docs/METHODOLOGY_AUDIT.md` §21).
+- **Feature selection is nested inside the inner CV** (finding #16, methodology-audit
+  followup 2026-09-17): Ridge's alpha search and RF/XGBoost's hyperparameter grids are
+  `Pipeline`s (`CollinearityDropper` / `CollinearityRFTopK`,
+  `src/evaluation/collinearity.py`) run inside `GridSearchCV(cv=cv_real)` on the FULL
+  real-training feature matrix, so the selector is refit independently on every inner
+  split and every hyperparameter candidate — an inner-validation row's own label can no
+  longer have quietly influenced which columns even reached the model scored on it. The
+  FINAL refit (on all outer training, real+synthetic) still uses one `feat_cols`/
+  `ridge_cols` selection per (fold, target), matching the panel's own diagram's next
+  step. GP, SVR, and Quantile Regression run no hyperparameter search at all (fixed
+  config), so there is no inner-CV loop to nest a selector inside; they still use the
+  single outer-selected `feat_cols`. At inner-fold sizes of 9-16-23 rows this selection
+  is genuinely noisier than a selection made on the full outer training set would be —
+  that concern (`docs/METHODOLOGY_AUDIT.md` §21) is not wrong and is not retracted, it
+  is simply outweighed here by matching the panel's explicit request. Measured effect:
+  Ridge's Y2_abnormal_volume pooled R2 improved from -0.612 to -0.047; RF/XGBoost moved
+  by low single digits on every target.
 
 ## 4. Validation protocol
 
