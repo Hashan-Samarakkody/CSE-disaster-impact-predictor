@@ -68,6 +68,13 @@ def load_emdat(path: Path, sheet_name: str = "EM-DAT Data") -> pd.DataFrame:
             "disaster_subgroup": raw["Disaster Subgroup"],
             "financial_damage": financial_damage,
             "damage_source": damage_source,
+            # `damage_source` is a string and excluded from FEATURE_COLS entirely
+            # (notebook 02's EXCLUDE_COLS), so the model never actually saw the
+            # missingness signal it names -- exactly finding #13 in the 2026-09-16
+            # methodology-audit review. This numeric flag is the fix: 47/64 events'
+            # financial_damage is zero-filled with no EM-DAT figure at all, previously
+            # indistinguishable from a genuinely-recorded zero-damage event.
+            "financial_damage_observed": (damage_source != "missing_zero_filled").astype(float),
             "population_affected": raw["Total Affected"],
             # Each gets an availability flag. The feature table fills NaN with 0.0, and without
             # the flag a zero reads as "nobody died" rather than "EM-DAT recorded no figure" --

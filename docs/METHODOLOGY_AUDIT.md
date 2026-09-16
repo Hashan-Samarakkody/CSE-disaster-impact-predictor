@@ -1419,3 +1419,48 @@ the hurdle model's stage-2 regressor -- still treat a censored Y3 value as if it
 observed one; only the AFT model and the two classification labels above are now
 censoring-aware) and the median-cut computation inside `label_slow_recovery`, which still
 mixes genuine and censored durations when choosing its per-fold split point.
+
+### 2026-09-16: missing-data semantics (methodology-audit findings #13/#14)
+
+`total_deaths`/`no_homeless`/`mag_area_km2`/`mag_wind_km2`/DesInventar physical severity
+already had paired `_available` flags (`emdat_loader.py`, pre-existing). Two real gaps
+remained, both explicitly named in the panel review:
+
+1. **`financial_damage`** was zero-filled with NO indicator at all -- `damage_source`
+   (the string that names WHY, e.g. `"missing_zero_filled"`) is excluded from
+   `FEATURE_COLS` entirely because it is categorical, so the model genuinely never saw
+   the missingness signal the column name implies it should. Fixed: `emdat_loader.py`
+   now also emits a numeric `financial_damage_observed` flag (0/1) built from the same
+   `damage_source` logic, alongside the existing string column. 18/74 modelled events
+   have a real EM-DAT damage figure; 56 are zero-filled.
+2. Four more feature groups were blanket zero-filled at `X = dataset[FEATURE_COLS]
+   .fillna(0.0)` (notebook 02) with no flag: the volume-ratio block (`vol_ratio_1_30/
+   5_30/10_30`, `vol_cv_30`, `log_vol_change_1` -- always missing together, since they
+   share one underlying volume-data gap), `garch_cond_vol`, and the two annual macro
+   series (`gdp_growth_pct`, `inflation_cpi_pct`). Fixed: three new flags --
+   `volume_features_available`, `garch_cond_vol_available`, `macro_available` -- one per
+   group that goes missing TOGETHER (not one per column, which would just manufacture
+   near-duplicate near-constant features). Coverage on n=74: financial_damage 18/74,
+   volume features 62/74, GARCH 70/74, macro 71/74.
+
+`src/inference.py`'s `build_feature_row` (the demo app's severity-override path) already
+flips `deaths_available`/`homeless_available`/`mag_area_available`/`mag_wind_available`
+to 1.0 when the user supplies that value; `financial_damage_observed` now gets the same
+treatment when the user overrides financial damage.
+
+**What this does not fix**: finding #14's other half (feature-specific missingness
+logic -- train-fold median instead of a constant zero, for variables where zero has
+real economic meaning) is not implemented; every affected column is still zero-filled,
+just now with a flag alongside it rather than silently. That is a smaller, separable
+change left for later if it is judged worth the added complexity.
+
+**Effect on results**: feature count 64 -> 68 (4 new flags). Full pipeline re-run
+(01 -- `financial_damage_observed` is built in `emdat_loader.py`, which notebook 01
+caches -- through 04, 05, 08, survival, train_final_models). Classification AUCs
+essentially unchanged (C2_volume_spike remains the only confirmed label). The Y3 AFT
+model's c-index moved 0.618 -> 0.508 (still nominally above chance, but only barely) --
+the new features shifted which columns per-fold RF-importance selection picks for this
+already-small-N target, and one fold now scores below chance (0.333) where it
+previously did not. Reported as measured, not as a regression to explain away: adding a
+methodologically-correct feature does not guarantee a better fit at N~74, and this
+document's standing rule is to report the number either direction. 97/97 tests pass.

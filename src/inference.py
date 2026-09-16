@@ -105,6 +105,10 @@ class ModelBundle:
             gdp = row.get("gdp_current_usd")
             row["damage_to_gdp"] = (row["financial_damage"] / gdp
                                     if gdp and gdp > 0 else np.nan)
+            # A user-supplied severity override IS an observed value (methodology-audit
+            # finding #13/#14) -- flip the flag even if the real event had none, same
+            # discipline as total_deaths/no_homeless/mag_area_km2/mag_wind_kph below.
+            row["financial_damage_observed"] = 1.0
 
         if "population_affected" in overrides:
             row["population_affected"] = float(overrides["population_affected"])
