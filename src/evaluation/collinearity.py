@@ -219,6 +219,88 @@ def redundant_drop_set(X: pd.DataFrame, threshold: float = REDUNDANCY_THRESHOLD,
     return keep, sorted(drop), pd.DataFrame(detail)
 
 
+# --------------------------------------------------------------- nested-CV transformers
+
+class CollinearityDropper:
+    """sklearn-compatible transformer wrapping `redundant_drop_set`.
+
+    Reads no target, so refitting it inside every inner-CV split (methodology-audit
+    followup, finding #16 -- "put feature selection inside the inner-CV pipeline")
+    changes nothing about WHICH columns survive (the correlation structure barely moves
+    between an inner split and the outer training set at this N), but it does mean the
+    step is genuinely re-derived from only that split's own rows, matching the panel's
+    diagram literally rather than by argument."""
+
+    def __init__(self, threshold: float = REDUNDANCY_THRESHOLD):
+        self.threshold = threshold
+
+    def fit(self, X, y=None):
+        X = X if isinstance(X, pd.DataFrame) else pd.DataFrame(X)
+        self.keep_, _, _ = redundant_drop_set(X, threshold=self.threshold)
+        return self
+
+    def transform(self, X):
+        X = X if isinstance(X, pd.DataFrame) else pd.DataFrame(X, columns=self._fit_columns)
+        return X[self.keep_]
+
+    def fit_transform(self, X, y=None):
+        self._fit_columns = X.columns if isinstance(X, pd.DataFrame) else None
+        return self.fit(X, y).transform(X)
+
+    def get_params(self, deep=True):
+        return {"threshold": self.threshold}
+
+    def set_params(self, **params):
+        for k, v in params.items():
+            setattr(self, k, v)
+        return self
+
+
+class CollinearityRFTopK:
+    """sklearn-compatible transformer: `CollinearityDropper` THEN RF-importance top-k,
+    both refit on whatever rows this call receives -- the training-only composition
+    `select_top_features` already used, now wrapped so a `Pipeline` inside `GridSearchCV`
+    refits it independently on each inner-CV split rather than once on the whole outer
+    training set before the search (methodology-audit followup, finding #16). Unlike
+    `CollinearityDropper` alone, this step DOES read the target (RF-importance ranking),
+    so nesting it is the part of finding #16 that actually removes a real, if small,
+    optimism: an inner-validation row's own label could otherwise have quietly
+    influenced which columns even reach the model being validated on that row."""
+
+    def __init__(self, k: int = 20, random_state: int = 42, threshold: float = REDUNDANCY_THRESHOLD):
+        self.k = k
+        self.random_state = random_state
+        self.threshold = threshold
+
+    def fit(self, X, y):
+        from sklearn.ensemble import RandomForestRegressor
+
+        X = X if isinstance(X, pd.DataFrame) else pd.DataFrame(X)
+        keep, _, _ = redundant_drop_set(X, threshold=self.threshold)
+        Xk = X[keep]
+        ranker = RandomForestRegressor(n_estimators=200, random_state=self.random_state)
+        ranker.fit(Xk, y)
+        ranked = pd.Series(ranker.feature_importances_, index=Xk.columns).sort_values(ascending=False)
+        self.selected_ = ranked.head(min(self.k, len(ranked))).index.tolist()
+        return self
+
+    def transform(self, X):
+        X = X if isinstance(X, pd.DataFrame) else pd.DataFrame(X, columns=self._fit_columns)
+        return X[self.selected_]
+
+    def fit_transform(self, X, y):
+        self._fit_columns = X.columns if isinstance(X, pd.DataFrame) else None
+        return self.fit(X, y).transform(X)
+
+    def get_params(self, deep=True):
+        return {"k": self.k, "random_state": self.random_state, "threshold": self.threshold}
+
+    def set_params(self, **params):
+        for k, v in params.items():
+            setattr(self, k, v)
+        return self
+
+
 if __name__ == "__main__":
     rng = np.random.default_rng(0)
     n = 64
@@ -249,5 +331,23 @@ if __name__ == "__main__":
     order, _ = cluster_order(R)
     assert sorted(order) == list(range(len(frame.columns)))
     assert condition_indices(frame).max() >= 1.0
+
+    # Nested-CV transformers: must be usable inside a sklearn Pipeline/GridSearchCV,
+    # i.e. fit/transform on arbitrary row subsets without leaking state across calls.
+    y = frame["log_return"].to_numpy() + rng.normal(scale=0.01, size=n)
+    cd = CollinearityDropper().fit(frame)
+    assert "log_financial_damage" not in cd.transform(frame).columns
+    assert "financial_damage" in cd.transform(frame).columns
+
+    topk = CollinearityRFTopK(k=2, random_state=0).fit(frame, y)
+    out = topk.transform(frame)
+    assert out.shape[1] == 2
+    assert "log_financial_damage" not in out.columns  # dropped before ranking ever sees it
+
+    from sklearn.pipeline import Pipeline
+    from sklearn.linear_model import LinearRegression
+    pipe = Pipeline([("select", CollinearityRFTopK(k=2, random_state=0)), ("model", LinearRegression())])
+    pipe.fit(frame, y)
+    pipe.predict(frame)  # must not raise -- confirms the fitted column subset round-trips
 
     print("collinearity.py self-check passed")

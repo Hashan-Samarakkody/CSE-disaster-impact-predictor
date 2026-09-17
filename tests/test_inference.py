@@ -91,10 +91,14 @@ def test_classification_predictions_are_valid_probabilities_with_verdict_metadat
     # (2026-09-16, closing the gap where only the regression notebook had it): C1's
     # best family/AUC changed (0.711 -> 0.672, logistic -> xgb_clf) and it no longer
     # beats baseline -- the median-imputation fix's earlier True was itself an artifact
-    # of C1 still picking from a collinear feature set. C2 is the only label that
-    # survives both fixes.
+    # of C1 still picking from a collinear feature set.
     assert pred["C2_volume_spike"]["beats_baseline"]
     assert not pred["C1_negative_return"]["beats_baseline"]
+    # New confirmed result after the Y3 adverse-response-gate fix (finding #11,
+    # 2026-09-17): C3b_slow_recovery's best family/AUC moved to xgb_clf/0.811 and now
+    # clears both the majority rule and chance -- a genuinely new result from the Y3
+    # target redefinition, not a stale assumption carried over.
+    assert pred["C3b_slow_recovery"]["beats_baseline"]
 
 
 def test_hurdle_prediction_stays_inside_the_censored_support(bundle):

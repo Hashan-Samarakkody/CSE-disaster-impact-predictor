@@ -48,6 +48,20 @@ recording the retrieval time and the version of every library involved.
 | 08 | `08_sector_panel.ipynb` | `dataset`, sector workbook | `results_sector`, `sector_*` tables, figures | slow |
 | 09 | `09_synthesis.ipynb` | every table above | written record only | instant |
 
+Four standalone scripts run **after** the nine stages and read only their cached outputs:
+
+| Script | Reads | Writes | Cost |
+|---|---|---|---|
+| `scripts/freeze_baseline.py` | every cached artifact | `frozen_baseline.json` — the Y2 regression baseline | instant |
+| `scripts/run_y1_improvement.py` | `dataset`, `market`, `market_feats`, `feature_spec` | `y1_improve_*` (240-configuration grid) | **~75 min** |
+| `scripts/run_y3_improvement.py` | `dataset`, `feature_spec` | `y3_improve_*` (censoring-aware survival grid) | ~1 min |
+| `scripts/build_final_tables.py` | the two grids above | `docs/thesis_materials/final_table_*.csv` | instant |
+
+They are deliberately additive: none of them writes an artifact the nine stages read, which
+is what makes the Y2 freeze (`tests/test_y2_frozen.py`) hold by construction rather than by
+care. The Y1 horizon targets they need are rebuilt in memory from `market.parquet`
+(`src/evaluation/y1_horizons.py`) rather than by regenerating `dataset.parquet`.
+
 Stages 06 and 07 fit nothing. They read cached out-of-fold predictions, which is what
 makes it possible to re-derive a figure or add a test without re-running an hour of
 model fitting — and what makes it impossible to accidentally tune a model while
@@ -81,6 +95,8 @@ src/
     metrics.py               pooling, bootstrap and conformal intervals
     verification.py          paired bootstrap and Diebold-Mariano baseline tests
     collinearity.py          correlation, VIF, and the pre-declared redundancy rule
+    y1_horizons.py           the four Y1 event-window horizons and the market/disaster split
+    survival_metrics.py      C-index, IPCW Brier score, recovery-probability calibration
     figures.py                the evaluation figure suite and the thesis style
     eda_figures.py            the exploratory figure suite
 ```

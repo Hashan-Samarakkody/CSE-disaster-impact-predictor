@@ -1,0 +1,123 @@
+"""Integrity of the Y1/Y3 improvement-grid artifacts.
+
+These assert the properties the protocol's statistics depend on -- paired evaluation on
+identical test events, an unchanged event sample, and verdict columns that agree with the
+intervals they were derived from. A violation here invalidates the comparisons in
+`docs/Y1_Y3_FINAL_RESULTS.md`, so it is worth failing loudly rather than discovering it in
+a viva.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytest
+
+ART = Path(__file__).resolve().parents[1] / "artifacts"
+REQUIRED = ["y1_improve_oof.parquet", "y1_improve_metrics.parquet",
+            "y1_improve_verdicts.parquet", "y1_improve_direction.parquet",
+            "y3_improve_oof.parquet", "y3_improve_metrics.parquet"]
+
+pytestmark = pytest.mark.skipif(
+    not all((ART / f).exists() for f in REQUIRED),
+    reason="improvement artifacts missing -- run scripts/run_y1_improvement.py and "
+           "scripts/run_y3_improvement.py")
+
+
+@pytest.fixture(scope="module")
+def y1_oof():
+    return pd.read_parquet(ART / "y1_improve_oof.parquet")
+
+
+@pytest.fixture(scope="module")
+def y3_oof():
+    return pd.read_parquet(ART / "y3_improve_oof.parquet")
+
+
+def test_y1_every_configuration_scores_the_same_test_events(y1_oof):
+    """Protocol 3.1: paired evaluation. Every candidate AND every baseline must predict
+    exactly the same rows, per horizon, or the bootstrap deltas are not paired."""
+    for horizon, g in y1_oof.groupby("horizon"):
+        per_config = g.groupby(["info_set", "k", "model"])["row"].apply(
+            lambda s: tuple(sorted(s)))
+        assert per_config.nunique() == 1, f"horizon {horizon}: test events differ by config"
+
+
+def test_y1_targets_are_identical_across_configurations(y1_oof):
+    """The same event at the same horizon has one true value; a mismatch would mean two
+    configurations were fitted against different targets."""
+    for (horizon, row), g in y1_oof.groupby(["horizon", "row"]):
+        assert g["y_true"].nunique() == 1, (horizon, row)
+
+
+def test_y1_all_three_baselines_present_at_every_horizon(y1_oof):
+    baselines = {"naive_zero", "naive_train_mean", "market_only_expected"}
+    for horizon, g in y1_oof.groupby("horizon"):
+        assert baselines <= set(g[g.info_set == "baseline"]["model"]), horizon
+
+
+def test_y1_naive_zero_baseline_really_predicts_zero(y1_oof):
+    assert (y1_oof[y1_oof.model == "naive_zero"]["y_pred"] == 0.0).all()
+
+
+def test_y1_predictions_are_finite(y1_oof):
+    assert np.isfinite(y1_oof["y_pred"]).all()
+    assert np.isfinite(y1_oof["y_true"]).all()
+
+
+def test_y1_verdict_column_agrees_with_its_interval():
+    v = pd.read_parquet(ART / "y1_improve_verdicts.parquet")
+    assert (v["boot_beats"] == (v["ci_low"] > 0)).all()
+    assert (v.loc[v["boot_beats"], "verdict"] == "A - statistically supported").all()
+    # Holm can only ever be stricter than the single-comparison criterion.
+    assert not (v["holm_significant"] & ~v["boot_beats"]).any()
+
+
+def test_y1_direction_labels_partition_the_horizon(y1_oof):
+    """`negative_return = Y_h < 0` must match the pooled targets, per horizon."""
+    d = pd.read_parquet(ART / "y1_improve_direction.parquet")
+    for horizon, g in d.groupby("horizon"):
+        truth = y1_oof[(y1_oof.horizon == horizon) & (y1_oof.model == "naive_zero")]
+        assert g["n"].nunique() == 1 and g["n"].iloc[0] == len(truth)
+        assert g["n_negative"].iloc[0] == int((truth["y_true"] < 0).sum())
+
+
+def test_y3_every_model_scores_the_same_test_events(y3_oof):
+    per_model = y3_oof.groupby("model")["row"].apply(lambda s: tuple(sorted(s)))
+    assert per_model.nunique() == 1
+
+
+def test_y3_durations_and_censoring_match_the_frozen_dataset(y3_oof):
+    data = pd.read_parquet(ART / "dataset.parquet").reset_index(drop=True)
+    for model, g in y3_oof.groupby("model"):
+        rows = g["row"].to_numpy()
+        np.testing.assert_allclose(g["duration"].to_numpy(float),
+                                   data["Y3_recovery_days"].to_numpy(float)[rows],
+                                   err_msg=model)
+        assert (g["event_observed"].to_numpy() ==
+                ~data["Y3_censored"].to_numpy(bool)[rows]).all(), model
+
+
+def test_y3_recovery_probabilities_are_monotone_and_bounded(y3_oof):
+    """P(T <= t) is a CDF: non-decreasing in t and inside [0, 1]."""
+    cols = ["P_T_le_10", "P_T_le_20", "P_T_le_30", "P_T_le_60", "P_T_le_90"]
+    p = y3_oof[cols].to_numpy(float)
+    assert np.isfinite(p).all()
+    assert (p >= -1e-9).all() and (p <= 1 + 1e-9).all()
+    assert (np.diff(p, axis=1) >= -1e-9).all()
+
+
+def test_y3_predicted_medians_are_inside_the_design_window(y3_oof):
+    assert y3_oof["pred_median"].between(0.0, 90.0).all()
+
+
+def test_y3_censoring_aware_models_beat_the_kaplan_meier_baseline():
+    """The primary Y3 claim in the final results: censoring-aware modelling ranks better
+    than the marginal training-fold survival curve. Failing this means the result
+    reported in docs/Y1_Y3_FINAL_RESULTS.md no longer holds."""
+    m = pd.read_parquet(ART / "y3_improve_metrics.parquet").set_index("model")
+    baseline = m.loc["km_train_baseline", "c_index"]
+    assert m.loc["two_stage_weibull_k20", "c_index"] > baseline
+    assert m.loc["two_stage_weibull_k20", "c_index_ci_low"] > 0.5

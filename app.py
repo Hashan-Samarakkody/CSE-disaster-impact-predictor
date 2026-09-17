@@ -300,7 +300,7 @@ st.markdown('<div class="mui-card">', unsafe_allow_html=True)
 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 st.markdown("</div>", unsafe_allow_html=True)
 st.caption(
-    "None of the three original targets (day-0 return, abnormal volume, recovery days) "
+    "None of the three original targets (5-day forward return, abnormal volume, recovery days) "
     "beat both naive baselines in the walk-forward audit. Treat 'model prediction' as "
     "the pipeline's best point estimate, not as evidence it is accurate."
 )

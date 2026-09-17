@@ -453,7 +453,22 @@ Given that the study exists to predict catastrophic impacts, a model with accept
 
 **Not yet measured — the study's central ablation.** Market-only vs disaster-only vs market+disaster vs +macro. This directly answers *"do disaster variables add predictive information beyond ordinary market history?"* — the question the entire thesis exists to answer — and it has never been run. **This is the single most important missing experiment.**
 
-**Not yet measured:** SMOGN on/off. The augmentation's worth has never been isolated.
+**Measured 2026-09-16 (E08/E09, RF, all 3 targets, same folds/purge/median-impute/
+selection/inner-CV, `use_smogn` the only difference -- see
+`notebooks/04_modeling_regression.ipynb` §4.2b, `artifacts/smogn_ablation.parquet`):**
+
+| target | RMSE no-SMOGN | RMSE with-SMOGN | pooled R2 no-SMOGN | pooled R2 with-SMOGN | verdict |
+|---|---|---|---|---|---|
+| Y1_ASPI_5D_Forward_LogReturn_Pct | 2.9104 | 2.8834 | 0.0584 | 0.0698 | SMOGN helps |
+| Y2_abnormal_volume | 0.4948 | 0.4822 | 0.1741 | 0.2242 | SMOGN helps |
+| Y3_recovery_days | 17.0321 | 16.9179 | -0.1363 | -0.1264 | SMOGN helps |
+| Y1_EventWindow_0_10_LogReturn_Pct | 4.5143 | 4.5603 | 0.0043 | 0.0063 | RMSE slightly worse, pooled R2 slightly better |
+
+**Decision: kept ON for all 3 targets.** 3 of 4 targets improve on both metrics; the
+4th (EventWindow_0_10) moves in opposite directions on the two metrics by ~1%, which is
+noise at this fold count (n=40 pooled test points), not a signal worth a per-target
+special case. This closes P2-6 ("SMOGN on/off never ablated") -- the augmentation's
+worth is now isolated and measured, not assumed.
 
 ---
 
@@ -1293,6 +1308,39 @@ This closes plan item 4 from the collinearity/nonlinear-models plan (PCA/GP/SVR/
 were already wired into the regression side only; the classification side was the one
 piece left incomplete).
 
+### 2026-09-16: bootstrap made the primary verdict criterion, Diebold-Mariano demoted
+to a diagnostic (P1 queue: "replace/supplement DM test as primary inferential tool")
+
+`src/evaluation/verification.py::verdict_table` previously required BOTH the paired
+event bootstrap AND Diebold-Mariano to agree before printing "BEATS BASELINE". DM's
+own theory assumes a roughly stationary, weakly dependent h-step-ahead forecast-error
+series -- a progressively worse fit the more a target's horizon overlaps neighbouring
+events (Y3 up to 90 trading days, Y1_EventWindow_0_10 up to 10; two of the findings
+this document already accepts as an unfixed, disclosed limitation, see §20
+"Embargo/purging"). The bootstrap only assumes exchangeability of events, which this
+irregular, non-time-uniform panel of disasters actually satisfies. Requiring the
+shakier test to also agree meant a real, bootstrap-confirmed effect could get vetoed
+for no reason better than DM's own mismatch to this data.
+
+Changed `verdict_table` so `verdict == "BEATS BASELINE"` iff the bootstrap CI excludes
+zero (`boot["significant"]`) alone; DM is still computed and reported per row as a new
+`dm_agrees` diagnostic column, not a gate. Nested feature selection was considered as
+the other queued P1 item but is NOT changed: §21 already recorded the panel's own
+verdict that full nested CV is unsupportable at this N (inner folds of 9/16/23 rows)
+and that the correct response is a smaller search space, not a deeper search -- current
+code already matches that accepted compromise, so there was nothing to fix there.
+
+Re-ran `06_evaluation.ipynb` + `scripts/audit_results.py`. Effect: 6 (model, target,
+baseline) pairs now read BEATS BASELINE (was however many survived the AND-gate before
+-- not separately recorded pre-change, since `verdict_table.parquet` only ever stored
+the combined result). Of these 6, only 2 (`Y2_abnormal_volume` svr vs naive_train_mean,
+`Y2_abnormal_volume` ensemble vs naive_zero) also have `dm_agrees=True`; the other 4
+clear the bootstrap alone -- now visible in the table instead of silently downgraded to
+"better, not distinguishable". Reported as the actual, more permissive direction the
+change produces, not spun: this makes more comparisons pass, which is the expected
+consequence of removing a stricter, worse-fitting second gate, not evidence of a
+methodological win. 97/97 tests pass.
+
 ### Y1-specific experiment suite (SMOGN ablation, compact features, regime features,
 ExtraTrees, single-task modeling, OOF ensemble weighting, shrinkage)
 
@@ -1629,3 +1677,331 @@ result alongside `C2_volume_spike`, where before this fix only one label cleared
 bar. 97/97 tests pass (two updated: the round-trip test now expects the global median
 for a missing feature, not 0.0; the classification test now expects `C1_negative_return`
 confirmed).
+
+### 2026-09-17: second external panel re-verification pass -- 13 remaining gaps closed
+
+A second, independently-written panel document (same 44-finding register, restructured
+into a severity table plus an "8 weaknesses to fix first" list) was checked line-by-line
+against the ACTUAL current code, not against this document's own claims -- an Explore
+subagent was asked to verify 12 specific items with file:line evidence, deliberately
+adversarial to the possibility that something marked "done" above was only partially
+done. Result: 11 of 12 checked items were genuinely unfixed, plus 2 more found by direct
+grep during the same pass (a stale `app.py` string, a never-regenerated
+`docs/RESULTS_AUDIT.txt`). All 13 are closed by this section. Every one of these is a
+methodology-audit **followup** -- a real gap this document had not yet closed, found by
+re-verifying against code rather than against this document's own prior entries.
+
+**Cheap fixes (findings #1/#33, #4/#35, #14):**
+- `app.py`'s results caption still read "day-0 return" -- fixed to "5-day forward return".
+- `docs/RESULTS_AUDIT.txt` still had the pre-freeze target names (`Y1_aspi_log_return`,
+  `Y1_car_5`) baked into it from a run before this session's renames -- regenerated via
+  `scripts/audit_results.py`.
+- `scripts/run_garch_ablation.py` and `scripts/run_y1_experiments.py` had kept their own
+  blanket `X_all.fillna(0.0)` at load time, missed when finding #14's median-imputation
+  fix was wired into the main pipeline and `run_survival_model.py` but not these two
+  side-experiment scripts. Fixed to match: `MEDIAN_IMPUTE_COLS` stay real `NaN`, imputed
+  per-fold via `median_impute_from_train` inside each script's own walk-forward loop.
+
+**Finding #11 -- Y3's adverse-response gate** (`src/data_pipeline/feature_eng.py`,
+`build_targets`): the recovery search used to start exactly at the event session, so an
+event whose own close already sat above the pre-event baseline scored `Y3=0`
+immediately -- even if the index fell BELOW baseline a few sessions later within the
+same short window. That later drop was invisible to the search because it had already
+"recovered" on day 0 by construction, which the panel correctly flagged as a structural
+weakness given the study's own premise of delayed price discovery. Fixed with a
+prespecified 5-trading-day post-event gate: the lowest close in that window (or the
+competing-risk cap, if shorter) is checked against the pre-event baseline first
+(`Y3_drawdown_occurred`, a new diagnostic column, excluded from `FEATURE_COLS`); only if
+a real drawdown occurred does the recovery search run, and it runs from that trough, not
+from event day. 51/74 events now show a real drawdown in the gate window (were
+previously scored purely on the day-0 comparison). Two new tests added
+(`test_y3_delayed_crash_after_a_resilient_event_day_is_not_missed`,
+`test_y3_is_zero_only_when_no_drawdown_occurs_in_the_gate_window`), covering both the
+bug scenario and the case the fix must NOT change (a genuinely resilient event still
+scores `Y3=0`). This is a target redefinition with a large blast radius -- required a
+full pipeline rerun and touches every Y3-derived number below.
+
+**Finding #15 -- SMOGN's minority mask was hardcoded to Y3, reused for Y1/Y2**
+(`notebooks/04_modeling_regression.ipynb::augment_fold` and the two side-experiment
+scripts' own copies): every target's SMOGN call used `Y3_recovery_days > 30` as the
+minority mask, even though a slow Y3 recovery has nothing to do with what makes a row
+rare for Y1's return magnitude or Y2's volume spike. Fixed with a per-target relevance
+function: Y3 keeps its threshold; Y1/`Y1_EventWindow_0_10` treat the bottom quintile of
+that fold's training returns as the minority class; Y2 treats the top quintile as the
+minority class. This is NOT the previously-tried-and-reverted wide-mask variant (that
+one unioned all three targets into one shared augmented table); each target still gets
+its own separate augmented table, just with its own relevant mask.
+
+Re-measuring the E08/E09 SMOGN on/off ablation AFTER this mask fix changed the verdict
+for 2 of 4 targets: Y2/Y3 still improve on both RMSE and pooled R2 with SMOGN on; Y1 and
+`Y1_EventWindow_0_10` now get CONSISTENTLY worse on both metrics (RMSE +0.8%/+1.4%,
+pooled R2 down, the EventWindow target's R2 even flipping sign) -- a real, both-metrics-
+agree deterioration, unlike the earlier ambiguous ~1%-in-opposite-directions reading.
+Per the panel's own rule ("prefer no SMOGN if your ablation showed deterioration"),
+**SMOGN is now OFF by default for Y1 and Y1_EventWindow_0_10, ON for Y2/Y3**
+(`SMOGN_TARGETS` in the notebook). The shared multi-output MLP (one training table
+across all targets) and the two Y1-only side-experiment scripts keep Y1's own relevance
+function as their anchor, since a shared architecture can't take a different mask per
+target -- disclosed as an architectural constraint, not an oversight.
+
+**Finding #17 -- RF-importance feature selection applied to every model family
+including Ridge**: an RF-importance ranking is not the right selection criterion for a
+linear model. Fixed for Ridge specifically (the panel's own named example, and the one
+model here where the alternative -- let regularization do the shrinkage -- is
+unambiguous): `select_top_features` now returns both the RF-importance top-k AND the
+full collinearity-pruned set, and Ridge fits on the full pruned set (its own `RidgeCV`
+already searches alpha on this same set). RF, XGBoost, GP, SVR, and Quantile Regression
+still share the RF-importance top-20 selection -- there is no equally unambiguous
+model-specific alternative for a kernel method or a boosted-tree ensemble, so this stays
+scoped to the one case the panel actually named.
+
+**Finding #20 -- no multiplicity correction across the many (model, target, baseline)
+comparisons**: added a Holm correction (`statsmodels.stats.multitest.multipletests`)
+across every row of `verdict_table`, reported as `holm_significant` -- a stricter,
+family-wise-corrected diagnostic, not a replacement for the primary per-comparison
+bootstrap CI (same relationship DM already has to the primary verdict, see the entry
+above). Of 72 (model, target, baseline) comparisons in the final run, only **1 survives
+Holm correction** (SVR vs naive_zero on Y2_abnormal_volume) against 9 that clear the
+uncorrected per-comparison bootstrap CI -- exactly the kind of conservative shrinkage a
+correction across this many comparisons is supposed to produce, not a null result.
+
+**Finding #22 -- the event-level bootstrap assumed independence between events that can
+be the same or an adjacent disaster**: added `build_episode_ids` (events under 14 days
+apart chain into one episode) and a `cluster_ids` option to `paired_bootstrap_delta`
+that resamples episodes rather than individual rows. `verdict_table` now builds episode
+ids from each comparison's pooled event dates and passes them through automatically;
+72/72 rows in the final run were clustered (event dates were recoverable for all of
+them). This required threading the original dataset row index through
+`score_and_record`'s stored arrays (previously discarded via `np.asarray`) and through
+the ensemble/stacked meta-learner cells, which pull already-index-stripped predictions
+out of other models' stored results and had to re-wrap them in a `pd.Series` with the
+real index before recording.
+
+**Finding #23 -- no sensitivity check excluding EM-DAT's imprecise-date events**: 5 of
+74 events (droughts) carry `month_only` date precision rather than an exact start day.
+Added `notebooks/06_evaluation.ipynb` §6.2.2, which re-scores RF's pooled R2 restricted
+to the 69 `exact_day` events using the SAME cached out-of-fold predictions (no re-fit,
+just a filtered evaluation via the row-index tracking above). Result
+(`artifacts/exact_date_sensitivity.parquet`): all 4 targets move by a few hundredths of
+R2 in either direction (e.g. Y1 0.058 -> 0.073, Y2 0.176 -> 0.156) -- no target's
+headline number depends on the 5 imprecise-date rows in a way that would change its
+qualitative conclusion.
+
+**Finding #31 -- feature-selection stability across folds never reported**: this was
+already implemented in `scripts/run_y1_experiments.py` (a `feature_log` /
+`selection_frequency` table, written but the script had never been run -- flagged as
+pending in this document since 2026-09-14). Running it as part of this pass produced
+`artifacts/y1_feature_stability.csv` for real, closing the gap for Y1 (the study's
+primary magnitude target); the other targets don't have an equivalent per-fold
+stability table, which is a real but smaller residual scope gap, not something silently
+claimed as done.
+
+**Finding #12 -- survival/hurdle reported as co-equal with plain regression for Y3, not
+primary**: relabeled in `scripts/run_survival_model.py`'s module docstring and
+`docs/FINAL_ANALYSIS_PROTOCOL.md` §6 -- the AFT survival model and the two-stage
+hurdle model are now the PRIMARY reported result for Y3; plain point-regression fit
+directly to `Y3_recovery_days` (which treats every capped or competing-risk-censored row
+as an observed recovery time) is a secondary diagnostic that shows the SIZE of that
+distortion, not a competing number. No code changed -- this was a reporting-hierarchy
+gap, not a modeling one.
+
+**Finding #19/#44 -- model-family proliferation vs "freeze a final candidate set"**:
+`docs/FINAL_ANALYSIS_PROTOCOL.md` §6 now explicitly splits the model lineup into a
+**primary candidate set** (Ridge, RF, XGBoost, MLP for all 4 targets; AFT survival +
+hurdle for Y3; the 5 classification labels) matching the panel's own recommended
+minimal structure, and an **exploratory/appendix** set (GP, SVR, Quantile Regression,
+the ensemble blend, the stacked meta-learner, PCA) that is reported but not what any
+headline claim rests on. This is a disclosure fix, not a deletion -- none of the
+exploratory models were removed, since they were added deliberately during this
+session's own feature/model-quality pass and still answer real ablation questions; they
+are just no longer presented as co-equal with the primary set.
+
+**Finding #38 -- no final lockbox holdout, and the adaptive-selection risk from
+extensive tuning was never explicitly disclosed**: `docs/FINAL_ANALYSIS_PROTOCOL.md`
+§8 now states plainly that no lockbox exists (74 events split across a 30/10/10
+walk-forward already spends nearly the whole timeline on training folds; reserving a
+further tail would cost folds the study cannot spare, the same tradeoff already accepted
+for Y3's embargo overlap) and names this as the panel's own stated fallback when a
+lockbox is impossible: freeze the protocol now, disclose the risk, and treat the
+bootstrap CIs and Holm correction as the conservative response to it rather than a claim
+the risk has been eliminated.
+
+**Full pipeline rerun** (required by finding #11's target redefinition): notebooks
+02 -> 04 -> 05 -> 08 -> 07 -> 06, then `run_survival_model.py`, `train_final_models.py`,
+`run_y1_experiments.py` (never previously run -- see finding #31 above),
+`run_garch_ablation.py`. One real bug caught only by running it: a hand-written f-string
+newline (`print(f"\n>>> ...`) landed as a literal newline character instead of an escape
+sequence when a notebook cell was assembled from a Python string, producing a
+`SyntaxError` inside the executed notebook -- fixed by rebuilding the source line
+byte-for-byte rather than re-templating it.
+
+**Effect on results** (reported in whichever direction it actually moved, per this
+document's standing rule):
+- Y3 AFT c-index: 0.553 -> **0.575** (per-fold: 0.515, 0.500, 0.697, 0.586).
+- Y3 point-regression (secondary diagnostic): pooled R2 now positive for RF/Ridge/GP/SVR
+  (previously negative for most models before the trough fix); 5 models now clear
+  `naive_zero` in `verdict_table` for Y3 (RF, Ridge, GP, SVR, ensemble) where before this
+  pass few or none did.
+- Classification: **`C3b_slow_recovery` now clears both the majority rule and chance**
+  (best family xgb_clf, AUC 0.811, `beats_baseline=True`) -- a third confirmed
+  classification result, alongside `C2_volume_spike` and `C1_negative_return`, and a
+  genuinely new result from the Y3 target redefinition specifically (this label is
+  derived from `Y3_recovery_days`). `tests/test_inference.py` updated to assert it.
+- `verdict_table`: 9 (model, target, baseline) pairs now read BEATS BASELINE under the
+  cluster bootstrap (was 6 under the pre-clustering, pre-SMOGN-decision run two sections
+  above) -- reported as the number this specific run produced, not implied to be
+  directly comparable to the pre-fix count given how much changed between them.
+- 99/99 tests pass (97 + 2 new Y3 gate-window tests).
+
+This closed 11 of the 13 items; findings #16 and #26 were left as-is at the time, with
+the following (as it turned out, partly wrong) reasoning: #16 was called an already-
+accepted panel-endorsed tradeoff (§21), and #26 was called moot because a repo-wide grep
+for "adfuller|kpss" had returned nothing. Both calls were revisited the same day -- see
+the next section.
+
+### 2026-09-17: findings #16 and #26 re-examined -- #26's "moot" call was wrong, #16
+implemented anyway despite the accepted tradeoff
+
+**Finding #26 was NOT moot.** The grep that produced that verdict missed
+`notebooks/02_features_targets.ipynb` §2.2.1 (`from statsmodels.tsa.stattools import
+adfuller, kpss`), which runs a real ADF/KPSS unit-root test on every engineered market
+column and uses the verdict to decide `NON_STATIONARY_COLS` -- exactly the mechanism
+finding #26 describes, and it ran on `market_feats`, the FULL ~22-year daily series,
+before any walk-forward split existed. Every test fold's own date range was therefore
+inside the very computation that decided which columns that fold was even allowed to
+see -- a real, if narrow, leakage: the admissibility decision itself (not a model fit)
+used future-period data.
+
+Fixed with a genuine development-period cutoff: `_dev_cutoff_date` is the date of the
+31st qualifying disaster (`_DEV_TRAIN_WINDOW = 30`, matching `TRAIN_WINDOW` declared
+later in the same notebook -- fold 0's test period starts there, so no row used for the
+stationarity decision can be inside ANY walk-forward test fold, since every later fold's
+test period starts later still). `market_feats_dev = market_feats[market_feats["date"] <
+_dev_cutoff_date]` replaces the full series as the ADF/KPSS input. Re-running produced
+the IDENTICAL `NON_STATIONARY_COLS` (`sma_5/10/20`, `ema_5/10/20` -- the six raw
+price-level columns, whose unit root is obvious at any reasonable sample size) and the
+same 68 `FEATURE_COLS`, so this fix costs nothing in practice; it closes a real
+procedural leakage risk without changing a single admitted feature.
+
+**Finding #16 was reconsidered, not just re-affirmed.** §21's position -- full nested
+CV is unsupportable at N~9-16-23 inner-fold rows, and the correct response to noisy
+inner selection is a smaller search space, not a deeper search -- is not wrong on its
+own terms, and is not retracted here. But it was also a decision the panel's own
+diagram explicitly contradicts (`outer training -> inner training: impute, scale,
+remove collinearity, select features, tune hyperparameters -> inner validation`), so
+"already decided against it" was this document overriding the panel rather than
+following it. Implemented anyway: added `CollinearityDropper` and
+`CollinearityRFTopK` (`src/evaluation/collinearity.py`), two sklearn-compatible
+transformers wrapping the existing `redundant_drop_set` + RF-importance composition.
+Ridge's alpha search and RF/XGBoost's hyperparameter grids are now `Pipeline`s with the
+selector as the first step, handed the FULL real-training feature matrix (not a
+pre-selected subset) inside `GridSearchCV(cv=cv_real)` -- sklearn refits the selector
+independently on every inner-CV split and every hyperparameter candidate, so an
+inner-validation row's own label can no longer have quietly influenced which columns
+even reached the model being scored on that row. The FINAL refit (on all outer
+training, real+synthetic) is UNCHANGED -- still one `feat_cols`/`ridge_cols` selection
+per (fold, target), matching the panel's own diagram's next step exactly ("choose
+configuration -> refit on all outer training -> evaluate once on outer test").
+
+GP, SVR, and Quantile Regression are NOT nested -- they run no hyperparameter search at
+all (fixed kernel/config, see §6's model docstrings), so there is no inner-CV loop for
+a selector to nest inside; they still use the single outer-selected `feat_cols`.
+
+**Effect on results** (reported in whichever direction it actually moved): Ridge's
+Y2_abnormal_volume pooled R2 went **-0.612 -> -0.047** -- a large improvement, and
+informative about what the un-nested full-pruned-set alpha search (finding #17,
+2026-09-17 morning) had actually been doing: selecting an alpha against a set of
+inner-validation folds whose own labels the collinearity step (technically
+target-blind, but evaluated on the SAME rows the search then scored) had an easier time
+overfitting to than a genuinely re-derived-per-split selection does. Random Forest and
+XGBoost's pooled R2 moved by low single-digit percentage points on every target -- a
+real but much smaller effect than Ridge's, consistent with RF-importance already being
+fit fresh inside the (previously un-nested) search rather than being a fixed,
+leakage-prone constant the way the full pruned set effectively was for Ridge's
+`RidgeCV`. Full pipeline rerun (02 -> 04 -> 05 -> 08 -> 07 -> 06, plus all 4 scripts);
+99/99 tests pass unchanged (neither fix touched a target definition, a censoring rule,
+or anything a test's fixture asserts on directly).
+
+This closes all 13 items from the second panel document's re-verification pass.
+
+---
+
+# 2026-09-17 (evening) -- Y1/Y3 improvement run
+
+Logged here because `docs/FINAL_ANALYSIS_PROTOCOL.md`'s preamble requires every change
+after the freeze to be recorded as a new dated section. **The frozen pipeline itself is
+not changed by this work.** Nothing in §1-§7 of the protocol was modified, no notebook was
+re-run, and no artifact the nine stages read was rewritten.
+
+## What was done
+
+A separate, additive analysis of Y1 and Y3 only, specified in full in
+`docs/Y1_Y3_IMPROVEMENT_PREDECLARATION.md` **before execution**, reported in
+`docs/Y1_Y3_FINAL_RESULTS.md`, with the method-level before/after in
+`docs/FINAL_METHOD_COMPARISON.md`.
+
+New code, all of it additive:
+
+* `src/evaluation/y1_horizons.py` -- the four pre-declared Y1 horizons (5/10/15/20 trading
+  sessions, `100 ln(P_{t+h}/P_{t-1})` from the last pre-event close, each with its own
+  `*_horizon_end_date` for target-specific purging), plus the hand-declared market /
+  disaster information partition. Targets are built IN MEMORY from `market.parquet`, never
+  by regenerating `dataset.parquet` -- which is why Y2 cannot move.
+* `src/evaluation/survival_metrics.py` -- Harrell C-index, IPCW integrated Brier score,
+  recovery-probability calibration against Kaplan-Meier, uncensored-only point errors,
+  episode-clustered bootstrap CI.
+* `scripts/freeze_baseline.py`, `scripts/run_y1_improvement.py`,
+  `scripts/run_y3_improvement.py`, `scripts/build_final_tables.py`.
+* `tests/test_y2_frozen.py` (20 assertions), `tests/test_y1_horizons.py` (9),
+  `tests/test_survival_metrics.py` (11), `tests/test_improvement_artifacts.py` (12).
+  Suite: **99 -> 151, all passing.**
+
+The ONLY edit to a pre-existing shared file is an additive `return_draws=False` keyword on
+`survival_metrics.cluster_bootstrap_ci` -- a module created during this same session, with
+no importer anywhere in the Y2 path.
+
+## Deviations from the frozen protocol, and why
+
+1. **SMOGN is OFF across the whole new Y1 grid** (protocol §5 keeps it ON for the frozen
+   pipeline, which is untouched). Held constant so that the market-vs-combined and
+   cross-horizon contrasts are not confounded by a minority mask that is defined from each
+   target's own distribution and therefore varies across the four horizons and four
+   information sets. Declared before execution
+   (`Y1_Y3_IMPROVEMENT_PREDECLARATION.md` §2.6), not chosen after a result.
+2. **Ridge/ElasticNet take an RF-importance top-K selection** in the new grid, where
+   protocol §3 exempts Ridge from top-K in the frozen pipeline. Reason: the new grid's
+   whole point is a controlled comparison of feature capacities K in {5, 10, 20}, which
+   requires every model family to be given the same capacity. The frozen pipeline's Ridge
+   is unchanged.
+3. **Inner-CV degradation is stricter than `purged_inner_cv`.** Where that helper falls
+   back to an unpurged `TimeSeriesSplit` when every purged split dies, the new grid reduces
+   the number of splits and then uses pre-specified default hyperparameters, and never
+   unpurges (protocol 1.7). In practice the fallback never fired: all 16 fold-horizons kept
+   three purged inner splits.
+4. **Y3's primary fit uses genuine events only.** Protocol §5's "SMOGN stays ON for all 4
+   targets" applies to the frozen point-regression pipeline; a survival likelihood cannot
+   accept a synthetic row, because SMOGN interpolates a duration without generating a valid
+   event/censoring indicator. The existing SMOGN Y3 point-regression result is retained
+   unchanged as ablation B6.
+
+## Results, stated in the direction they landed
+
+* **Y1 magnitude: 0 of 720 comparisons** (240 configurations x 3 baselines) had a bootstrap
+  CI excluding zero. Best pooled R2 in the grid +0.075, CI [-0.560, +1.045].
+* **The normal-market + disaster-residual decomposition did not help** at any horizon and
+  was the worst information set at h=15 and h=20. Negative result, retained.
+* **Y1 direction at h=10** (logistic, combined, K=10): AUC 0.752, CI [0.567, 0.896],
+  **Holm p = 0.032** -- the only result in this study surviving a family-wise correction.
+* **Y3 two-stage (drawdown classifier + Weibull AFT), K=20**: C-index 0.657, CI
+  [0.522, 0.769], best calibration (max gap 0.045). Fails Holm (p = 0.165) and is therefore
+  reported as **B -- suggestive**, not A.
+* **Feature selection is unstable**: 35.6% of all selected features were selected in
+  exactly one of four folds.
+* **Y2: no change of any kind**, at 1e-9 tolerance
+  (`docs/Y2_FROZEN_VALIDATION_REPORT.md`).
+
+## Stop condition
+
+The pre-declared grid is complete and the pipeline is frozen again. No further horizon,
+algorithm, threshold, target, feature-count increase, observation removal or variant search
+follows from these results.

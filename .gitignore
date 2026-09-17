@@ -13,7 +13,11 @@ Thumbs.db
 
 # Regenerable artifact cache. Stage 01 onward rebuilds every file here.
 # Figures in docs/figures/ ARE tracked, so the thesis can cite them by a stable path.
-artifacts/
+artifacts/*
+# ...except the Y2 regression baseline, which is a HISTORICAL SNAPSHOT of commit 1fbf6275
+# and cannot be regenerated from a later state. tests/test_y2_frozen.py compares the live
+# pipeline against it; losing it would silently turn 20 freeze assertions into skips.
+!artifacts/frozen_baseline.json
 
 # nbconvert stderr logs
 notebooks/err_*.txt
