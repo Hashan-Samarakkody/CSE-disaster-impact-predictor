@@ -26,7 +26,7 @@ FEATURE_GROUPS = {
                "log_vol_change_1"],
     "macro/global": ["gdp_growth_pct", "inflation_cpi_pct", "sp500_log_return",
                      "fx_logret_1", "fx_logret_5", "fx_vol_30"],
-    # External blocks A, B and D (docs/EXTERNAL_DATA_PRE_DECLARATION.md). Hazard stays
+    # External blocks A, B and D (docs/data_sources.md). Hazard stays
     # separate from damage: it is instrument-measured intensity, while damage is a
     # post-hoc assessment absent for most events, and grouping would hide that.
     "hazard (measured)": ["hz_precip_max3d", "hz_precip_mean3d", "hz_precip_spread3d",
@@ -82,12 +82,7 @@ def correlation_matrix(X: pd.DataFrame, method: str = "spearman") -> pd.DataFram
 
 
 def critical_r(n: int, alpha: float = 0.05) -> float:
-    """Smallest |r| distinguishable from zero at this n, via the Fisher z transform.
-
-    At n=64 this is about 0.246. Correlations below it are not evidence of anything and
-    should be masked in any heatmap, or a reader will point at a 0.3 cell and ask what
-    it means.
-    """
+    """Smallest |r| distinguishable from zero at this n, via the Fisher z transform."""
     from scipy import stats
     if n < 4:
         return float("nan")
@@ -97,7 +92,7 @@ def critical_r(n: int, alpha: float = 0.05) -> float:
 
 def cluster_order(R: pd.DataFrame):
     """Hierarchical leaf order on distance 1 - |rho|, with optimal leaf ordering.
-
+    
     Optimal leaf ordering matters at this size: plain `leaves_list` leaves arbitrary
     within-cluster flips that make the blocks look noisier than they are.
     """
@@ -127,13 +122,7 @@ def top_correlated_pairs(X: pd.DataFrame, method="spearman", top_n=15) -> pd.Dat
 
 
 def compute_vif(X: pd.DataFrame, drop_reference: str = "disaster_Other") -> pd.DataFrame:
-    """Variance inflation factors.
-
-    One disaster one-hot must be dropped: the four indicators sum to 1, so together with
-    an intercept the design is exactly singular and every VIF in the block comes back as
-    inf or NaN. Each call is guarded so a singular column records `inf` rather than
-    aborting the whole table.
-    """
+    """Variance inflation factors."""
     from statsmodels.stats.outliers_influence import variance_inflation_factor
     from statsmodels.tools.tools import add_constant
 
@@ -159,7 +148,7 @@ def compute_vif(X: pd.DataFrame, drop_reference: str = "disaster_Other") -> pd.D
 
 def condition_indices(X: pd.DataFrame) -> pd.Series:
     """sqrt(lambda_max / lambda_i) of the standardised design.
-
+    
     Never singular-fragile the way individual VIFs are, and the >30 rule of thumb gives
     one headline number instead of 31 separate ones.
     """
@@ -177,12 +166,7 @@ REDUNDANCY_THRESHOLD = 0.95
 
 def redundant_drop_set(X: pd.DataFrame, threshold: float = REDUNDANCY_THRESHOLD,
                        method: str = "spearman"):
-    """Apply the pre-declared redundancy rule and report exactly what it removes.
-
-    The rule, fixed before any model was scored: within a group whose pairwise |rho|
-    exceeds `threshold`, keep the most primitive member (lowest derivation depth, ties
-    alphabetical) and drop the rest. It reads no target, fold or score, so it cannot be
-    selection on the test set. Returns (keep, drop, detail_frame)."""
+    """Apply the pre-declared redundancy rule and report exactly what it removes."""
     R = correlation_matrix(X, method=method).abs()
     cols = list(R.columns)
 
@@ -222,14 +206,7 @@ def redundant_drop_set(X: pd.DataFrame, threshold: float = REDUNDANCY_THRESHOLD,
 # --------------------------------------------------------------- nested-CV transformers
 
 class CollinearityDropper:
-    """sklearn-compatible transformer wrapping `redundant_drop_set`.
-
-    Reads no target, so refitting it inside every inner-CV split (methodology-audit
-    followup, finding #16 -- "put feature selection inside the inner-CV pipeline")
-    changes nothing about WHICH columns survive (the correlation structure barely moves
-    between an inner split and the outer training set at this N), but it does mean the
-    step is genuinely re-derived from only that split's own rows, matching the panel's
-    diagram literally rather than by argument."""
+    """sklearn-compatible transformer wrapping `redundant_drop_set`."""
 
     def __init__(self, threshold: float = REDUNDANCY_THRESHOLD):
         self.threshold = threshold
@@ -257,15 +234,7 @@ class CollinearityDropper:
 
 
 class CollinearityRFTopK:
-    """sklearn-compatible transformer: `CollinearityDropper` THEN RF-importance top-k,
-    both refit on whatever rows this call receives -- the training-only composition
-    `select_top_features` already used, now wrapped so a `Pipeline` inside `GridSearchCV`
-    refits it independently on each inner-CV split rather than once on the whole outer
-    training set before the search (methodology-audit followup, finding #16). Unlike
-    `CollinearityDropper` alone, this step DOES read the target (RF-importance ranking),
-    so nesting it is the part of finding #16 that actually removes a real, if small,
-    optimism: an inner-validation row's own label could otherwise have quietly
-    influenced which columns even reach the model being validated on that row."""
+    """sklearn-compatible transformer: `CollinearityDropper` THEN RF-importance top-k,"""
 
     def __init__(self, k: int = 20, random_state: int = 42, threshold: float = REDUNDANCY_THRESHOLD):
         self.k = k
@@ -348,6 +317,6 @@ if __name__ == "__main__":
     from sklearn.linear_model import LinearRegression
     pipe = Pipeline([("select", CollinearityRFTopK(k=2, random_state=0)), ("model", LinearRegression())])
     pipe.fit(frame, y)
-    pipe.predict(frame)  # must not raise -- confirms the fitted column subset round-trips
+    pipe.predict(frame)  # must not raise, confirms the fitted column subset round-trips
 
     print("collinearity.py self-check passed")

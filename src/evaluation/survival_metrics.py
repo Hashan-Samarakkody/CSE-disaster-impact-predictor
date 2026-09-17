@@ -1,21 +1,4 @@
-"""Censoring-aware evaluation for Y3 (recovery duration).
-
-Protocol section 2.6: a right-censored duration must not be scored as if it were an
-observed point value. `Y3_recovery_days` carries `Y3_censored` (90-day cap OR a competing
-later disaster), so ordinary pooled RMSE over all rows silently asserts that every capped
-event recovered on exactly its censoring day. These are the metrics that do not.
-
-  * `harrell_c_index`      -- rank concordance, the primary metric.
-  * `integrated_brier_score` -- IPCW Brier score over a time grid; a proper scoring rule
-                             for the predicted survival curve, with inverse-probability-
-                             of-censoring weights from a Kaplan-Meier fit on the censoring
-                             distribution (Graf et al., 1999).
-  * `probability_calibration` -- observed vs predicted P(T <= t), with the observed side
-                             estimated by Kaplan-Meier so censored rows contribute their
-                             partial information instead of being dropped.
-  * `uncensored_point_errors` -- MAE / median absolute error / RMSE computed ONLY over
-                             genuinely observed recoveries (the secondary metrics).
-"""
+"""Censoring-aware evaluation for Y3 (recovery duration)."""
 
 from __future__ import annotations
 
@@ -28,7 +11,7 @@ PROB_TIMES = (10.0, 20.0, 30.0, 60.0, 90.0)
 def harrell_c_index(durations, event_observed, predicted_duration) -> float:
     """Concordance between predicted and actual duration ORDER. `predicted_duration` is a
     time-like score (higher = predicted slower recovery), matching lifelines' convention
-    for AFT medians -- not a hazard/risk score, which points the other way."""
+    for AFT medians, not a hazard/risk score, which points the other way."""
     from lifelines.utils import concordance_index
 
     d = np.asarray(durations, dtype=float)
@@ -57,15 +40,7 @@ def _km_censoring_survival(durations, event_observed):
 
 
 def integrated_brier_score(durations, event_observed, survival_at, times=PROB_TIMES):
-    """IPCW Brier score at each `times` point and its time-average (Graf et al., 1999).
-
-    `survival_at` is an (n_rows, n_times) array of predicted S(t) = P(T > t). Lower is
-    better; a model predicting the marginal KM curve is the reference to beat.
-
-    Contributions follow the standard three cases: a row that has already recovered by
-    `t` is weighted by 1/G(its own duration), a row still at risk at `t` by 1/G(t), and a
-    row censored before `t` contributes nothing (its status at `t` is unknowable).
-    """
+    """IPCW Brier score at each `times` point and its time-average (Graf et al., 1999)."""
     d = np.asarray(durations, dtype=float)
     e = np.asarray(event_observed, dtype=bool)
     S = np.asarray(survival_at, dtype=float)
@@ -87,12 +62,7 @@ def integrated_brier_score(durations, event_observed, survival_at, times=PROB_TI
 
 
 def probability_calibration(durations, event_observed, cdf_at, times=PROB_TIMES):
-    """Predicted mean P(T <= t) against the Kaplan-Meier observed 1 - S_KM(t).
-
-    `cdf_at` is (n_rows, n_times). Reported as a table, not reduced to one number: at
-    n < 40 a calibration slope is noise, but the level comparison at five fixed horizons
-    is readable and honest.
-    """
+    """Predicted mean P(T <= t) against the Kaplan-Meier observed 1 - S_KM(t)."""
     from lifelines import KaplanMeierFitter
 
     d = np.asarray(durations, dtype=float)

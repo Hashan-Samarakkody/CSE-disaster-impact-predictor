@@ -1,16 +1,4 @@
-"""Full metric audit across every model and every target.
-
-Answers two questions the scattered stage outputs cannot answer together:
-
-  1. What is every relevant metric, per model, per target, in one place?
-  2. Did the external-data pass actually improve anything, measured against the
-     pre-change baseline recorded in commit 85590a8?
-
-The baseline constants below are read from that commit's executed notebook outputs, not
-retyped from memory, and are labelled with where they came from. The decomposition
-separates two changes that happened together and would otherwise be confounded:
-the sample growing from 64 to 74 events, and 18 external features being added.
-"""
+"""Full metric audit across every model and every target."""
 
 from __future__ import annotations
 
@@ -23,6 +11,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src.evaluation.metrics import evaluate_regression  # noqa: E402
+from src.utils.artifact_store import artifact_file
 
 ART = ROOT / "artifacts"
 pd.set_option("display.width", 250)
@@ -64,7 +53,7 @@ def full_metric_table():
     """Every model x target: RMSE, MAE, pooled R2, and skill against both nulls."""
     import pickle
 
-    results = pickle.load(open(ART / "results_regression.pkl", "rb"))
+    results = pickle.load(open(artifact_file("results_regression.pkl"), "rb"))
     rows = []
     for model, targets in results.items():
         for target, store in targets.items():
@@ -92,13 +81,13 @@ def main():
         print(sub.drop(columns="target").round(5).to_string(index=False))
 
     rule("2. DID IT BEAT A NAIVE BASELINE? (paired event bootstrap + Diebold-Mariano)")
-    v = pd.read_parquet(ART / "verdict_table.parquet")
+    v = pd.read_parquet(artifact_file("verdict_table.parquet"))
     print(v[["target", "model", "baseline", "n", "delta_rmse", "ci_low", "ci_high",
              "dm_p", "verdict"]].round(5).to_string(index=False))
     print(f"\n>>> comparisons whose CI excludes zero: {int(v.boot_beats.sum())} of {len(v)}")
 
     rule("3. CLASSIFICATION -- every label x every model")
-    c = pd.read_parquet(ART / "classification_summary.parquet")
+    c = pd.read_parquet(artifact_file("classification_summary.parquet"))
     cols = ["label", "model", "n", "n_pos", "prevalence", "accuracy", "balanced_accuracy",
             "mcc", "precision", "recall", "f1", "pr_auc", "auc", "auc_boot_lo",
             "auc_boot_hi", "beats_baseline"]
@@ -126,7 +115,7 @@ def main():
     print("The two changes landed together. The ablation separates them: `no_external` is")
     print("N=74 with the ORIGINAL 31 features, so comparing it to the N=64 baseline")
     print("isolates the sample extension, and comparing it to `full` isolates the data.\n")
-    ab = pd.read_parquet(ART / "ablation_blocks.parquet")
+    ab = pd.read_parquet(artifact_file("ablation_blocks.parquet"))
     piv = ab.pivot_table(index=["target", "model"], columns="config", values="pooled_r2")
     dec = []
     for (target, model), row in piv.iterrows():
@@ -156,7 +145,7 @@ def main():
     print("  Read it as directional only; no CI is computed for it and none should be.")
 
     rule("6. WHICH EXTERNAL BLOCK EARNED ITS PLACE? (CI excluding zero)")
-    contrib = pd.read_parquet(ART / "ablation_block_contrib.parquet")
+    contrib = pd.read_parquet(artifact_file("ablation_block_contrib.parquet"))
     sig = contrib[contrib.significant]
     print(contrib.pivot_table(index=["target", "block"], columns="model",
                               values="delta_rmse").round(5).to_string())
@@ -175,15 +164,15 @@ def main():
     print(now[keep].round(3).to_string(index=False))
 
     rule("8. SECTOR PANEL")
-    s = pd.read_parquet(ART / "sector_panel_verdict.parquet")
+    s = pd.read_parquet(artifact_file("sector_panel_verdict.parquet"))
     print(s.round(4).to_string(index=False))
     print(f"\n>>> sector comparisons beating their null: {int(s.significant.sum())} of {len(s)}")
 
     rule("9. Y3 HURDLE")
-    print(pd.read_parquet(ART / "hurdle_table.parquet").round(3).to_string(index=False))
+    print(pd.read_parquet(artifact_file("hurdle_table.parquet")).round(3).to_string(index=False))
 
     rule("10. DATA COVERAGE -- what the external sources actually bought")
-    ds = pd.read_parquet(ART / "dataset.parquet")
+    ds = pd.read_parquet(artifact_file("dataset.parquet"))
     ext = [c for c in ds.columns
            if c.startswith(("hz_", "di_", "fx_")) or c.startswith(("days_to_election",
                                                                    "election_within"))]

@@ -1,10 +1,4 @@
-"""Trains `ShallowMultiTaskMLP` in a fresh process and writes predictions to disk.
-
-On Windows, `import torch` after scikit-learn/XGBoost/SHAP in the same process raises
-`OSError: [WinError 1114] ... c10.dll`; importing it first in a clean process never does.
-
-Usage: `python -m src.models.mlp_subprocess_runner <input_npz> <output_npz>`, where the
-input holds already-scaled `X_train`, `y_train`, `X_test` and `pred` is written back."""
+"""Trains `ShallowMultiTaskMLP` in a fresh process and writes predictions to disk."""
 
 from __future__ import annotations
 

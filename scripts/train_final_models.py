@@ -1,19 +1,4 @@
-"""Fit and persist the classification and hurdle models the demo app serves.
-
-`final_rf_models.pkl` (regression) is already produced by stage 04, refit on all real
-rows for SHAP. Classification and the Y3 hurdle model are never refit that way anywhere
-in the pipeline -- only per-fold out-of-fold predictions are kept -- so there is nothing
-for a live demo to load. This script fits one final full-data model per classification
-label (whichever family scored highest AUC in the recorded walk-forward audit, per
-`docs/RESULTS_AUDIT.txt` conventions) and one final hurdle model, mirroring exactly the
-"refit on all real rows" pattern stage 04 already uses.
-
-These are demonstration artifacts, not new results: no number here is a held-out score,
-and nothing in `artifacts/classification_summary.parquet` changes. Run after the full
-pipeline (needs `dataset`, `feature_spec`, `classification_summary` cached):
-
-    python scripts/train_final_models.py
-"""
+"""Fit and persist the classification and hurdle models the demo app serves."""
 
 from __future__ import annotations
 
@@ -32,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 from src.evaluation.collinearity import redundant_drop_set
 from src.models.classifiers import LABELS, build_classifiers
 from src.models.hurdle import HurdleRecoveryModel
+from src.utils.artifact_store import artifact_file
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -39,7 +25,7 @@ RANDOM_STATE = 42
 
 def _load_json(name):
     import json
-    return json.loads((ARTIFACTS / f"{name}.json").read_text(encoding="utf-8"))
+    return json.loads((artifact_file(f"{name}.json")).read_text(encoding="utf-8"))
 
 
 def _select_top_features(X, target, k=20, random_state=RANDOM_STATE):
@@ -57,7 +43,7 @@ def _select_top_features(X, target, k=20, random_state=RANDOM_STATE):
 
 
 def fit_final_classifiers(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFrame) -> dict:
-    summary = pd.read_parquet(ARTIFACTS / "classification_summary.parquet")
+    summary = pd.read_parquet(artifact_file("classification_summary.parquet"))
     summary = summary[summary["model"] != "majority_baseline"]
     best_family = summary.loc[summary.groupby("label")["auc"].idxmax()].set_index("label")
 
@@ -91,7 +77,7 @@ def fit_final_hurdle(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFrame) ->
     ok = y[target].notna().to_numpy()
     y_ok = y.loc[ok, target].to_numpy()
     # Real competing-risk censoring indicator (methodology-audit finding #7), not
-    # `y_ok < 90` alone -- see AFTRecoveryModel/HurdleRecoveryModel.fit docstrings.
+    # `y_ok < 90` alone, see AFTRecoveryModel/HurdleRecoveryModel.fit docstrings.
     recovered_ok = ~dataset["Y3_censored"].loc[y.loc[ok].index].to_numpy()
     feats = _select_top_features(X.loc[ok], recovered_ok.astype(int))
 
@@ -104,13 +90,9 @@ def fit_final_hurdle(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFrame) ->
 
 
 def main() -> None:
-    dataset = pd.read_parquet(ARTIFACTS / "dataset.parquet")
+    dataset = pd.read_parquet(artifact_file("dataset.parquet"))
     spec = _load_json("feature_spec")
     # Global (all-real-rows) median for the flagged columns (methodology-audit finding
-    # #14) -- these models are already refit on ALL data (documented as demonstration
-    # artifacts, not a held-out result), so there is no fold to impute per-fold from;
-    # this uses the SAME saved medians notebook 04's final SHAP refit and
-    # src/inference.py's live demo use, rather than each recomputing its own.
     X = dataset[spec["FEATURE_COLS"]].fillna(spec.get("MEDIAN_IMPUTE_VALUES", {})).fillna(0.0)
     y = dataset[spec["TARGET_COLS"]].copy()
 
@@ -121,9 +103,9 @@ def main() -> None:
     final_hurdle = fit_final_hurdle(X, y, dataset)
 
     import pickle
-    with open(ARTIFACTS / "final_classifiers.pkl", "wb") as fh:
+    with open(artifact_file("final_classifiers.pkl"), "wb") as fh:
         pickle.dump(final_classifiers, fh, protocol=pickle.HIGHEST_PROTOCOL)
-    with open(ARTIFACTS / "final_hurdle_model.pkl", "wb") as fh:
+    with open(artifact_file("final_hurdle_model.pkl"), "wb") as fh:
         pickle.dump(final_hurdle, fh, protocol=pickle.HIGHEST_PROTOCOL)
     print("\nSaved artifacts/final_classifiers.pkl and artifacts/final_hurdle_model.pkl")
 

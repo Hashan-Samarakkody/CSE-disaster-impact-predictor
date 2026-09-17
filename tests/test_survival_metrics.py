@@ -1,7 +1,7 @@
 """Censoring-aware Y3 metrics.
 
 The point of these tests is that each metric must behave differently from its naive,
-censoring-blind counterpart -- otherwise switching to them bought nothing.
+censoring-blind counterpart, otherwise switching to them bought nothing.
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ def test_point_errors_use_only_observed_recoveries(censored_sample):
     out = uncensored_point_errors(d, e, true_t)
     assert out["n_uncensored"] == int(e.sum())
     assert out["mae_uncensored"] == pytest.approx(0.0, abs=1e-9)
-    # Corrupting a CENSORED row's prediction must not change the score at all -- that is
+    # Corrupting a CENSORED row's prediction must not change the score at all, that is
     # the whole difference from an ordinary RMSE over every row.
     p = true_t.copy()
     p[~e] += 1000.0
