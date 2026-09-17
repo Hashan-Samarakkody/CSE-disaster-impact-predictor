@@ -1923,3 +1923,85 @@ leakage-prone constant the way the full pruned set effectively was for Ridge's
 or anything a test's fixture asserts on directly).
 
 This closes all 13 items from the second panel document's re-verification pass.
+
+---
+
+# 2026-09-17 (evening) -- Y1/Y3 improvement run
+
+Logged here because `docs/FINAL_ANALYSIS_PROTOCOL.md`'s preamble requires every change
+after the freeze to be recorded as a new dated section. **The frozen pipeline itself is
+not changed by this work.** Nothing in §1-§7 of the protocol was modified, no notebook was
+re-run, and no artifact the nine stages read was rewritten.
+
+## What was done
+
+A separate, additive analysis of Y1 and Y3 only, specified in full in
+`docs/Y1_Y3_IMPROVEMENT_PREDECLARATION.md` **before execution**, reported in
+`docs/Y1_Y3_FINAL_RESULTS.md`, with the method-level before/after in
+`docs/FINAL_METHOD_COMPARISON.md`.
+
+New code, all of it additive:
+
+* `src/evaluation/y1_horizons.py` -- the four pre-declared Y1 horizons (5/10/15/20 trading
+  sessions, `100 ln(P_{t+h}/P_{t-1})` from the last pre-event close, each with its own
+  `*_horizon_end_date` for target-specific purging), plus the hand-declared market /
+  disaster information partition. Targets are built IN MEMORY from `market.parquet`, never
+  by regenerating `dataset.parquet` -- which is why Y2 cannot move.
+* `src/evaluation/survival_metrics.py` -- Harrell C-index, IPCW integrated Brier score,
+  recovery-probability calibration against Kaplan-Meier, uncensored-only point errors,
+  episode-clustered bootstrap CI.
+* `scripts/freeze_baseline.py`, `scripts/run_y1_improvement.py`,
+  `scripts/run_y3_improvement.py`, `scripts/build_final_tables.py`.
+* `tests/test_y2_frozen.py` (20 assertions), `tests/test_y1_horizons.py` (9),
+  `tests/test_survival_metrics.py` (11), `tests/test_improvement_artifacts.py` (12).
+  Suite: **99 -> 151, all passing.**
+
+The ONLY edit to a pre-existing shared file is an additive `return_draws=False` keyword on
+`survival_metrics.cluster_bootstrap_ci` -- a module created during this same session, with
+no importer anywhere in the Y2 path.
+
+## Deviations from the frozen protocol, and why
+
+1. **SMOGN is OFF across the whole new Y1 grid** (protocol §5 keeps it ON for the frozen
+   pipeline, which is untouched). Held constant so that the market-vs-combined and
+   cross-horizon contrasts are not confounded by a minority mask that is defined from each
+   target's own distribution and therefore varies across the four horizons and four
+   information sets. Declared before execution
+   (`Y1_Y3_IMPROVEMENT_PREDECLARATION.md` §2.6), not chosen after a result.
+2. **Ridge/ElasticNet take an RF-importance top-K selection** in the new grid, where
+   protocol §3 exempts Ridge from top-K in the frozen pipeline. Reason: the new grid's
+   whole point is a controlled comparison of feature capacities K in {5, 10, 20}, which
+   requires every model family to be given the same capacity. The frozen pipeline's Ridge
+   is unchanged.
+3. **Inner-CV degradation is stricter than `purged_inner_cv`.** Where that helper falls
+   back to an unpurged `TimeSeriesSplit` when every purged split dies, the new grid reduces
+   the number of splits and then uses pre-specified default hyperparameters, and never
+   unpurges (protocol 1.7). In practice the fallback never fired: all 16 fold-horizons kept
+   three purged inner splits.
+4. **Y3's primary fit uses genuine events only.** Protocol §5's "SMOGN stays ON for all 4
+   targets" applies to the frozen point-regression pipeline; a survival likelihood cannot
+   accept a synthetic row, because SMOGN interpolates a duration without generating a valid
+   event/censoring indicator. The existing SMOGN Y3 point-regression result is retained
+   unchanged as ablation B6.
+
+## Results, stated in the direction they landed
+
+* **Y1 magnitude: 0 of 720 comparisons** (240 configurations x 3 baselines) had a bootstrap
+  CI excluding zero. Best pooled R2 in the grid +0.075, CI [-0.560, +1.045].
+* **The normal-market + disaster-residual decomposition did not help** at any horizon and
+  was the worst information set at h=15 and h=20. Negative result, retained.
+* **Y1 direction at h=10** (logistic, combined, K=10): AUC 0.752, CI [0.567, 0.896],
+  **Holm p = 0.032** -- the only result in this study surviving a family-wise correction.
+* **Y3 two-stage (drawdown classifier + Weibull AFT), K=20**: C-index 0.657, CI
+  [0.522, 0.769], best calibration (max gap 0.045). Fails Holm (p = 0.165) and is therefore
+  reported as **B -- suggestive**, not A.
+* **Feature selection is unstable**: 35.6% of all selected features were selected in
+  exactly one of four folds.
+* **Y2: no change of any kind**, at 1e-9 tolerance
+  (`docs/Y2_FROZEN_VALIDATION_REPORT.md`).
+
+## Stop condition
+
+The pre-declared grid is complete and the pipeline is frozen again. No further horizon,
+algorithm, threshold, target, feature-count increase, observation removal or variant search
+follows from these results.
