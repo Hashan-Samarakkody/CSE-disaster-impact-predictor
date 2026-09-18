@@ -128,4 +128,4 @@ if __name__ == "__main__":
     else:
         raise AssertionError("unassigned column must raise")
 
-    print("y1_horizons.py self-check passed")
+    print("return_horizons.py self-check passed")

@@ -188,3 +188,24 @@ def bootstrap_auc_ci(y_true, y_score, n_boot=5000, alpha=0.05, random_state=42):
         return point, float("nan"), float("nan"), discarded
     lo, hi = np.quantile(draws, [alpha / 2, 1 - alpha / 2])
     return point, float(lo), float(hi), discarded
+
+
+if __name__ == "__main__":
+    truth = np.array([1.0, 2.0, 3.0, 4.0])
+    exact = evaluate_regression(truth, truth)
+    assert exact["rmse"] == 0.0 and exact["mae"] == 0.0 and exact["r2"] == 1.0, exact
+
+    off_by_one = evaluate_regression(truth, truth + 1.0)
+    assert off_by_one["rmse"] == 1.0 and off_by_one["mae"] == 1.0, off_by_one
+
+    # Skill is the fractional error reduction against a baseline, so halving the
+    # error scores 0.5 and matching the baseline scores 0.
+    assert abs(skill_score(1.0, 2.0) - 0.5) < 1e-12
+    assert skill_score(2.0, 2.0) == 0.0
+
+    # Clipping is a projection onto the target's support: every true value already
+    # lies inside it, so absolute error can never increase.
+    clipped = clip_to_bounds("Y3_recovery_days", np.array([-5.0, 45.0, 200.0]))
+    assert list(clipped) == [0.0, 45.0, 90.0], clipped
+
+    print("metrics.py self-check passed")

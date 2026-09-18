@@ -107,7 +107,8 @@ def main() -> None:
         pickle.dump(final_classifiers, fh, protocol=pickle.HIGHEST_PROTOCOL)
     with open(artifact_file("final_hurdle_model.pkl"), "wb") as fh:
         pickle.dump(final_hurdle, fh, protocol=pickle.HIGHEST_PROTOCOL)
-    print("\nSaved artifacts/final_classifiers.pkl and artifacts/final_hurdle_model.pkl")
+    print(f"\nSaved {artifact_file('final_classifiers.pkl')} and "
+          f"{artifact_file('final_hurdle_model.pkl')}")
 
 
 if __name__ == "__main__":

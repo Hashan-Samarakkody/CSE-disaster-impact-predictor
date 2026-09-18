@@ -20,8 +20,14 @@ _LIBRARIES = ("numpy", "pandas", "sklearn", "xgboost", "torch", "statsmodels",
 
 def _directory_for(suffix: str) -> Path:
     """Tables, fitted models and plain result payloads live in separate folders."""
-    return {".parquet": TABLE_DIR, ".csv": TABLE_DIR,
-            ".pkl": MODEL_DIR, ".json": RESULT_DIR}[suffix]
+    known = {".parquet": TABLE_DIR, ".csv": TABLE_DIR,
+             ".pkl": MODEL_DIR, ".json": RESULT_DIR}
+    if suffix not in known:
+        raise ValueError(
+            f"No artifact directory for extension {suffix!r}. The cache holds "
+            f"{', '.join(sorted(known))}. For a directory such as the figure folder, "
+            f"import it from src.config.settings instead.")
+    return known[suffix]
 
 
 def artifact_path(name: str, suffix: str) -> Path:

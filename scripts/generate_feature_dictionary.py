@@ -1,16 +1,19 @@
 """Feature dictionary: every column in FEATURE_COLS, grouped, with why/internal-external/
 how-it-helps/literature. Pulled from this repo's own declared rationale
-(docs/data_sources.md, docs/audit.md, src/features/
-feature_eng.py docstrings), no citation is invented for a feature the repo never cited.
+(docs/data_sources.md, docs/audit.md, src/features/feature_engineering.py), no citation is invented for a feature the repo never cited.
 Where no external literature backs a feature, "literature" says so plainly.
 """
 from __future__ import annotations
 
 import csv
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from src.utils.artifact_store import artifact_file  # noqa: E402
 
 # (feature, category, internal/external, why_used, how_it_helps, literature)
 ROWS = [
@@ -195,11 +198,27 @@ ROWS = [
      "Prevents a zero from being confused with unreported.", "Standard missingness-flag practice."),
     ("mag_wind_available", "Other/Metadata", "External (EM-DAT)", "Missingness flag for mag_wind_kph.",
      "Prevents a zero from being confused with unreported.", "Standard missingness-flag practice."),
+    ("financial_damage_observed", "Other/Metadata", "External (EM-DAT)",
+     "Missingness flag for financial_damage, which EM-DAT records for only 18 of 74 events.",
+     "Lets a model separate an unreported damage figure from a genuinely small one, which median imputation alone would confound.",
+     "Standard missingness-flag practice, same principle as di_available."),
+    ("volume_features_available", "Other/Metadata", "Internal",
+     "Flag for whether the trailing volume block could be computed for this event.",
+     "Volume is absent for part of the early archive, so this marks the rows whose volume ratios are imputed rather than observed.",
+     "Standard missingness-flag practice, same principle as di_available."),
+    ("garch_cond_vol_available", "Other/Metadata", "Internal",
+     "Flag for whether a conditional volatility forecast existed for this event.",
+     "The first 250 sessions have no prior year with enough history, so the forecast is missing there by construction rather than by chance.",
+     "Standard missingness-flag practice, same principle as di_available."),
+    ("macro_available", "Other/Metadata", "External (World Bank)",
+     "Flag for whether the publication-lagged macro controls existed for this event year.",
+     "Marks events whose macro controls are imputed because the lagged annual figure had not been published.",
+     "Standard missingness-flag practice, same principle as di_available."),
 ]
 
 
 def main():
-    spec = json.loads((ROOT / "artifacts" / "feature_spec.json").read_text(encoding="utf-8"))
+    spec = json.loads(artifact_file("feature_spec.json").read_text(encoding="utf-8"))
     feature_cols = set(spec["FEATURE_COLS"])
     documented = {r[0] for r in ROWS}
 

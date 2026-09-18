@@ -97,6 +97,24 @@ LABELS = {
 }
 
 
+def roc_auc_or_nan(estimator, X, y_true):
+    """ROC AUC for a hyperparameter search, returning NaN on a degenerate split.
+
+    Two splits are degenerate at this sample size: the validation side holding one
+    class, where the metric is undefined, and the training side holding one class,
+    where the fitted model has a single column of probabilities. Both score NaN.
+    """
+    from sklearn.metrics import roc_auc_score
+
+    y_true = np.asarray(y_true)
+    if len(np.unique(y_true)) < 2:
+        return float("nan")
+    proba = estimator.predict_proba(X)
+    if np.ndim(proba) < 2 or np.shape(proba)[1] < 2:
+        return float("nan")
+    return float(roc_auc_score(y_true, proba[:, 1]))
+
+
 def build_classifiers(random_state=42):
     """Three families mirroring the regression side: a penalised linear baseline (the
     classification analogue of Ridge's role as the H1 reference), and two tree ensembles

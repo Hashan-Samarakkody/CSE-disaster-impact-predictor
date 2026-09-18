@@ -156,3 +156,43 @@ def build_event_targets(market_df, disaster_df, date_col="date", price_col="aspi
         })
 
     return pd.DataFrame(rows)
+
+
+if __name__ == "__main__":
+    # Synthetic series with a known shape: a fall on the event day, recovery six
+    # sessions later, and a volume spike of exactly double the trailing baseline.
+    sessions = pd.date_range("2020-01-01", periods=80, freq="B")
+    price = np.full(80, 100.0)
+    price[40:46] = [95.0, 96.0, 97.0, 98.0, 99.0, 101.0]
+    volume = np.full(80, 1_000.0)
+    volume[40] = 2_000.0
+    market = pd.DataFrame({"date": sessions, "aspi_close": price, "trading_volume": volume})
+    events = pd.DataFrame({"event_date": [sessions[40]]})
+
+    out = build_event_targets(market, events)
+    row = out.iloc[0]
+
+    assert row["Y2_abnormal_volume"] == 1.0, row["Y2_abnormal_volume"]
+    assert abs(row["Y1_ASPI_5D_Forward_LogReturn_Pct"] - 100.0 * np.log(101.0 / 100.0)) < 1e-9
+    assert bool(row["Y3_drawdown_occurred"])
+    assert row["Y3_recovery_days"] == 5.0, row["Y3_recovery_days"]
+    assert not bool(row["Y3_censored"]) and row["Y3_censor_reason"] == "recovered"
+    assert row["Y3_label_end_date"] == sessions[45]
+
+    # No drawdown inside the gate window means a resilient event, duration zero.
+    flat = pd.DataFrame({"date": sessions, "aspi_close": np.full(80, 100.0),
+                         "trading_volume": volume})
+    calm = build_event_targets(flat, events).iloc[0]
+    assert calm["Y3_recovery_days"] == 0.0 and not bool(calm["Y3_drawdown_occurred"])
+
+    # A competing disaster before recovery censors the first event at that session.
+    two = pd.DataFrame({"event_date": [sessions[40], sessions[43]]})
+    first = build_event_targets(market, two).iloc[0]
+    assert bool(first["Y3_censored"]) and first["Y3_censor_reason"] == "next_disaster"
+    assert first["Y3_recovery_days"] == 3.0, first["Y3_recovery_days"]
+
+    # A horizon that runs off the end of the series is missing, never truncated.
+    late = build_event_targets(market, pd.DataFrame({"event_date": [sessions[-2]]})).iloc[0]
+    assert np.isnan(late["Y1_ASPI_5D_Forward_LogReturn_Pct"])
+
+    print("event_targets.py self-check passed")

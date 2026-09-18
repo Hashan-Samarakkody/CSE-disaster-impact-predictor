@@ -214,3 +214,35 @@ def test_new_labels_propagate_missing_targets():
         "Y1_EventWindow_0_10_LogReturn_Pct": [0.0] * 4,
     })
     assert LABELS["C3b_slow_recovery"](y, np.arange(4)).isna().sum() == 1
+
+
+def test_auc_scorer_returns_nan_instead_of_raising_on_degenerate_splits():
+    """A split with one class on either side scores NaN, matching what sklearn's own
+    roc_auc plus error_score produces, but without raising."""
+    from sklearn.ensemble import RandomForestClassifier
+    from src.models.classifiers import roc_auc_or_nan
+
+    rng = np.random.default_rng(0)
+    X = rng.normal(size=(20, 3))
+
+    # Validation side holds one class: the metric is undefined there.
+    model = RandomForestClassifier(n_estimators=10, random_state=0).fit(X, [0, 1] * 10)
+    assert np.isnan(roc_auc_or_nan(model, X, np.zeros(20, dtype=int)))
+
+    # Training side held one class, so the model has a single probability column.
+    single = RandomForestClassifier(n_estimators=10, random_state=0).fit(X, np.zeros(20, dtype=int))
+    assert single.predict_proba(X).shape[1] == 1
+    assert np.isnan(roc_auc_or_nan(single, X, np.array([0, 1] * 10)))
+
+
+def test_auc_scorer_matches_sklearn_on_a_healthy_split():
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.metrics import roc_auc_score
+    from src.models.classifiers import roc_auc_or_nan
+
+    rng = np.random.default_rng(1)
+    X = rng.normal(size=(40, 3))
+    y = (X[:, 0] > 0).astype(int)
+    model = RandomForestClassifier(n_estimators=25, random_state=0).fit(X, y)
+    expected = roc_auc_score(y, model.predict_proba(X)[:, 1])
+    assert roc_auc_or_nan(model, X, y) == pytest.approx(expected)

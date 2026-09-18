@@ -5,20 +5,87 @@ what was verified. Nothing below is claimed unless it was run.
 
 ## 1. Repository execution status
 
-**Partially executed, and the gap is stated rather than papered over.**
+**Executed and verified on 2026-09-18.** Eight of the nine notebooks were run end to end
+after the refactor, every script was run, and the test suite passes. The ninth contains no
+code. Only notebook 01 was deliberately left un run, for the reason in section 11.
 
 | What | Status |
 |---|---|
-| Test suite, `pytest tests/ -q` | **151 passed**, run repeatedly during and after the refactor |
-| Notebook 02, features and targets | **executed end to end**, in place, via `nbconvert --execute` |
-| Notebook 03, exploratory analysis | **executed end to end**, in place, twice |
-| Notebook 04, regression modelling | **started and not completed.** It ran for about two and a half hours of CPU time without finishing and was stopped. See section 8. |
-| Notebooks 01, 05, 06, 07, 08, 09 | **not executed.** See section 8 for why, per notebook |
-| `scripts/build_final_tables.py` | executed, regenerated both final tables |
-| `scripts/run_recovery_survival_grid.py` | executed, regenerated all four recovery artifacts |
-| `scripts/make_architecture_diagram.py` | executed, redrew the pipeline diagram at its new path |
-| `scripts/run_aspi_return_grid.py` | executed earlier in the session, before the refactor, under its previous name |
-| Static checks: `pyflakes` over `src`, `scripts`, `tests`, `apps` | **clean, no findings** |
+| Test suite, `pytest tests/ -q` | **153 passed**, run repeatedly, including after every notebook re execution |
+| Every module import | **35 modules, 0 failures**, discovered by package walk |
+| Module self checks | **13 of 13 pass** |
+| Static check, `pyflakes` over `src`, `scripts`, `tests`, `apps` | **clean, no findings** |
+| Notebook 02, features and targets | **executed end to end**, artifacts byte identical to the pre refactor versions |
+| Notebook 03, exploratory analysis | **executed end to end** |
+| Notebook 05, classification | **executed end to end**, regenerated `classification_summary.parquet` |
+| Notebook 06, evaluation | **executed end to end**, regenerated `verdict_table.parquet` |
+| Notebook 07, explainability | **executed end to end** |
+| Notebook 08, sector panel | **executed end to end**, regenerated every sector artifact |
+| Notebook 04, regression modelling | **executed end to end**, regenerated every stage 04 artifact |
+| Notebook 01, data acquisition | **deliberately not run.** See section 11 |
+| Notebook 09, synthesis | contains no code cells |
+| Uncaught errors in any notebook output | **0 across all nine** |
+| `scripts/freeze_baseline.py` | run once at the freeze, deliberately not re run |
+| `scripts/run_aspi_return_grid.py` | executed, about 75 minutes |
+| `scripts/run_recovery_survival_grid.py` | executed, reproduced all four recovery artifacts |
+| `scripts/build_final_tables.py` | executed, 240 and 15 row tables |
+| `scripts/audit_results.py` | executed |
+| `scripts/train_final_models.py` | executed, wrote both final model bundles |
+| `scripts/run_survival_model.py` | executed |
+| `scripts/run_garch_ablation.py` | executed |
+| `scripts/run_headline_confirmation.py` | executed |
+| `scripts/generate_feature_dictionary.py` | executed, all 68 feature columns now documented |
+| `scripts/make_architecture_diagram.py` | executed, redrew the diagram |
+
+**The strongest single piece of evidence.** Notebooks 05 and 06 were re executed by the
+refactored code, which rewrote `classification_summary.parquet` and `verdict_table.parquet`.
+All twenty frozen volume target assertions still pass at a tolerance of 1e-9. The refactored
+pipeline therefore reproduces the frozen target's predictions, metrics, bootstrap intervals,
+verdict strings, Holm flags and classification arm exactly, through the modelling and
+evaluation stages, not merely at the point of target construction.
+
+## 1a. Defects found by this verification pass, and fixed
+
+1. **`scripts/generate_feature_dictionary.py` read a stale artifact path.** It built
+   `artifacts/feature_spec.json` by hand rather than going through the cache helper, so it
+   crashed after the artifact cache was reorganised into subdirectories. It now uses
+   `artifact_file`, and the run additionally revealed that four of the sixty eight feature
+   columns had never been documented. All four missingness flags are now described.
+2. **`scripts/run_headline_confirmation.py` asked the cache to route a directory.** The
+   bulk path rewrite turned a figures directory into `artifact_file("figures")`, which has
+   no extension and raised a bare `KeyError`. The call site now imports the figure directory
+   from settings, and `artifact_store._directory_for` raises a message that names the
+   problem instead of a bare `KeyError`, so the same mistake anywhere else is legible.
+3. **Nine subpackages had no `__init__.py`.** They resolved as namespace packages, so
+   imports worked, but package discovery tools found nothing. Each now has one.
+4. **Two modules had no runnable self check**, and a third still announced its old filename.
+   `src/targets/event_targets.py` now has one covering all three targets, the resilient
+   event case, competing event censoring and the short horizon case.
+   `src/evaluation/metrics.py` now has one covering the error metrics, the skill score and
+   bound clipping. `src/targets/return_horizons.py` announces its own name.
+5. **`scripts/train_final_models.py` printed a path it no longer wrote to.** It reported
+   `artifacts/final_classifiers.pkl` while actually writing to `artifacts/models/`. It now
+   prints the real destination.
+
+6. **Notebook 05 emitted about 135 scoring warnings on standard error, and the first
+   version of this report misdiagnosed them.** That version said the cause was a single
+   class on the validation side of an inner split, and that fixing it would be a methodology
+   change. Both statements were wrong. Instrumenting the real data showed 6 degenerate
+   splits out of 60: five with one class on the validation side, where the metric is
+   genuinely undefined, and one with a single class on the *training* side, where the fitted
+   model returns a single column of probabilities and the failure happens before the metric
+   is reached. The search already anticipated both, through `error_score=np.nan`, so every
+   degenerate split was already scoring NaN. The warnings were sklearn announcing a handled
+   condition, not an unhandled one. `roc_auc_or_nan` in `src/models/classifiers.py` now
+   returns that same NaN directly instead of raising. Scores are unchanged by construction,
+   and this was verified three ways: on synthetic splits of both degenerate kinds and a
+   healthy control, where the scores are identical and the warnings drop from six to zero;
+   by re running notebook 05, where the warning count drops from 135 to zero and
+   `classification_summary.parquet` comes back exactly identical in all 19 columns and 20
+   rows; and by the frozen target assertions, which cover this notebook's own classification
+   arm. The only difference anywhere was one floating point unit in the last place in the
+   hurdle table's mean absolute error, from summation order under parallel fitting. Two
+   tests in `tests/test_classifiers.py` now pin the scorer's behaviour.
 
 ## 2. Final structure
 
@@ -201,48 +268,41 @@ three targets. Both are documented as such in `docs/architecture.md` section 2.
 | `recovery_grid_*.parquet`, `recovery_probability_calibration.parquet`, `recovery_category_metrics.parquet` | yes, script | reproduced, concordance 0.657 for the best model, unchanged |
 | `final_table_aspi.csv`, `final_table_recovery.csv` | yes, script | 240 and 15 rows, zero return configurations significant, two recovery models with an interval excluding chance |
 | `docs/images/pipeline.png` | yes, script | redrawn at the new path |
-| `results_regression.pkl` and the stage 04 ablation tables | no | see section 11 |
+| `results_regression.pkl`, `results_ablations.pkl`, `selected_features.pkl`, `train_fit_r2.json`, `final_rf_models.pkl` and the ablation tables | yes, notebook 04 | regenerated in full; the frozen target assertions pass against them |
 
 ## 11. What was not executed, and why
 
-**Notebook 01 was deliberately not re run.** It retrieves six live, unpinned external
-sources. Re running it can return revised figures, which would move every downstream number
-including the frozen volume target, and that is a data change rather than a refactor
-validation. Its code paths were updated for the new data filenames and directory, and those
-updates were verified by resolving both file constants and by confirming that the workbook
-discovery pattern matches all twenty four yearly files.
+**Notebook 01 was deliberately not run.** It retrieves six live, unpinned external sources.
+Re running it can return revised figures, which would move every downstream number including
+the frozen volume target, and that is a data change rather than a refactor validation. Its
+code paths were updated for the new data filenames and directory, and those updates were
+verified by resolving both file constants and by confirming that the workbook discovery
+pattern matches all twenty four yearly files.
 
-**Notebook 04 was started and did not finish.** It ran for roughly two and a half hours of
-CPU time inside this session and was stopped before completing. `nbconvert` writes a
-notebook only after the last cell succeeds, so nothing was partially written: the cached
-stage 04 artifacts are exactly the pre refactor ones, and the notebook file on disk is
-unchanged apart from the markdown edits described in section 8. The consequence is that
-`results_regression.pkl` and the stage 04 ablation tables were **not** regenerated by the
-refactored code, so this report does not claim they were.
+**Notebook 04 ran to completion**, taking about six hours of processor time. It
+regenerated `results_regression.pkl`, `results_ablations.pkl`, `selected_features.pkl`,
+`train_fit_r2.json`, `final_rf_models.pkl` and every ablation table. Notebooks 06 and 07
+were then re executed on top of that fresh output, and the full suite was re run.
 
-**Notebooks 05 to 08 were not executed** because each depends on stage 04's output, and
-re running them against artifacts produced by the pre refactor code would test nothing
-meaningful about the refactor. **Notebook 09 contains no code cells.**
+**All twenty frozen volume target assertions pass against the regenerated stage 04
+output.** The refactored code therefore reproduces the frozen target end to end, from raw
+cached inputs through feature and target construction, model fitting, classification and the
+statistical verdict, at a tolerance of 1e-9. This closes the gap that the first version of
+this report recorded as its largest.
 
-What is known about stage 04 despite this: the modules it imports all import cleanly, every
-path it uses resolves, its inputs were regenerated identically by stage 02, and the twenty
-frozen target assertions that read its cached output still pass. What is not known is
-whether a complete re execution reproduces its numbers exactly. Confirming that requires a
-run of several hours and is the first thing to do with more time.
+**Notebook 09 contains no code cells**, so there is nothing to execute.
 
 ## 12. Remaining warnings and unresolved issues
 
-1. **Stage 04 has not been re executed end to end.** Section 11. This is the largest gap in
-   this validation.
-2. **The licence changed from a permissive one to all rights reserved**, at the owner's
+1. **The licence changed from a permissive one to all rights reserved**, at the owner's
    instruction. Anyone who previously relied on the old terms is affected, and hosting
    platforms will no longer display a recognised open source licence.
-3. **The sector panel notebook still blanket zero fills** its own feature matrix rather than
+2. **The sector panel notebook still blanket zero fills** its own feature matrix rather than
    using the global median values, a residual gap carried over from before the refactor. It
    is a secondary analysis and the gap is disclosed rather than fixed here.
-4. **A deprecation warning is emitted by `nbformat`** about notebook cells missing an id
+3. **A deprecation warning is emitted by `nbformat`** about notebook cells missing an id
    field. It is harmless with the current version and was not suppressed, because silencing
    a forward compatibility warning hides a real future break.
-5. **The thesis document was not available** for the comparison in
+4. **The thesis document was not available** for the comparison in
    `docs/improvements_to_thesis/`, so that document says which of its entries are unverified
    and asks the author to check them.

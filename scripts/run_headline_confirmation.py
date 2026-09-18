@@ -20,11 +20,12 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from src.evaluation.metrics import bootstrap_metric_ci, evaluate_regression, skill_score
+from src.config.settings import ARTIFACT_FIGURE_DIR
 from src.utils.artifact_store import artifact_file
 import run_aspi_return_experiments as y1x  # reuses load_data, run_single_target, TARGET, etc.
 
 ARTIFACTS = ROOT / "artifacts"
-FIGDIR = artifact_file("figures")
+FIGDIR = ARTIFACT_FIGURE_DIR
 FIGDIR.mkdir(exist_ok=True, parents=True)
 
 
