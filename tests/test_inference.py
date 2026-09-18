@@ -1,7 +1,7 @@
 """Smoke tests for the demo app's prediction serving.
 
 Requires the artifacts the full pipeline produces (dataset, feature_spec,
-final_rf_models, final_classifiers, final_hurdle_model) -- skipped if absent, since
+final_rf_models, final_classifiers, final_hurdle_model), skipped if absent, since
 these are regenerable outputs, not something a fresh checkout carries.
 """
 
@@ -10,16 +10,17 @@ import pytest
 pytest.importorskip("pandas")
 
 from pathlib import Path
+from src.utils.artifact_store import artifact_file
 
 ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 pytestmark = pytest.mark.skipif(
-    not (ARTIFACTS / "final_classifiers.pkl").exists(),
+    not (artifact_file("final_classifiers.pkl")).exists(),
     reason="run the pipeline + scripts/train_final_models.py first")
 
 
 @pytest.fixture(scope="module")
 def bundle():
-    from src.inference import get_bundle
+    from src.models.inference import get_bundle
     return get_bundle()
 
 
@@ -34,10 +35,7 @@ def test_lists_all_real_events(bundle):
 def test_unmodified_event_round_trips_through_the_same_feature_values(bundle):
     """No override applied -> the feature row must equal the real cached row exactly,
     so a prediction with no override reproduces the real, already-scored input.
-
-    A NaN feature falls back to the global median (methodology-audit finding #14,
-    2026-09-16), not a blanket 0.0 -- matching the same fill the models this bundle
-    serves were actually trained with."""
+    """
     events = bundle.list_events()
     event_id = int(events["event_id"].iloc[0])
     row = bundle.build_feature_row(event_id, {})
@@ -88,16 +86,9 @@ def test_classification_predictions_are_valid_probabilities_with_verdict_metadat
         assert isinstance(info["beats_baseline"], bool), name
 
     # Measured result after wiring collinearity-drop into feature selection here too
-    # (2026-09-16, closing the gap where only the regression notebook had it): C1's
-    # best family/AUC changed (0.711 -> 0.672, logistic -> xgb_clf) and it no longer
-    # beats baseline -- the median-imputation fix's earlier True was itself an artifact
-    # of C1 still picking from a collinear feature set.
     assert pred["C2_volume_spike"]["beats_baseline"]
     assert not pred["C1_negative_return"]["beats_baseline"]
     # New confirmed result after the Y3 adverse-response-gate fix (finding #11,
-    # 2026-09-17): C3b_slow_recovery's best family/AUC moved to xgb_clf/0.811 and now
-    # clears both the majority rule and chance -- a genuinely new result from the Y3
-    # target redefinition, not a stale assumption carried over.
     assert pred["C3b_slow_recovery"]["beats_baseline"]
 
 

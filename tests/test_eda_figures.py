@@ -1,12 +1,4 @@
-"""Smoke tests for the EDA figure suite.
-
-Each test renders on a small synthetic frame and asserts a file lands on disk. The point
-is not pixel correctness -- it is that a figure function cannot silently stop producing
-output, which is how the pipeline previously ended up with two images across 59 cells.
-
-The outlier and missingness helpers additionally get value assertions, because both make
-a claim about the data that a reader will rely on.
-"""
+"""Smoke tests for the EDA figure suite."""
 
 from __future__ import annotations
 
@@ -17,8 +9,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.evaluation import eda_figures as eda
-from src.evaluation import figures as fx
+from src.visualization import eda_figures as eda
+from src.visualization import result_figures as fx
 
 
 @pytest.fixture(autouse=True)

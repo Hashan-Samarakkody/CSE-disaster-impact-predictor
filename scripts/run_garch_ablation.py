@@ -1,19 +1,4 @@
-"""Y1 (ASPI log return): does the new `garch_cond_vol` feature earn its place?
-
-Same walk-forward folds, same per-fold RF-importance feature selection, same SMOGN
-augmentation as notebook 04 (see `scripts/run_survival_model.py` for the shared
-rationale) -- but this only needs Ridge (this thesis's designated H1 baseline
-regressor, and by far the cheapest to refit) to answer the ablation question quickly:
-compare the SAME pipeline with `garch_cond_vol` included in the candidate feature pool
-vs excluded, everything else identical. A full re-run of every model on every target
-(`notebooks/04_modeling_regression.ipynb`) is the authoritative number for the results
-table; this script is the fast, targeted check for one feature on one target.
-
-Run after `notebooks/02_features_targets.ipynb` (needs `dataset`, `feature_spec` cached
-with `garch_cond_vol` present):
-
-    python scripts/run_garch_ablation.py
-"""
+"""Y1 (ASPI log return): does the new `garch_cond_vol` feature earn its place?"""
 
 from __future__ import annotations
 
@@ -33,9 +18,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.evaluation.metrics import bootstrap_metric_ci, evaluate_regression, skill_score
-from src.sampling.time_aware_smogn import time_aware_smogn
+from src.training.time_aware_smogn import time_aware_smogn
 from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
                                        median_impute_from_train, purge_horizon_overlap)
+from src.utils.artifact_store import artifact_file
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -53,10 +39,7 @@ def select_top_features(X_train, y_series, k=20, random_state=RANDOM_STATE):
 
 def augment_fold(X_train, y_train, dates_train, type_cols, gdp_train=None,
                   max_year_gap=5.0, random_state=RANDOM_STATE):
-    # Y1's own relevance function (methodology-audit followup, item 15) -- this script
-    # only ever scores Y1, so the minority class it should oversample is Y1's own
-    # severe-negative-return tail, not Y3's recovery-days threshold left over from
-    # copy-pasting the main pipeline's old (pre-fix) helper.
+    # Y1's own relevance function (methodology-audit followup, item 15), this script
     complete = y_train.notna().all(axis=1)
     thresh = y_train[TARGET].quantile(0.20)
     minority_mask = complete & (y_train[TARGET] < thresh)
@@ -73,14 +56,14 @@ def run(feature_cols, X_all, y_all, dates_all, gdp_all, splits, type_cols, horiz
     yt_all, yp_all = [], []
     for s in splits:
         # ASPI_5D_Log_Return_Pct's label reads market prices up to 5 trading days past
-        # the event -- purge training events whose label horizon reaches into this
+        # the event, purge training events whose label horizon reaches into this
         # fold's test period (fold-boundary embargo, see walk_forward.purge_horizon_overlap).
         s = purge_horizon_overlap(s, dates_all, horizon_end_all)
         X_tr_real, X_te = X_all[feature_cols].iloc[s.train_index], X_all[feature_cols].iloc[s.test_index]
         y_tr_real, y_te = y_all.iloc[s.train_index], y_all.iloc[s.test_index]
         dates_tr = dates_all.iloc[s.train_index]
         gdp_tr = None if gdp_all is None else gdp_all.iloc[s.train_index]
-        # Train-fold median imputation (methodology-audit finding #14) -- this script
+        # Train-fold median imputation (methodology-audit finding #14), this script
         # had kept its own blanket `.fillna(0.0)` at load time even after the main
         # pipeline stopped doing that; fixed to match.
         X_tr_real, X_te = median_impute_from_train(X_tr_real, X_te)
@@ -116,8 +99,8 @@ def run(feature_cols, X_all, y_all, dates_all, gdp_all, splits, type_cols, horiz
 
 
 def main() -> None:
-    dataset = pd.read_parquet(ARTIFACTS / "dataset.parquet")
-    spec = json.loads((ARTIFACTS / "feature_spec.json").read_text(encoding="utf-8"))
+    dataset = pd.read_parquet(artifact_file("dataset.parquet"))
+    spec = json.loads((artifact_file("feature_spec.json")).read_text(encoding="utf-8"))
     feature_cols, type_cols = spec["FEATURE_COLS"], spec["TYPE_COLS"]
     if "garch_cond_vol" not in feature_cols:
         raise SystemExit(

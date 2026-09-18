@@ -1,19 +1,4 @@
-"""Does a model actually beat its baseline, or is the gap inside the noise?
-
-Two tests on every (model, target, baseline) triple: a paired bootstrap that resamples
-events, and a Diebold-Mariano test with the Harvey-Leybourne-Newbold small-sample
-correction.
-
-The paired event bootstrap is the PRIMARY criterion (methodology-audit followup,
-2026-09-16): it makes no assumption beyond exchangeability of events, which matches
-this dataset (disasters are irregular, overlapping-horizon events, not a regularly
-spaced time series). Diebold-Mariano assumes a roughly stationary, weakly dependent
-h-step-ahead forecast-error series -- a fit that gets worse the more a target's
-horizon overlaps neighbouring events (Y3 up to 90 trading days, Y1_EventWindow_0_10 up
-to 10). Requiring DM to ALSO agree before a verdict counts (the original rule) let a
-bootstrap-confirmed effect get vetoed by a test whose own assumptions are the shakier
-fit here -- backwards for events this irregular. DM is still computed and reported
-(`dm_agrees`) as a secondary diagnostic, not a gate."""
+"""Does a model actually beat its baseline, or is the gap inside the noise?"""
 
 from __future__ import annotations
 
@@ -28,13 +13,7 @@ def _rmse(err: np.ndarray) -> float:
 
 
 def build_episode_ids(dates, gap_days: int = 14) -> np.ndarray:
-    """Group events into disaster episodes (methodology-audit followup, item 22): two
-    events less than `gap_days` apart are treated as one episode, since their market
-    outcomes plausibly share the same shock rather than being independent draws --
-    "very close together" per the panel's own wording. Chained, not pairwise: A-B-C each
-    `gap_days` apart all land in one episode, matching how a bootstrap should NOT be able
-    to draw them as if independent. Returns an integer episode id per input date, in
-    input order (dates need not be pre-sorted)."""
+    """Group events into disaster episodes (methodology-audit followup, item 22): two"""
     d = pd.to_datetime(pd.Series(dates)).reset_index(drop=True)
     order = d.sort_values().index.to_numpy()
     sorted_dates = d.iloc[order].to_numpy()
@@ -56,22 +35,7 @@ def paired_bootstrap_delta(
     metric: str = "rmse",
     cluster_ids=None,
 ):
-    """Bootstrap CI for (baseline error - model error), resampling EVENTS in pairs.
-
-    Positive delta means the model is better. The pairing matters: model and baseline
-    are scored on the identical resampled events every draw, so the shared difficulty of
-    an event cancels and the CI reflects only the difference between the two predictors.
-
-    `cluster_ids` (methodology-audit followup, item 22): when given, resamples DISASTER
-    EPISODES rather than individual events -- events sharing an episode id are drawn or
-    left out together every round, since the plain event-level bootstrap assumes
-    independence across rows that can in fact be the same or adjacent disasters with
-    correlated market outcomes. `None` (default) keeps the plain per-event bootstrap for
-    callers with no episode grouping available.
-
-    Returns a dict with the point delta, its CI, and the share of draws favouring the
-    model (a one-sided bootstrap p-value in the `p_model_worse` field).
-    """
+    """Bootstrap CI for (baseline error - model error), resampling EVENTS in pairs."""
     yt = np.asarray(y_true, dtype=float)
     pm = np.asarray(y_pred_model, dtype=float)
     pb = np.asarray(y_pred_baseline, dtype=float)
@@ -119,7 +83,7 @@ def paired_bootstrap_delta(
         "ci_low": float(lo),
         "ci_high": float(hi),
         "p_model_worse": float(np.mean(deltas <= 0)),
-        # "Beats" requires the whole interval on the favourable side -- a point estimate
+        # "Beats" requires the whole interval on the favourable side, a point estimate
         # that merely happens to be positive is not evidence at this sample size.
         "significant": bool(lo > 0),
         "note": "",
@@ -127,16 +91,7 @@ def paired_bootstrap_delta(
 
 
 def diebold_mariano(y_true, y_pred_model, y_pred_baseline, h: int = 1, power: int = 2):
-    """Diebold-Mariano test on the squared- (or absolute-) error differential.
-
-    d_t = L(baseline_t) - L(model_t); positive mean d favours the model. Uses the
-    Newey-West HAC variance with the standard (h-1) lag truncation, and the Harvey,
-    Leybourne & Newbold (1997) small-sample correction, which matters a great deal at
-    n=30 -- the uncorrected statistic over-rejects badly here.
-
-    Returns the corrected statistic and a two-sided p-value from the t(n-1) reference
-    distribution that HLN recommend in place of the normal.
-    """
+    """Diebold-Mariano test on the squared- (or absolute-) error differential."""
     from scipy import stats
 
     yt = np.asarray(y_true, dtype=float)
@@ -174,13 +129,7 @@ def diebold_mariano(y_true, y_pred_model, y_pred_baseline, h: int = 1, power: in
 
 
 def pooled(results: dict, model: str, target: str):
-    """Concatenate a model/target's per-fold out-of-fold arrays into one paired vector.
-
-    Also returns the pooled original-dataset row index when `score_and_record` recorded
-    one (methodology-audit followup, item 22 -- needed to build episode ids for the
-    cluster bootstrap in `verdict_table`); `None` for older cached results that predate
-    that tracking, so this stays backward compatible with a stale `results_regression.pkl`.
-    """
+    """Concatenate a model/target's per-fold out-of-fold arrays into one paired vector."""
     store = results[model][target]
     idx = np.concatenate(store["index"]) if store.get("index") else None
     return (np.concatenate(store["y_true"]), np.concatenate(store["y_pred"]), idx)
@@ -188,29 +137,7 @@ def pooled(results: dict, model: str, target: str):
 
 def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_train_mean"),
                   event_dates=None, episode_gap_days: int = 14):
-    """Full per-(model, target, baseline) verdict table.
-
-    Only compares models against baselines on the *same* events. The stacked model
-    forfeits fold 0 to its meta-learner, so it has 20 points where the others have 30;
-    comparing its pooled vector against a 30-point baseline vector would be meaningless,
-    so those pairs are aligned on length and flagged rather than silently zipped.
-
-    `event_dates` (methodology-audit followup, item 22): a Series/mapping from the
-    original dataset row index to its event date. When given (and `pooled()` found a
-    row-index for both sides), the bootstrap clusters by disaster episode
-    (`build_episode_ids`, events under `episode_gap_days` apart share an episode)
-    instead of resampling individual events -- events that are the same or an adjacent
-    disaster are no longer treated as independent draws. Falls back to the plain
-    per-event bootstrap when dates aren't available for a given pair.
-
-    A Holm correction (methodology-audit followup, item 20) is applied across every row
-    in the returned table to the bootstrap's one-sided `p_model_worse`, since many
-    (model, target, baseline) comparisons are run and some "significant" result is
-    expected by chance alone. `holm_significant` is a stricter, family-wise-corrected
-    diagnostic column; `verdict`/`boot_beats` (the single-comparison bootstrap CI) stay
-    the primary criterion per the module docstring -- this is reported, not gated, same
-    relationship DM already has to the primary verdict.
-    """
+    """Full per-(model, target, baseline) verdict table."""
     from statsmodels.stats.multitest import multipletests
 
     rows = []
@@ -264,7 +191,7 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
 
     table = pd.DataFrame(rows)
     if len(table):
-        # NaN p-values (n too small to bootstrap) can't be corrected -- treated as
+        # NaN p-values (n too small to bootstrap) can't be corrected, treated as
         # non-significant rather than dropped, so the row count here matches `table`.
         pvals = table["p_model_worse"].fillna(1.0).to_numpy()
         _, p_holm, _, _ = multipletests(pvals, alpha=0.05, method="holm")

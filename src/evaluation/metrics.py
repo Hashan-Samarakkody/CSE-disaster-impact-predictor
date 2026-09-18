@@ -1,12 +1,4 @@
-"""Evaluation metrics for multi-target regression.
-
-Beyond the basic regression scores, this module owns the small numeric helpers that
-several notebook stages and every figure need in common: mapping stored out-of-fold
-predictions back to their events, finite-sample interval quantiles, and bootstrap CIs.
-
-These lived as notebook-local defs until the pipeline was split, which meant a figure
-could not reuse them without re-executing a modelling cell.
-"""
+"""Evaluation metrics for multi-target regression."""
 
 from __future__ import annotations
 
@@ -49,12 +41,7 @@ def pooled_arrays(results: dict, model: str, target: str):
 
 
 def pooled_frame(results, model, target, splits, dataset, y=None, date_col="event_date"):
-    """One row per pooled out-of-fold prediction, mapped back to its event.
-
-    Predictions were recorded after a per-target NaN mask, the stacked model forfeits
-    fold 0, and an all-NaN (fold, target) pair is skipped entirely -- so fold indices are
-    read from the store when present rather than inferred by offset arithmetic, which a
-    skipped middle fold breaks silently. The closing length assertion makes that fatal."""
+    """One row per pooled out-of-fold prediction, mapped back to its event."""
     import pandas as pd
 
     store = results[model][target]
@@ -102,7 +89,7 @@ def pooled_frame(results, model, target, splits, dataset, y=None, date_col="even
 
 def wilson_ci(k, n, z=1.96):
     """Wilson score interval for a proportion.
-
+    
     Preferred to the normal approximation at these sample sizes, where the latter can
     run outside [0, 1].
     """
@@ -159,13 +146,7 @@ def skill_score(rmse_model: float, rmse_reference: float) -> float:
 
 
 def extended_regression_metrics(y_true, y_pred, y_true_reference_std=None):
-    """Secondary diagnostics for a regression target, beyond RMSE/MAE/R2: median
-    absolute error, directional accuracy (sign match -- meaningful for a return-like
-    target that can be +/-), Pearson and Spearman correlation, and RMSE normalised by
-    the target's own standard deviation (scale-free, so a 5-day target's larger raw
-    RMSE than a 1-day target isn't mistaken for a worse model). Called "predictive
-    skill" / "forecasting performance" diagnostics, never "accuracy" (that word is
-    reserved for the directional metric, where it is literally a hit rate)."""
+    """Secondary diagnostics for a regression target, beyond RMSE/MAE/R2: median"""
     from scipy import stats
 
     yt = np.asarray(y_true, dtype=float)
@@ -184,15 +165,7 @@ def extended_regression_metrics(y_true, y_pred, y_true_reference_std=None):
 
 
 def bootstrap_auc_ci(y_true, y_score, n_boot=5000, alpha=0.05, random_state=42):
-    """Stratified bootstrap CI for an AUC.
-
-    Hanley-McNeil assumes a particular parametric form and is only approximate at n=30.
-    Where an AUC is the headline result it should face the same nonparametric test the
-    regression baselines faced, so both are reported side by side.
-
-    Resamples positives and negatives separately, which keeps the class balance fixed and
-    stops a draw degenerating to one class. Returns (auc, lo, hi, n_discarded).
-    """
+    """Stratified bootstrap CI for an AUC."""
     from sklearn.metrics import roc_auc_score
 
     yt = np.asarray(y_true).astype(int)
@@ -215,3 +188,24 @@ def bootstrap_auc_ci(y_true, y_score, n_boot=5000, alpha=0.05, random_state=42):
         return point, float("nan"), float("nan"), discarded
     lo, hi = np.quantile(draws, [alpha / 2, 1 - alpha / 2])
     return point, float(lo), float(hi), discarded
+
+
+if __name__ == "__main__":
+    truth = np.array([1.0, 2.0, 3.0, 4.0])
+    exact = evaluate_regression(truth, truth)
+    assert exact["rmse"] == 0.0 and exact["mae"] == 0.0 and exact["r2"] == 1.0, exact
+
+    off_by_one = evaluate_regression(truth, truth + 1.0)
+    assert off_by_one["rmse"] == 1.0 and off_by_one["mae"] == 1.0, off_by_one
+
+    # Skill is the fractional error reduction against a baseline, so halving the
+    # error scores 0.5 and matching the baseline scores 0.
+    assert abs(skill_score(1.0, 2.0) - 0.5) < 1e-12
+    assert skill_score(2.0, 2.0) == 0.0
+
+    # Clipping is a projection onto the target's support: every true value already
+    # lies inside it, so absolute error can never increase.
+    clipped = clip_to_bounds("Y3_recovery_days", np.array([-5.0, 45.0, 200.0]))
+    assert list(clipped) == [0.0, 45.0, 90.0], clipped
+
+    print("metrics.py self-check passed")

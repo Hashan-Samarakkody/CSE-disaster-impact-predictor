@@ -1,21 +1,4 @@
-"""Phase 0 baseline freeze (Y1/Y2/Y3 improvement protocol, 2026-09-17).
-
-Writes ONE json, `artifacts/frozen_baseline.json`, holding everything the improvement
-work must be able to prove it did not disturb:
-
-  * the git commit the freeze was taken at,
-  * event ids (dataset row index) and event dates,
-  * every target's values, in row order,
-  * the walk-forward fold definitions (train/test index arrays),
-  * every model's pooled out-of-fold predictions and metrics,
-  * the bootstrap verdict rows.
-
-`tests/test_y2_frozen.py` reads it back and fails if ANY Y2 number moves. Y1/Y3 are
-recorded too, but only as a research record -- they are allowed to change, that is the
-point of the work.
-
-    python scripts/freeze_baseline.py
-"""
+"""Phase 0 baseline freeze (Y1/Y2/Y3 improvement protocol, 2026-09-17)."""
 from __future__ import annotations
 
 import json
@@ -29,8 +12,9 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from src.utils.artifact_store import artifact_file
 ART = ROOT / "artifacts"
-OUT = ART / "frozen_baseline.json"
+OUT = artifact_file("frozen_baseline.json")
 
 
 def _f(x):
@@ -40,11 +24,11 @@ def _f(x):
 
 
 def main() -> None:
-    dataset = pd.read_parquet(ART / "dataset.parquet")
-    results = pickle.loads((ART / "results_regression.pkl").read_bytes())
-    splits = pickle.loads((ART / "splits.pkl").read_bytes())
-    verdict = pd.read_parquet(ART / "verdict_table.parquet")
-    classification = pd.read_parquet(ART / "classification_summary.parquet")
+    dataset = pd.read_parquet(artifact_file("dataset.parquet"))
+    results = pickle.loads((artifact_file("results_regression.pkl")).read_bytes())
+    splits = pickle.loads((artifact_file("splits.pkl")).read_bytes())
+    verdict = pd.read_parquet(artifact_file("verdict_table.parquet"))
+    classification = pd.read_parquet(artifact_file("classification_summary.parquet"))
 
     targets = [t for t in dataset.columns if t.split("_")[0] in {"Y1", "Y2", "Y3"}
                and pd.api.types.is_numeric_dtype(dataset[t])]

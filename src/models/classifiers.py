@@ -1,23 +1,4 @@
-"""Classification framing of the three targets.
-
-Point regression on these targets has been measured across five model families, two split
-geometries and two feature counts, and on Y1 nothing beats a constant. A binary question
-needs far less information than a point estimate, so classification is the more tractable
-framing at N=64 -- and it is also where precision, recall, F1 and AUC actually live.
-Thresholding a regressor's output after the fact, as the notebook previously did, is not
-the same thing as fitting a classifier to the decision.
-
-**Every threshold here is fixed a priori.** Three come straight from a target's own
-definition, and the fourth is a rule (the training-fold tercile) whose cut point moves per
-fold but whose specification never consults a score. Sweeping thresholds and reporting the
-best would manufacture significance out of a 30-point test set, which is the single
-easiest way for this study to lose its integrity.
-
-One threshold was considered and rejected before any fit: `Y1 < -1 * rolling_std_30`, the
-one-pre-event-sigma "material adverse move". It yields roughly 7-8 positives across all 64
-events, i.e. about 3 in the pooled test set, and precision and recall on 3 positives are
-not estimable. It is available below as a secondary sensitivity, never as a headline.
-"""
+"""Classification framing of the three targets."""
 
 from __future__ import annotations
 
@@ -33,27 +14,14 @@ LOGIT_CS = np.logspace(-3, 3, 13)
 
 
 def _binarise(values, mask):
-    """Boolean condition -> {0.0, 1.0}, but NaN wherever the source target is missing.
-
-    `(series > 0).astype(float)` silently maps NaN to 0.0, which asserts the negative
-    class for an event that was never observed. That is a fabricated label, and it is
-    invisible downstream because the caller's `notna()` mask then finds nothing to drop.
-    It bit C2_volume_spike once the sample was extended past 2023: the post-2023 events
-    have no volume data at all, and six of them were being scored as confirmed
-    non-spikes. Every label below routes through here so the failure cannot recur.
-    """
+    """Boolean condition -> {0.0, 1.0}, but NaN wherever the source target is missing."""
     return np.asarray(values, dtype=float) * 1.0 + np.where(np.asarray(mask), 0.0, np.nan)
 
 
 def label_negative_return(y, train_idx=None, dataset=None):
     """C1: Y1 < 0. The sign split, kept for continuity with the directional-accuracy
     section. No free parameter.
-
-    Was originally the DAY-0 return's sign; Y1 itself was rebaselined onto the pre-event
-    close (methodology-audit finding #8, 2026-09-16), so this is now the same 5-day
-    cumulative-return sign question the since-retired `C4_car5_negative` asked --
-    identically, not just similarly, once Y1 absorbed EventWindow_0_5's formula. See
-    that removal note below."""
+    """
     v = y["Y1_ASPI_5D_Forward_LogReturn_Pct"]
     return pd.Series(_binarise(v < 0, v.notna()), index=v.index)
 
@@ -63,7 +31,7 @@ def label_adverse_move(y, train_idx, dataset=None):
 
     Training rows only, so no test information reaches the label. ~33% prevalence by
     construction in training, but measured test-fold prevalence is 10% -- the held-out
-    folds are calmer -- leaving ~3 positives in 30 pooled points. Report with that caveat."""
+    folds are calmer, leaving ~3 positives in 30 pooled points. Report with that caveat."""
     v = y["Y1_ASPI_5D_Forward_LogReturn_Pct"]
     cut = float(np.nanquantile(v.iloc[train_idx], 1 / 3))
     return pd.Series(_binarise(v < cut, v.notna()), index=v.index)
@@ -77,26 +45,14 @@ def label_volume_spike(y, train_idx=None, dataset=None):
     """
     # Y2 is unobserved for the 2000 archive year and for every post-2023 event
     # (countryeconomy publishes the index level, not volume). Those events must be
-    # dropped, never scored as non-spikes -- see _binarise.
+    # dropped, never scored as non-spikes, see _binarise.
     v = y["Y2_abnormal_volume"]
     return pd.Series(_binarise(v > 0, v.notna()), index=v.index)
 
 
 def label_recovers_in_90(y, train_idx=None, dataset=None):
-    """C3: Y3 < 90 -- recovery observed inside the window. The threshold is the design
+    """C3: Y3 < 90, recovery observed inside the window. The threshold is the design
     constant itself. This is also stage 1 of the hurdle model.
-
-    Report it with the caveat attached: roughly 9 of 64 events sit at the cap, so the
-    minority class is about 3 events in a 30-point test set and the estimate is
-    underpowered by construction.
-
-    Methodology-audit finding #7 (competing-risk censoring): since Y3_recovery_days can
-    now be < 90 either because the event genuinely recovered OR because a LATER
-    qualifying disaster capped the observation window early, `v < 90` alone can no
-    longer distinguish them. A next-disaster-censored row's true recovery status by day
-    90 is genuinely unknown (the observation ended before either outcome was reached),
-    so it is excluded from this label entirely rather than forced to either class --
-    the same discipline `_binarise` already applies to missing Y3 values.
     """
     v = y["Y3_recovery_days"]
     unknown = (dataset["Y3_censor_reason"].reindex(v.index).eq("next_disaster")
@@ -113,37 +69,17 @@ def label_adverse_move_sigma(y, train_idx=None, dataset=None):
     """
     v = y["Y1_ASPI_5D_Forward_LogReturn_Pct"]
     # rolling_std_30 is computed on the daily log_return series (unchanged units), while
-    # Y1 is now a %-deviation-from-30d-mean (see feature_eng.build_targets) -- scale sigma
+    # Y1 is now a %-deviation-from-30d-mean (see feature_eng.build_targets), scale sigma
     # to percent so the comparison stays meaningful.
     sigma = (dataset["rolling_std_30"] * 100.0).replace(0, np.nan)
     return pd.Series(_binarise(v < -sigma, v.notna() & sigma.notna()), index=v.index)
 
 
 # label_car5_negative (C4) REMOVED, methodology-audit finding #8 (2026-09-16): it asked
-# "is the 5-trading-day cumulative return (from the pre-event close) negative", which is
-# now EXACTLY what C1_negative_return asks -- Y1 was rebaselined onto the pre-event close
-# and absorbed EventWindow_0_5's formula (see feature_eng.build_targets). Keeping both
-# would score the same classifier twice under two names. Pre-declared in
-# docs/EXTERNAL_DATA_PRE_DECLARATION.md Sec. 7.3 -- that pre-declaration is not rewritten
-# (it describes what was decided before any result was seen), this removal is recorded
-# here and in docs/METHODOLOGY_AUDIT.md instead.
 
 
 def label_slow_recovery(y, train_idx, dataset=None):
-    """C3b: recovery slower than the median of THIS fold's training window.
-
-    C3_recovers_in_90 has prevalence 0.90, so its accuracy measures the imbalance. A
-    median split is ~50% by construction. The cut uses training rows only, as C1b's
-    tercile does. C3 is retained and still reported beside this -- dropping a label after
-    seeing it fail is the selection the pre-declaration exists to prevent.
-
-    Same finding-#7 exclusion as label_recovers_in_90: a next-disaster-censored row's
-    true recovery speed relative to the median is unknown (its Y3 value is a lower
-    bound, not an observed recovery time), so it cannot be labeled "slow" or "fast" and
-    is excluded here too. The median cut itself is still computed over all non-missing
-    training values, mixing genuine and censored durations -- an already-disclosed,
-    separate limitation (finding #12: ordinary treatment of a right-censored target),
-    not one this fix resolves."""
+    """C3b: recovery slower than the median of THIS fold's training window."""
     v = y["Y3_recovery_days"]
     cut = float(np.nanmedian(v.iloc[train_idx]))
     unknown = (dataset["Y3_censor_reason"].reindex(v.index).eq("next_disaster")
@@ -159,6 +95,24 @@ LABELS = {
     "C3_recovers_in_90": label_recovers_in_90,
     "C3b_slow_recovery": label_slow_recovery,
 }
+
+
+def roc_auc_or_nan(estimator, X, y_true):
+    """ROC AUC for a hyperparameter search, returning NaN on a degenerate split.
+
+    Two splits are degenerate at this sample size: the validation side holding one
+    class, where the metric is undefined, and the training side holding one class,
+    where the fitted model has a single column of probabilities. Both score NaN.
+    """
+    from sklearn.metrics import roc_auc_score
+
+    y_true = np.asarray(y_true)
+    if len(np.unique(y_true)) < 2:
+        return float("nan")
+    proba = estimator.predict_proba(X)
+    if np.ndim(proba) < 2 or np.shape(proba)[1] < 2:
+        return float("nan")
+    return float(roc_auc_score(y_true, proba[:, 1]))
 
 
 def build_classifiers(random_state=42):
@@ -186,13 +140,7 @@ def build_classifiers(random_state=42):
 
 
 def classification_metrics(y_true, y_score, threshold=0.5):
-    """Every metric reported together, always beside the majority baseline.
-
-    Balanced accuracy and Matthews correlation are included deliberately: plain accuracy
-    is gameable by the majority rule -- which is exactly how the earlier 65%-vs-65% result
-    arose -- whereas the always-predict-majority classifier scores exactly 0.5 balanced
-    accuracy and 0.0 MCC, so any excess over those is real.
-    """
+    """Every metric reported together, always beside the majority baseline."""
     from sklearn.metrics import (accuracy_score, balanced_accuracy_score, brier_score_loss,
                                  f1_score, matthews_corrcoef, precision_score,
                                  average_precision_score, recall_score, roc_auc_score)
@@ -272,7 +220,7 @@ if __name__ == "__main__":
     chance = classification_metrics(truth, rng.random(200))
     assert not chance["beats_baseline"], chance
 
-    # The majority rule must score exactly 0.5 balanced accuracy -- the property that makes
+    # The majority rule must score exactly 0.5 balanced accuracy, the property that makes
     # it the right yardstick for an imbalanced problem.
     lopsided = np.array([1] * 80 + [0] * 20)
     maj = classification_metrics(lopsided, np.ones(100) * 0.9)

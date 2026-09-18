@@ -12,13 +12,7 @@ CAP = 90.0
 
 
 class HurdleRecoveryModel:
-    """Stage 1 classifies recovery-within-window; stage 2 regresses log1p(duration).
-
-    Stage 2 trains only on rows that recovered, so it never sees the censored 90s. The
-    log1p transform is applied because the recovered durations are strongly right-skewed
-    (median 0, upper quartile ~5 trading days) and squared error on the raw scale would be
-    dominated by a handful of slow recoveries.
-    """
+    """Stage 1 classifies recovery-within-window; stage 2 regresses log1p(duration)."""
 
     def __init__(self, classifier, regressor, cap: float = CAP):
         self.classifier = classifier
@@ -30,10 +24,7 @@ class HurdleRecoveryModel:
     def fit(self, X, y, recovered=None):
         """`recovered=None` infers stage-1 recovery from `y < cap` alone, the original
         behaviour. Pass the real indicator explicitly (methodology-audit finding #7:
-        `~Y3_censored` from `feature_eng.build_targets`) once some rows are censored
-        EARLIER than the cap by a competing event (a later qualifying disaster) -- those
-        rows have `y < cap` but were never observed to recover, which `y < cap` alone
-        cannot tell apart from a genuine recovery."""
+        """
         y = np.asarray(y, dtype=float)
         recovered = (y < self.cap) if recovered is None else np.asarray(recovered, dtype=bool)
         self.fallback_ = float(np.mean(y)) if len(y) else self.cap

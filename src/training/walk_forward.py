@@ -35,16 +35,7 @@ def purge_horizon_overlap(
     event_dates: pd.Series,
     horizon_end_dates: pd.Series,
 ) -> WalkForwardSplit:
-    """Drop training rows whose label horizon reaches into the test period.
-
-    Y1 (`ASPI_5D_Log_Return_Pct`) is built from market prices up to 5 trading days
-    *after* each event. Splits are by event index, not calendar date, so a training
-    event that lands within ~5 trading days of the first test event can have a label
-    computed from prices dated on/after that test event's own reference date -- a
-    fold-boundary embargo violation (see Lopez de Prado, "Advances in Financial
-    Machine Learning", ch. 7). Purge those training rows for this fold only; the test
-    set and every other target are untouched.
-    """
+    """Drop training rows whose label horizon reaches into the test period."""
     if len(split.test_index) == 0 or len(split.train_index) == 0:
         return split
     first_test_date = event_dates.iloc[split.test_index[0]]
@@ -54,19 +45,8 @@ def purge_horizon_overlap(
 
 
 # Feature columns that carry a real gap (a paired `_available`/`_observed` flag exists
-# for each -- see `feature_eng.build_targets`/`emdat_loader.load_emdat`/notebook 02's
-# availability-flag cell) and were previously blanket zero-filled at model-fit time with
-# no per-fold discipline at all. Methodology-audit finding #14's other half
-# (2026-09-16): a global or test-informed median would leak information across the
-# fold boundary same as any other statistic in this pipeline, so this list exists to be
-# imputed from TRAIN rows only, one fold at a time -- never computed once and reused.
 MEDIAN_IMPUTE_COLS = [
     # financial_damage NaN propagates into these two DERIVED columns (log1p, then a
-    # Flood interaction) -- each is imputed independently by its OWN median rather than
-    # recomputed from an imputed financial_damage, the same simplification every other
-    # entry here makes (median-of-transform != transform-of-median, a known, accepted
-    # ceiling; recomputing derived features per fold would need restructuring the
-    # notebook 02 -> 04 pipeline boundary, out of scope for this fix).
     "financial_damage", "log_financial_damage", "log_damage_x_flood",
     "total_deaths", "no_homeless", "mag_area_km2", "mag_wind_kph",
     "vol_ratio_1_30", "vol_ratio_5_30", "vol_ratio_10_30", "vol_cv_30", "log_vol_change_1",
@@ -77,16 +57,7 @@ MEDIAN_IMPUTE_COLS = [
 def median_impute_from_train(
     train_df: pd.DataFrame, *other_dfs: pd.DataFrame, cols: list[str] = MEDIAN_IMPUTE_COLS,
 ) -> tuple[pd.DataFrame, ...]:
-    """Median of `cols`, computed from `train_df` (real training rows for THIS fold and
-    target, already purged -- never synthetic/augmented rows, never test rows), used to
-    fill NaN in `train_df` and every frame in `other_dfs` (typically the fold's test
-    frame). A column entirely NaN in this fold's training rows (e.g. a target-specific
-    purge left too few real rows) falls back to 0.0 rather than propagating NaN into the
-    model -- the same degenerate-fold fallback discipline used elsewhere in this
-    pipeline (e.g. `AFTRecoveryModel`'s `degenerate_` path), not a silent full-zero-fill.
-
-    Returns `(train_df_filled,) + other_dfs_filled`, always a tuple -- unpack with e.g.
-    `X_tr_real, X_te = median_impute_from_train(X_tr_real, X_te)`."""
+    """Median of `cols`, computed from `train_df` (real training rows for THIS fold and"""
     present = [c for c in cols if c in train_df.columns]
     medians = train_df[present].median().fillna(0.0)
     dfs = (train_df,) + other_dfs
