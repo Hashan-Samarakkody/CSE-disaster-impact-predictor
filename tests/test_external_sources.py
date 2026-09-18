@@ -1,11 +1,4 @@
-"""Tests for the external data blocks.
-
-All offline: every test builds its own synthetic source frame, so the suite never hits
-the network and never needs a populated cache. What is tested is the window arithmetic
-and the leakage boundaries, which is where a silent off-by-one would do real damage --
-a feature that quietly reads the event day's own market data would inflate every score
-downstream and look like a genuine improvement.
-"""
+"""Tests for the external data blocks."""
 
 from __future__ import annotations
 
@@ -13,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.data_pipeline.external_sources import (
+from src.data.external_sources import (
     DI_WINDOW,
     EXTERNAL_FEATURE_BLOCKS,
     HEAVY_RAIN_MM_3D,
@@ -211,14 +204,7 @@ def test_declared_blocks_match_the_builders(power, desinventar, fx, polls):
 # --------------------------------------- pooled_frame alignment under skipped folds
 
 def test_pooled_frame_uses_recorded_folds_when_one_is_skipped():
-    """A skipped fold in the MIDDLE must not shift the event mapping.
-
-    Offset arithmetic (`len(splits) - n_stored`) assumes skipped folds sit at the front,
-    which is true for the stacked model but false once a (fold, target) pair is dropped
-    for having no non-missing rows. Getting this wrong produces a plausible-looking
-    scatter plot against the wrong events, which is why it is asserted rather than
-    trusted.
-    """
+    """A skipped fold in the MIDDLE must not shift the event mapping."""
     from types import SimpleNamespace
 
     from src.evaluation.metrics import pooled_frame

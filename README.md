@@ -1,202 +1,202 @@
 # Predicting the impact of natural disasters on the Colombo Stock Exchange
 
-A multi-target machine learning study of how Sri Lanka's stock market responds to
-natural disasters. For each EM-DAT-qualifying disaster it models the ASPI 5-trading-day
-forward log return, abnormal trading volume, recovery time, and two event-window
-cumulative log returns — with SHAP explainability, on a data-scarce frontier market.
+An undergraduate BSc (Hons) thesis project. For every qualifying natural disaster in Sri
+Lanka between 2000 and 2025, it models three things the Colombo Stock Exchange did
+afterwards, and tests whether any of them can be predicted out of sample.
 
-BSc (Hons) thesis project. **N = 76 real events, 2000–2025.** No synthetic events in
-any test set, no relaxed inclusion criteria, no gap-filled outcomes.
+Seventy four real events. No synthetic events in any test set, no relaxed inclusion
+criteria, no gap filled outcomes.
 
-**Scope, stated precisely.** This is an **ex-post impact-attribution** study, not an
-early-warning system. Several features are EM-DAT damage assessments finalised weeks or
-months after an event, so the model cannot be run the day before a disaster. It answers
-*given a disaster of known severity, what was the market's response* — not *what will
-tomorrow's disaster do*.
+## Research objective
 
-## Headline result
+The study asks whether a disaster's measurable characteristics carry information about the
+market response beyond what the market's own condition already implies. It is an ex post
+impact attribution study, not an early warning system: several features are damage
+assessments that EM-DAT finalises weeks after an event, so the model cannot be run the day
+before a disaster. It answers the question, given a disaster of known severity, what was
+the market response.
 
-**Magnitude is not predictable at index level. Direction, on some targets, is.**
+## The three prediction targets
 
-The 2026-09-17 Y1/Y3 improvement run (pre-declared in
-[`docs/Y1_Y3_IMPROVEMENT_PREDECLARATION.md`](docs/Y1_Y3_IMPROVEMENT_PREDECLARATION.md),
-reported in [`docs/Y1_Y3_FINAL_RESULTS.md`](docs/Y1_Y3_FINAL_RESULTS.md)) sharpened both
-halves of that sentence:
+1. **ASPI percentage change.** The forward log return in percent from the last pre event
+   close over five trading sessions.
+2. **Volume crash magnitude.** Event day traded volume relative to its own trailing thirty
+   session mean, minus one.
+3. **Market recovery days.** Trading sessions until the index regains its pre event level,
+   right censored at ninety sessions or at the next qualifying disaster.
 
-| Target | What is predictable | Best validated model | Evidence | Statistically supported? |
+These three are the whole research question. There is no fourth target. Definitions live in
+`src/targets/event_targets.py` and the readable aliases in `src/config/settings.py`.
+
+## What the study found
+
+| Target | What is predictable | Best validated model | Evidence | Supported |
 |---|---|---|---|---|
-| **Y1 magnitude** | nothing | — | 0 of 720 comparisons with a CI excluding zero, across a pre-declared 240-configuration grid | **No (C)** |
-| **Y1 direction** | sign of the 10-session return | logistic, combined features, K=10 | AUC 0.752, CI [0.567, 0.896], **Holm p = 0.032** | **Yes (A)** — the only finding surviving family-wise correction |
-| **Y2 abnormal volume** | size of the volume response | SVR / GP | delta-RMSE CI excludes zero vs both baselines; SVR Holm-significant | **Yes (A)**, frozen and unchanged |
-| **Y3 recovery** | *ranking* and *probabilities*, not the day | two-stage drawdown + Weibull AFT | C-index 0.657, CI [0.522, 0.769], calibration gap <= 4.5pp; fails Holm | **Suggestive (B)** |
+| ASPI percentage change, magnitude | nothing | none | 0 of 720 comparisons with an interval excluding zero, across a pre declared 240 configuration grid | No |
+| ASPI percentage change, direction at ten sessions | the sign of the return | logistic regression, combined features | AUC 0.752, interval [0.567, 0.896], Holm p 0.032 | Yes |
+| Volume crash magnitude | the size of the response | support vector regression, Gaussian process | paired bootstrap interval excludes zero against both baselines | Yes |
+| Market recovery days | ranking and probabilities, not the day | two stage drawdown plus Weibull survival model | concordance 0.657, interval [0.522, 0.769], fails the family wise correction | Suggestive |
 
-Read that table with its negatives intact: exact ASPI return magnitude and exact recovery
-duration are **not** predictable at N = 74, and this study reports that rather than
-working around it.
+Read that table with its negatives intact. Exact return magnitude and exact recovery
+duration are not predictable at this sample size, and the study reports that rather than
+working around it. The full numbers are in `docs/results.md` and what they license is in
+`docs/interpretation.md`.
 
-Every regression comparison is tested against two naive baselines — a constant-zero "no
-measurable effect" null and a training-fold mean — with a paired event-level bootstrap
-and a Diebold–Mariano test. The same data answers a binary question it cannot answer as
-a regression: asked whether trading volume will exceed its own 30-day baseline, or
-whether the 5-day cumulative return is negative, models clear both the majority rule
-and chance.
+## High level methodology
 
-The success criterion is **not raw accuracy**. On a label with prevalence 0.90 the
-always-predict-majority rule scores 0.900 for free. The criterion used throughout is
-balanced accuracy above 0.5 *with* an AUC interval excluding 0.5, and every accuracy
-figure is reported beside its prevalence.
+Events are ordered by date and validated by a rolling chronological walk forward of thirty
+training events, ten test events, step ten. There is no shuffled cross validation anywhere.
+Every target purges its own label horizon against the fold boundary, hyperparameter search
+runs a purged inner split one level deeper, feature selection is refit inside every inner
+split, missing values are imputed from training rows only, and synthetic oversampled rows
+appear in training folds only.
 
-The current full metric table — every model, every target — is
-[`docs/RESULTS_AUDIT.txt`](docs/RESULTS_AUDIT.txt), regenerated by
-`python scripts/audit_results.py`; its section 11 holds the Y1/Y3 improvement grid.
+A model beats its baseline when a paired bootstrap interval on the error difference excludes
+zero. The bootstrap resamples disaster episodes rather than individual events, because two
+disasters a fortnight apart are not independent draws. A family wise correction is reported
+alongside as a stricter diagnostic and is never folded into the primary criterion.
 
-### The research record
-
-| Document | What it is |
-|---|---|
-| [`docs/FINAL_ANALYSIS_PROTOCOL.md`](docs/FINAL_ANALYSIS_PROTOCOL.md) | the frozen pipeline specification |
-| [`docs/Y1_Y3_IMPROVEMENT_PREDECLARATION.md`](docs/Y1_Y3_IMPROVEMENT_PREDECLARATION.md) | every Y1/Y3 experiment, written down **before** it was run |
-| [`docs/Y1_Y3_FINAL_RESULTS.md`](docs/Y1_Y3_FINAL_RESULTS.md) | what those experiments showed, including the failures |
-| [`docs/Y2_FROZEN_VALIDATION_REPORT.md`](docs/Y2_FROZEN_VALIDATION_REPORT.md) | proof that Y2 did not move (0 change, 1e-9 tolerance) |
-| [`docs/FINAL_METHOD_COMPARISON.md`](docs/FINAL_METHOD_COMPARISON.md) | method before vs after, and whether each change paid off |
-| [`docs/THESIS_UPDATE_GUIDE.md`](docs/THESIS_UPDATE_GUIDE.md) | chapter-by-chapter revision guide |
-| [`docs/METHODOLOGY_AUDIT.md`](docs/METHODOLOGY_AUDIT.md) | the full dated change log, negative results included |
+`docs/architecture.md` explains the whole design. `docs/audit.md` is the complete research
+record, including the experiments that failed.
 
 ## Repository structure
 
 ```
 README.md                  this file
-architecture.md             how the pipeline works — start here for the technical story
-architecture/               detailed architecture documents and diagrams
-data/                       raw inputs (CSE archive, EM-DAT export, market cap)
-notebooks/                  the nine pipeline stages, 01 -> 09
-src/                        reusable logic: loaders, features, models, evaluation
-tests/                      151 tests, incl. 20 that freeze Y2 against regression
-scripts/                    pipeline runners, audit_results.py, improvement-grid runners
-artifacts/                  cached stage outputs (regenerable, not version-controlled)
-docs/                       research record, pre-registration, exported figures
+LICENSE                    all rights reserved, permission required before any use
+config/requirements.txt    pinned dependency list
+data/raw/                  CSE workbooks and the EM-DAT export
+data/external/             reference workbooks used by the thesis text
+notebooks/                 the nine pipeline stages, 01 to 09
+src/config/                paths, the seed, and the three target definitions
+src/data/                  loaders for every raw and live source
+src/features/              market and disaster feature engineering, the sector panel
+src/targets/               the three research targets and the return horizon variants
+src/training/              walk forward splits, purged inner cross validation, oversampling
+src/models/                regression, classification, hurdle, survival, the demo bundle
+src/evaluation/            metrics, collinearity, survival metrics, the statistical verdict
+src/visualization/         the figure suites
+src/utils/                 the artifact cache
+apps/streamlit_app.py      the demo web app
+scripts/                   pipeline runners and experiment runners
+artifacts/                 generated cache, not version controlled
+tests/                     151 tests, including 20 that hold the volume target frozen
+docs/                      all documentation, listed below
 ```
 
-## Setup
+## Installation
 
-Python 3.12 (3.10+ should work).
+Python 3.12, although 3.10 and later should work.
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate          # Windows;  source .venv/bin/activate elsewhere
-pip install -r requirements.txt
+.venv\Scripts\activate            # Windows
+source .venv/bin/activate         # macOS and Linux
+pip install -r config/requirements.txt
 ```
 
-`torch` is needed for the multi-task MLP, `xlrd` and `openpyxl` for the two Excel
-formats in `data/`, `wbgapi` and `yfinance` for the live macro sources.
+`requirements.txt` sits in `config/` rather than the repository root, so that the root
+holds only this file, the licence and the ignore rules. Point pip at that path as shown.
 
-## Required data
+## Data requirements
 
-Everything the pipeline needs is committed under `data/`:
+The raw inputs in `data/raw/` are required before anything runs: the CSE daily index
+workbook, twenty four yearly per security workbooks, and the EM-DAT export. Stage 01
+additionally retrieves six live sources over the network. Every source, and the terms that
+come with it, is documented in `docs/data_sources.md`.
 
-| File(s) | Used for |
+## How to run the pipeline
+
+Run the notebooks in numeric order. Each stage reads what it needs from `artifacts/` and
+writes what it produces back there, so a later stage fails with a clear message naming the
+missing artifact if an earlier one has not run.
+
+```
+notebooks/01_data_acquisition.ipynb        slow, network access required
+notebooks/02_features_targets.ipynb        fast
+notebooks/03_eda_diagnostics.ipynb         fast, fits nothing
+notebooks/04_modeling_regression.ipynb     slowest, over an hour
+notebooks/05_modeling_classification.ipynb medium
+notebooks/06_evaluation.ipynb              fast, refits nothing
+notebooks/07_explainability.ipynb          medium
+notebooks/08_sector_panel.ipynb            slow
+notebooks/09_synthesis.ipynb               written record only
+```
+
+Then the experiment scripts:
+
+```bash
+python scripts/run_aspi_return_grid.py          # about 75 minutes
+python scripts/run_recovery_survival_grid.py    # about 1 minute
+python scripts/build_final_tables.py
+python scripts/audit_results.py
+```
+
+And the tests:
+
+```bash
+python -m pytest tests/ -q
+```
+
+## Expected outputs
+
+Cached tables in `artifacts/tables/`, fitted models and fold definitions in
+`artifacts/models/`, JSON payloads in `artifacts/results/`, downloads in
+`artifacts/external/`, tracked figures in `docs/figures/`, and the final result tables in
+`docs/thesis_materials/`.
+
+## Reproducibility
+
+The seed is fixed at 42 in `src/config/settings.py` and is never varied to obtain a better
+score. Every cached artifact is written with a provenance sidecar naming the retrieval time
+and the library versions that produced it, because several sources are pulled live and
+unpinned. No path anywhere is absolute or machine specific.
+
+One file under `artifacts/` is version controlled deliberately:
+`artifacts/results/frozen_baseline.json`, a snapshot of the volume target taken before the
+improvement work began. It cannot be rebuilt from a later state, and
+`tests/test_volume_target_frozen.py` compares the live pipeline against it.
+
+## Documentation
+
+| Document | What it covers |
 |---|---|
-| `2000 data.xls` … `2023 Data (2).xls` | daily per-security trading records |
-| `07Market Indices - Daily.xls` | daily ASPI and the 20 sector indices |
-| `public_emdat_custom_request_2026-09-12_*.xlsx` | the disaster records (current export) |
-| `public_emdat_custom_request_2026-02-09_*.xlsx` | the earlier export, kept for provenance |
-| `market-capitalization-Oct 12.csv`, `2024 ADB Asia SME Monitor - SRI.xlsx` | context figures in stages 01 and 09 |
+| [docs/architecture.md](docs/architecture.md) | how the whole system fits together, start here |
+| [docs/notebooks/](docs/notebooks/) | one file per notebook stage, nine in total |
+| [docs/audit.md](docs/audit.md) | the complete research record: the frozen protocol, every pre declaration, the full dated change log, and every rejected variant |
+| [docs/results.md](docs/results.md) | every number the executed repository produced |
+| [docs/interpretation.md](docs/interpretation.md) | what may and may not be claimed, and the thesis revision guide |
+| [docs/experiments.md](docs/experiments.md) | what each script in `scripts/` does |
+| [docs/testing.md](docs/testing.md) | what the test suite checks and why |
+| [docs/data_sources.md](docs/data_sources.md) | every input, its provenance and its terms |
+| [docs/refactor_validation.md](docs/refactor_validation.md) | what was actually executed and verified |
+| [docs/improvements_to_thesis/](docs/improvements_to_thesis/) | where the written thesis and the implementation disagree |
 
-Stage 01 additionally fetches World Bank, Yahoo, NASA POWER, DesInventar, FRED and
-Wikidata **live**, so it needs a network connection. Every later stage runs offline
-from the artifact cache.
-
-## How to run it
-
-Run the stages in numerical order. Each prints the artifact cache on entry, so it is
-always visible which upstream stage produced its inputs and when.
+## Demo application
 
 ```bash
-cd notebooks
-python -m jupyter nbconvert --to notebook --execute --inplace \
-    --ExecutePreprocessor.timeout=3000 01_data_acquisition.ipynb
+streamlit run apps/streamlit_app.py
 ```
 
-…and so on through `09_synthesis.ipynb`. Or open them in Jupyter and run top to bottom.
+The app replays a real historical event through models refitted on all real rows. Those are
+in sample fits for demonstration, not out of sample predictions, and the app says so.
 
-| Order | Notebook | What it does |
-|---|---|---|
-| 1 | `01_data_acquisition.ipynb` | parse the archive, load EM-DAT, fetch macro and external sources |
-| 2 | `02_features_targets.ipynb` | build the event table, the five targets and the walk-forward folds |
-| 3 | `03_eda_diagnostics.ipynb` | exploratory analysis; fits nothing |
-| 4 | `04_modeling_regression.ipynb` | the six model families, plus the ablations |
-| 5 | `05_modeling_classification.ipynb` | the six pre-registered labels, plus the Y3 hurdle model |
-| 6 | `06_evaluation.ipynb` | baseline verdicts, intervals, evaluation figures |
-| 7 | `07_explainability.ipynb` | SHAP, global and local |
-| 8 | `08_sector_panel.ipynb` | the same questions on a (event × sector) panel |
-| 9 | `09_synthesis.ipynb` | the written record; no code |
+## Limitations
 
-Only stages 01, 04 and 08 are slow. Stages 03, 06, 07 and 09 read the cache and refit
-nothing, so re-running them after a figure change costs seconds.
+Seventy four events and forty pooled out of fold test points. There is no final lockbox
+holdout, because at this sample size setting one aside would cost folds the study cannot
+spare, so an adaptive selection risk remains that the bootstrap and the family wise
+correction reduce but do not eliminate. Across four folds, 35.6 per cent of selected
+features were selected in exactly one fold, so no single fold's selection is treated as a
+finding. The recovery target has thirty one observed recoveries in the pooled test set,
+which is thin for a survival model with twenty covariates.
 
-## Inputs and outputs
+## License
 
-- **Cached tables and fitted objects** go to `artifacts/`, each with a
-  `<name>.provenance.json` sidecar recording when it was written and with which library
-  versions. This directory is regenerable and is **not** version-controlled.
-- **Figures** go to `docs/figures/` at 300 dpi and **are** version-controlled, so the
-  thesis can cite them by a stable filename.
-- **The metric audit** goes to `docs/RESULTS_AUDIT.txt`.
+All rights reserved. This repository is published for examination and reference only. It is
+not open source. Written permission is required before any use, including academic and
+educational use. See [LICENSE](LICENSE) and contact hashansamarakkody@gmail.com.
 
-## Reproducing the results
+Third party data carries its own terms, which this licence does not override.
 
-```bash
-python -m pytest tests/ -q               # from the repository root
-cd notebooks && <run 01 through 09>
-python scripts/audit_results.py          # every metric, per model, per target
-```
-
-Two caveats on exact reproduction. Stage 01 pulls unpinned live sources, so a re-run
-months later can legitimately return revised macro figures — compare the provenance
-sidecars before concluding that anything changed. And `^CSE` on Yahoo is a dead feed;
-the post-2023 ASPI extension comes from countryeconomy.com instead, which is documented
-in [`architecture/data_acquisition.md`](architecture/data_acquisition.md).
-
-## Live demo
-
-`app.py` is a Streamlit app that replays a real historical event through the fitted
-models, with editable severity inputs (financial damage, population affected, deaths,
-homeless, disaster type, magnitude). It is a demonstration aid, not a forecaster — see
-the in-app scope banner and [`src/inference.py`](src/inference.py) for why.
-
-```bash
-python scripts/train_final_models.py   # once, after the pipeline: fits + saves the
-                                        # classifiers and hurdle model the app serves
-streamlit run app.py
-```
-
-Requires `artifacts/` populated by a full pipeline run (`dataset`, `feature_spec`,
-`selected_features`, `final_rf_models`, `classification_summary`) plus the two extra
-artifacts `train_final_models.py` produces. Every historical metric shown in the app
-(AUC, beats-baseline, prevalence) is copied from `docs/RESULTS_AUDIT.txt`, not
-recomputed — the app cannot silently make a failing model look better.
-
-## Where to read next
-
-- [`architecture.md`](architecture.md) — how the whole thing fits together.
-- [`docs/EXTERNAL_DATA_PRE_DECLARATION.md`](docs/EXTERNAL_DATA_PRE_DECLARATION.md) —
-  the external features, declared in writing before they were scored, with the
-  written-down expectations graded afterwards (including the one that was wrong).
-- [`docs/METHODOLOGY_AUDIT.md`](docs/METHODOLOGY_AUDIT.md) — the full methodology
-  audit and issue register.
-
-## What makes the negative result credible
-
-- 100% real data; synthetic rows exist only inside training folds, never in a test set
-- External features pre-declared before the run that scored them, expectations graded
-  afterwards including the one that failed
-- Leakage-free chronological walk-forward throughout; no k-fold anywhere
-- Every threshold and capacity bound fixed a priori, never chosen on a held-out score
-- Two naive baselines on every comparison, with a confidence interval on every claim
-- Bugs found during development documented rather than concealed — including a
-  test-set leak in an ensemble blend, a missing volume feature block, and a label
-  function that scored six unmeasured events as confirmed negatives
-
-## Licence
-
-See [`LICENSE`](LICENSE).
+The models here are a student research exercise. They are not investment advice.

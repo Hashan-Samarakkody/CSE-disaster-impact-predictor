@@ -1,24 +1,41 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ipynb_checkpoints/
 
-# Editor / OS / tooling state
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editor, OS and tooling state
 .vscode/
+.idea/
 .claude/
 .streamlit/
 Thumbs.db
 .DS_Store
 
-# Regenerable artifact cache. Stage 01 onward rebuilds every file here.
-# Figures in docs/figures/ ARE tracked, so the thesis can cite them by a stable path.
-artifacts/*
-# ...except the Y2 regression baseline, which is a HISTORICAL SNAPSHOT of commit 1fbf6275
-# and cannot be regenerated from a later state. tests/test_y2_frozen.py compares the live
-# pipeline against it; losing it would silently turn 20 freeze assertions into skips.
-!artifacts/frozen_baseline.json
+# Local secrets and environment values. Never commit credentials or API keys.
+.env
+.env.*
+*.key
+secrets.*
 
-# nbconvert stderr logs
+# Generated artifact cache. Every file here is rebuilt by the pipeline stages.
+# Figures in docs/figures/ are tracked instead, so the thesis can cite a stable path.
+artifacts/*
+
+# Exception: the frozen regression baseline is a historical snapshot of the
+# volume target at commit 1fbf6275. It cannot be regenerated from a later state,
+# and tests/test_volume_target_frozen.py compares the live pipeline against it.
+!artifacts/results/
+artifacts/results/*
+!artifacts/results/frozen_baseline.json
+
+# Transient logs and experiment scratch output
+*.log
 notebooks/err_*.txt
 notebooks/nb_err.txt

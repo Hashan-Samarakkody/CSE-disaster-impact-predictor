@@ -1,26 +1,4 @@
-"""Y3 (recovery days): the right-censored AFT survival model is the PRIMARY reported
-result for Y3 (methodology-audit followup, item 12) -- plain point-regression (RF/
-Ridge/XGBoost fit directly on Y3_recovery_days, as if every 90-day cap and
-competing-risk censor were an observed recovery time) is a SECONDARY diagnostic here,
-not a co-equal alternative. Treating >=90-day non-recoveries as if they equalled 90 and
-minimising squared error against that fabricated observation is exactly the distortion
-survival analysis exists to avoid; c-index and the survival curve are what this study
-actually stands behind for Y3, and the point-regression comparison exists only to show
-the SIZE of that distortion, not to compete with the survival number for primacy.
-
-Mirrors `notebooks/04_modeling_regression.ipynb` §`run_walk_forward` for a single
-target (Y3_recovery_days) so the numbers are directly comparable to
-`docs/RESULTS_AUDIT.txt`: same cached `dataset.parquet`/`feature_spec.json`, same
-(train_window, test_window, step) = (30, 10, 10) split, same per-fold SMOGN
-augmentation (`time_aware_smogn`) and per-fold RF-importance top-20 feature selection.
-The only thing that differs is the estimator itself and how it treats the 90-day cap
-(right-censored, not an observed value) -- see `src/models/survival_recovery.py` and
-`docs/METHODOLOGY_AUDIT.md` ("Improvement attempts") for why.
-
-Run after the full notebook pipeline (needs `dataset`, `feature_spec` cached):
-
-    python scripts/run_survival_model.py
-"""
+"""Y3 (recovery days): the right-censored AFT survival model is the PRIMARY reported"""
 
 from __future__ import annotations
 
@@ -35,12 +13,13 @@ from sklearn.ensemble import RandomForestRegressor
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.data_pipeline.feature_eng import FeatureEngineeringConfig
+from src.features.feature_engineering import FeatureEngineeringConfig
 from src.evaluation.metrics import bootstrap_metric_ci, evaluate_regression, skill_score
 from src.models.survival_recovery import AFTRecoveryModel
-from src.sampling.time_aware_smogn import time_aware_smogn
+from src.training.time_aware_smogn import time_aware_smogn
 from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
                                        median_impute_from_train, purge_horizon_overlap)
+from src.utils.artifact_store import artifact_file
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -72,12 +51,12 @@ def augment_fold(X_train, y_train, dates_train, type_cols, gdp_train=None,
 
 
 def main() -> None:
-    dataset = pd.read_parquet(ARTIFACTS / "dataset.parquet")
-    spec = json.loads((ARTIFACTS / "feature_spec.json").read_text(encoding="utf-8"))
+    dataset = pd.read_parquet(artifact_file("dataset.parquet"))
+    spec = json.loads((artifact_file("feature_spec.json")).read_text(encoding="utf-8"))
     feature_cols, type_cols = spec["FEATURE_COLS"], spec["TYPE_COLS"]
 
     # Flagged columns (methodology-audit finding #14, MEDIAN_IMPUTE_COLS) keep real NaN
-    # here -- imputed per fold from train rows only, below. Everything else is a
+    # here, imputed per fold from train rows only, below. Everything else is a
     # safety-net zero-fill (none of them actually have missing values).
     X_all = dataset[feature_cols].copy()
     _non_median_cols = [c for c in feature_cols if c not in MEDIAN_IMPUTE_COLS]
@@ -86,11 +65,6 @@ def main() -> None:
     dates_all = dataset["event_date"]
     gdp_all = dataset["gdp_current_usd"] if "gdp_current_usd" in dataset.columns else None
     # Y3's label is only "known" once recovery is confirmed (or the 90-day cap is
-    # confirmed) -- see feature_eng.build_targets. This script had NO fold-boundary
-    # purge at all before the 2026-09-16 methodology-audit review (finding #5): a
-    # training row's Y3 label can depend on prices up to 90 trading days after its
-    # event, so without this a training event close to a fold boundary could leak
-    # price information from on/after the first test event.
     y3_label_end_all = dataset["Y3_label_end_date"]
 
     splits = list(generate_walk_forward_splits(len(X_all), TRAIN_WINDOW, TEST_WINDOW, STEP))
@@ -117,14 +91,6 @@ def main() -> None:
         tr_ok = y_tr_aug[TARGET].notna()
 
         # Competing-risk censoring (methodology-audit finding #7): `dataset["Y3_censored"]`
-        # is the real indicator (True for BOTH the 90-day cap and a later qualifying
-        # disaster striking first), not `y >= CAP` alone. `time_aware_smogn` concatenates
-        # real rows first (in X_tr_real's order) then appends synthetic rows with a fresh
-        # RangeIndex (`ignore_index=True`, see src/sampling/time_aware_smogn.py), so the
-        # first `len(X_tr_real)` rows of X_tr_aug/y_tr_aug are exactly the real training
-        # rows in that order -- real censoring is looked up for those; synthetic rows
-        # (SMOGN interpolates a numeric duration, not a competing-risk event) keep the
-        # old `y >= CAP` inference, since SMOGN has no way to know about a later disaster.
         n_real_tr = len(X_tr_real)
         real_censored_tr = dataset["Y3_censored"].loc[X_tr_real.index].to_numpy()
         synthetic_censored_tr = y_tr_aug[TARGET].to_numpy()[n_real_tr:] >= CAP
@@ -207,7 +173,7 @@ def main() -> None:
         print("No fold produced a non-degenerate AFT fit -- see AFTRecoveryModel.degenerate_.")
 
     # Real competing-risk censoring indicator (methodology-audit finding #7), not
-    # `y >= CAP` alone -- a row censored by a later qualifying disaster has y < CAP but
+    # `y >= CAP` alone, a row censored by a later qualifying disaster has y < CAP but
     # is still not an observed recovery.
     n_censored_total = int(censored_aft.sum())
     n_cap_only = int((yt_aft >= CAP).sum())
@@ -228,9 +194,6 @@ def main() -> None:
         yt_u, yp_u = yt_aft[uncensored_mask], yp_aft[uncensored_mask]
         corr = float(np.corrcoef(yt_u, yp_u)[0, 1])
         # duplicates="drop" can collapse fewer than 3 distinct bin edges when many
-        # predictions tie (e.g. a near-degenerate fold) -- pandas then rejects the
-        # fixed 3-label list outright, so fall back to pandas' own integer bin labels
-        # rather than crash the whole report over a display label.
         try:
             terciles = pd.qcut(yp_u, q=3, labels=["low_pred", "mid_pred", "high_pred"],
                                duplicates="drop")

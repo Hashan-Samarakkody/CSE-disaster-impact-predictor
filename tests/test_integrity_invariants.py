@@ -1,15 +1,4 @@
-"""Tests for the invariants the study's credibility rests on.
-
-These are not feature tests. Each one pins a property that, if it silently broke, would
-inflate every downstream number while the pipeline still ran clean and produced
-plausible-looking output. That is the failure mode this project has already hit three
-times (an ensemble blend weighted by held-out RMSE, a fold-offset that misaligned
-predictions, labels mapping NaN to the negative class), so the invariants get tests
-rather than trust.
-
-Covered here: chronological splitting, sector-panel event grouping, event-clustered
-bootstrap, the pre-declared collinearity drop rule, and Y3 window truncation.
-"""
+"""Tests for the invariants the study's credibility rests on."""
 
 from __future__ import annotations
 
@@ -17,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.data_pipeline.preprocessor import truncate_overlapping_windows
-from src.data_pipeline.sector_panel import event_block_bootstrap, grouped_walk_forward
+from src.data.preprocessing import truncate_overlapping_windows
+from src.features.sector_panel import event_block_bootstrap, grouped_walk_forward
 from src.evaluation.collinearity import REDUNDANCY_THRESHOLD, redundant_drop_set
 from src.training.walk_forward import generate_walk_forward_splits
 
@@ -41,7 +30,7 @@ def test_walk_forward_geometry_at_the_studys_actual_size():
     splits = list(generate_walk_forward_splits(74, 30, 10, 10))
     assert len(splits) == 4
     assert sum(len(s.test_index) for s in splits) == 40
-    # Test windows must tile without overlapping -- otherwise pooled points are double
+    # Test windows must tile without overlapping, otherwise pooled points are double
     # counted and every interval is too narrow.
     pooled = np.concatenate([s.test_index for s in splits])
     assert len(pooled) == len(set(pooled))

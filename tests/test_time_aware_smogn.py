@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from src.sampling.time_aware_smogn import time_aware_smogn
+from src.training.time_aware_smogn import time_aware_smogn
 
 
 def test_smogn_keeps_onehot_types_derived_identities_and_stays_between_real_parents():

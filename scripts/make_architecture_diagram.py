@@ -1,4 +1,4 @@
-"""Render architecture/images/pipeline.png from the stage table below.
+"""Render docs/images/pipeline.png from the stage table below.
 
 Kept as a script rather than a checked-in mystery PNG so the diagram can be
 regenerated when a stage changes. Run: python scripts/make_architecture_diagram.py
@@ -13,7 +13,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
-OUT = Path(__file__).resolve().parents[1] / "architecture" / "images" / "pipeline.png"
+OUT = Path(__file__).resolve().parents[1] / "docs" / "images" / "pipeline.png"
 
 INK, BLUE, ORANGE, GREEN, GREY = "#000000", "#0072B2", "#E69F00", "#009E73", "#8C8C8C"
 

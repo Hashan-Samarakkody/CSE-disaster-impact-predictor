@@ -1,23 +1,4 @@
-"""Right-censored survival model for Y3 (recovery time).
-
-`Y3_recovery_days` is capped at 90 trading days by construction (`feature_eng.py`,
-`max_recovery_days`). Every existing regressor for this target -- Ridge, Random Forest,
-XGBoost, the MLP, and the two-stage hurdle model (`hurdle.py`) -- treats an event that
-never recovered inside the window as an *observed* value of exactly 90. That is the wrong
-likelihood for this data shape: an event capped at 90 did not necessarily recover on day
-90, it recovered on some unknown day >= 90 that the 90-day follow-up window did not reach.
-Coding it as "observed at 90" biases every point-regression loss toward underestimating
-slow recoveries, which the results audit's own numbers show (`docs/RESULTS_AUDIT.txt`,
-Y3 hurdle: RMSE 41.2 vs a naive-mean RMSE of 29.5 -- worse than doing nothing).
-
-Right-censored survival analysis is the standard fix for exactly this shape (see
-`docs/METHODOLOGY_AUDIT.md`, "Improvement attempts", for the two papers this follows):
-capped events are marked `event_observed=False` and contribute their *lower bound* on
-recovery time to the likelihood, instead of a wrong point value.
-
-The target itself is unchanged -- this is a different likelihood for the same
-`Y3_recovery_days` column, not a new target.
-"""
+"""Right-censored survival model for Y3 (recovery time)."""
 
 from __future__ import annotations
 
@@ -28,10 +9,6 @@ import pandas as pd
 
 CAP = 90.0
 # lifelines' AFT fitters require strictly positive durations. A same-day recovery (Y3=0)
-# is a real, common outcome here (the resolved value is not "the market recovered before
-# it was ever perturbed", it is "recovered same day"), so every duration is shifted by
-# half a trading day rather than dropped or floored at 1 -- this is the standard interval-
-# censoring correction for a duration recorded at daily granularity, not a tuned offset.
 DURATION_EPS = 0.5
 
 
@@ -53,10 +30,7 @@ class AFTRecoveryModel:
     def fit(self, X, y, censored=None):
         """`censored=None` infers censoring from the 90-day cap alone (`y >= cap`), the
         original behaviour. Pass the real censoring indicator explicitly (e.g.
-        `Y3_censored` from `feature_eng.build_targets`, methodology-audit finding #7)
-        when some rows are censored EARLIER than 90 days by a competing event (a later
-        qualifying disaster) -- those rows have `y < cap` but are still right-censored,
-        which `y >= cap` alone cannot detect."""
+        """
         from lifelines import LogNormalAFTFitter, WeibullAFTFitter
         from lifelines.exceptions import ConvergenceError
 
@@ -67,9 +41,6 @@ class AFTRecoveryModel:
 
         censored = (y >= self.cap) if censored is None else np.asarray(censored, dtype=bool)
         # A fold needs both event types (recovered and censored) and enough rows per
-        # feature for the AFT regression to identify anything; below that, degrade to the
-        # training mean exactly like the hurdle model does, rather than let lifelines
-        # raise on a degenerate design matrix.
         if len(y) < 8 or censored.all() or (~censored).sum() < 4:
             self.degenerate_ = True
             return self
@@ -125,9 +96,6 @@ class AFTRecoveryModel:
         median = np.nan_to_num(median, nan=self.cap * 10, posinf=self.cap * 10)
         censored = (y >= self.cap) if censored is None else np.asarray(censored, dtype=bool)
         # lifelines' convention: predicted_scores should be concordant with the duration
-        # itself (higher score = longer predicted survival), so the predicted median
-        # duration is passed directly, not negated (negation is only for hazard/risk
-        # scores, which point the opposite way -- see lifelines' own Cox example).
         return float(concordance_index(y, median, event_observed=~censored))
 
 
