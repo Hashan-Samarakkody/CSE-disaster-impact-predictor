@@ -21,9 +21,10 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.config.settings import (  # noqa: E402
     ARTIFACT_DIR, CSE_MARKET_INDICES_FILE, DATA_DIR, EMDAT_DISASTERS_FILE,
-    EXTERNAL_DATA_DIR, FIGURE_DIR, LABEL_END_DATE_COL, PROJECT_ROOT, RANDOM_STATE,
-    RAW_DATA_DIR, TARGET_BOUNDS, TARGET_COLS, TARGET_LABEL_END_DATE_COL,
-    clip_to_bounds, ensure_output_directories)
+    EXTERNAL_DATA_DIR, FIGURE_DIR, LABEL_END_DATE_COL, NON_FEATURE_COLS, PROJECT_ROOT,
+    RANDOM_STATE, RAW_DATA_DIR, TARGET_BOUNDS, TARGET_COLS,
+    TARGET_LABEL_END_DATE_COL, assert_no_target_leakage, clip_to_bounds,
+    ensure_output_directories)
 from src.training.inner_cv import purged_inner_cv  # noqa: E402
 from src.training.walk_forward import (  # noqa: E402
     MEDIAN_IMPUTE_COLS, median_impute_from_train)
@@ -39,6 +40,7 @@ __all__ = [
     "EXTERNAL_DATA_DIR", "ARTIFACT_DIR", "FIGURE_DIR",
     "CSE_MARKET_INDICES_FILE", "EMDAT_DISASTERS_FILE",
     "RANDOM_STATE", "TARGET_COLS", "TARGET_BOUNDS", "clip_to_bounds",
+    "NON_FEATURE_COLS", "assert_no_target_leakage",
     "TARGET_LABEL_END_DATE_COL", "LABEL_END_DATE_COL", "purged_inner_cv",
     "MEDIAN_IMPUTE_COLS", "median_impute_from_train",
     "artifact_file", "save_frame", "load_frame", "save_object", "load_object",

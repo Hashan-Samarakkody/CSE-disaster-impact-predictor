@@ -132,7 +132,7 @@ def test_build_targets_caps_recovery_days_at_90():
     targets = fe.build_targets(market_df, disaster_df)
 
     assert len(targets) == 1
-    assert targets.iloc[0]["Y3_recovery_days"] == 90.0
+    assert targets.iloc[0]["Y3_ASPI_Recovery_Time"] == 90.0
 
 
 def test_y3_censored_early_by_a_later_qualifying_disaster():
@@ -155,13 +155,13 @@ def test_y3_censored_early_by_a_later_qualifying_disaster():
     first, second = targets.iloc[0], targets.iloc[1]
     # First event's search is cut short at the second event's own reference session
     # (30 trading days later), not the full 90-day cap.
-    assert first["Y3_recovery_days"] == 30.0
+    assert first["Y3_ASPI_Recovery_Time"] == 30.0
     assert bool(first["Y3_censored"]) is True
     assert first["Y3_censor_reason"] == "next_disaster"
 
     # Second (last) event has no competing event after it, so the ordinary 90-day cap
     # still applies.
-    assert second["Y3_recovery_days"] == 90.0
+    assert second["Y3_ASPI_Recovery_Time"] == 90.0
     assert bool(second["Y3_censored"]) is True
     assert second["Y3_censor_reason"] == "cap_90"
 
@@ -179,7 +179,7 @@ def test_y3_genuine_recovery_before_a_later_disaster_is_not_censored():
 
     targets = FeatureEngineer().build_targets(market_df, disaster_df)
     first = targets.iloc[0]
-    assert first["Y3_recovery_days"] == 5.0
+    assert first["Y3_ASPI_Recovery_Time"] == 5.0
     assert bool(first["Y3_censored"]) is False
     assert first["Y3_censor_reason"] == "recovered"
 
@@ -203,7 +203,7 @@ def test_y3_delayed_crash_after_a_resilient_event_day_is_not_missed():
     # Pre-finding#11 behaviour would have scored this Y3=0 (event-day close >= baseline)
     # and never noticed the day 21-22 crash at all.
     assert bool(first["Y3_drawdown_occurred"]) is True
-    assert first["Y3_recovery_days"] == 3.0
+    assert first["Y3_ASPI_Recovery_Time"] == 3.0
     assert bool(first["Y3_censored"]) is False
     assert first["Y3_censor_reason"] == "recovered"
 
@@ -222,7 +222,7 @@ def test_y3_is_zero_only_when_no_drawdown_occurs_in_the_gate_window():
     targets = FeatureEngineer().build_targets(market_df, disaster_df)
     first = targets.iloc[0]
     assert bool(first["Y3_drawdown_occurred"]) is False
-    assert first["Y3_recovery_days"] == 0.0
+    assert first["Y3_ASPI_Recovery_Time"] == 0.0
     assert bool(first["Y3_censored"]) is False
     assert first["Y3_censor_reason"] == "recovered"
 
@@ -248,7 +248,7 @@ def test_car_targets_accumulate_from_the_pre_event_close():
     # Y1 = 100 * ln(P[pos+5] / P[pos-1]) (methodology-audit finding #8, 2026-09-16:
     expected_car = float(100.0 * np.log(110.0 / 100.0))
     assert t.Y1_ASPI_5D_Forward_LogReturn_Pct == pytest.approx(expected_car)
-    assert t.Y1_EventWindow_0_10_LogReturn_Pct == pytest.approx(expected_car)
+    assert t.Y1_ASPI_10D_Forward_LogReturn_Pct == pytest.approx(expected_car)
 
 
 def test_y1_now_includes_the_day0_reaction_pre_event_denominator():
@@ -276,7 +276,7 @@ def test_car_is_nan_rather_than_a_truncated_window():
                            "trading_volume": 1e6})
     events = pd.DataFrame({"event_date": [days[10]]})   # only 3 rows remain after it
     t = FeatureEngineer(FeatureEngineeringConfig()).build_targets(market, events).iloc[0]
-    assert np.isnan(t.Y1_ASPI_5D_Forward_LogReturn_Pct) and np.isnan(t.Y1_EventWindow_0_10_LogReturn_Pct)
+    assert np.isnan(t.Y1_ASPI_5D_Forward_LogReturn_Pct) and np.isnan(t.Y1_ASPI_10D_Forward_LogReturn_Pct)
 
 
 def test_inclusion_threshold_is_read_from_config():

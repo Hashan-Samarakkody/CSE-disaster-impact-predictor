@@ -112,7 +112,7 @@ class FeatureEngineer:
             df[f"rolling_std_{window}"] = shifted_returns.rolling(window=window, min_periods=window).std()
 
         # Dedicated 30-day panic-proxy volatility, distinct from the momentum windows above:
-        # this is the window that mirrors the 30-day volume baseline used for Y2.
+        # this is the window that mirrors the 30-session pre-event volume baseline in Y2.
         df["rolling_std_30"] = shifted_returns.rolling(window=30, min_periods=30).std()
 
         df["squared_return"] = df["log_return"] ** 2

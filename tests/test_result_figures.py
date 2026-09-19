@@ -11,7 +11,7 @@ from src.visualization import result_figures as fx
 from src.evaluation.metrics import pooled_frame
 from src.training.walk_forward import generate_walk_forward_splits
 
-TARGETS = ["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_abnormal_volume", "Y3_recovery_days"]
+TARGETS = ["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_5D_Forward_AbnormalVolume_LogRatio", "Y3_ASPI_Recovery_Time"]
 
 
 def _bundle(n_events=40, n_folds_cfg=(20, 10, 10)):
@@ -34,10 +34,10 @@ def _bundle(n_events=40, n_folds_cfg=(20, 10, 10)):
     })
     y = pd.DataFrame({
         "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n_events),
-        "Y2_abnormal_volume": rng.normal(0, 0.58, n_events),
-        "Y3_recovery_days": np.clip(rng.exponential(12, n_events).round(), 0, 90),
+        "Y2_5D_Forward_AbnormalVolume_LogRatio": rng.normal(0, 0.58, n_events),
+        "Y3_ASPI_Recovery_Time": np.clip(rng.exponential(12, n_events).round(), 0, 90),
     })
-    y.loc[y.index[:3], "Y2_abnormal_volume"] = np.nan  # mirrors the 3 real missing events
+    y.loc[y.index[:3], "Y2_5D_Forward_AbnormalVolume_LogRatio"] = np.nan  # mirrors the 3 real missing events
     dataset = pd.concat([dataset, y], axis=1)
 
     feature_cols = ["financial_damage", "log_financial_damage", "log_return",

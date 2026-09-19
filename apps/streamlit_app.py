@@ -316,17 +316,17 @@ st.caption(
 )
 
 st.markdown(f"### {icon('healing')}Y3 recovery days: two competing models", unsafe_allow_html=True)
-actual_y3 = real_row["Y3_recovery_days"]
+actual_y3 = real_row["Y3_ASPI_Recovery_Time"]
 hurdle_pred = bundle.predict_hurdle(feature_row)
 mui_tiles([
-    ("model_training", "Single-stage RF (above table)", f"{reg_pred['Y3_recovery_days']:.1f} days"),
+    ("model_training", "Single-stage RF (above table)", f"{reg_pred['Y3_ASPI_Recovery_Time']:.1f} days"),
     ("layers", "Two-stage hurdle model", f"{hurdle_pred:.1f} days"),
     ("fact_check", "Actual (real event)",
      f"{actual_y3:.0f} days" if pd.notna(actual_y3) else "n/a"),
 ])
 st.plotly_chart(grouped_bar(
     ["Y3 recovery days"],
-    {"Single-stage RF": [reg_pred["Y3_recovery_days"]], "Hurdle model": [hurdle_pred],
+    {"Single-stage RF": [reg_pred["Y3_ASPI_Recovery_Time"]], "Hurdle model": [hurdle_pred],
      "Actual": [float(actual_y3) if pd.notna(actual_y3) else 0.0]},
     {"Single-stage RF": PRIMARY, "Hurdle model": WARN, "Actual": GOOD},
     "Recovery-day estimates",

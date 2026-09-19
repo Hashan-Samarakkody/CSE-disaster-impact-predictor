@@ -20,14 +20,14 @@ pd.set_option("display.width", 250)
 # Source: git show 85590a8:...notebooks/04_modeling_regression.ipynb executed output.
 BASELINE_R2 = {
     ("ridge", "Y1_ASPI_5D_Forward_LogReturn_Pct"): -0.5338,
-    ("ridge", "Y2_abnormal_volume"): 0.1307,
-    ("ridge", "Y3_recovery_days"): -0.1853,
+    ("ridge", "Y2_5D_Forward_AbnormalVolume_LogRatio"): 0.1307,
+    ("ridge", "Y3_ASPI_Recovery_Time"): -0.1853,
     ("random_forest", "Y1_ASPI_5D_Forward_LogReturn_Pct"): -0.3151,
-    ("random_forest", "Y2_abnormal_volume"): -0.1221,
-    ("random_forest", "Y3_recovery_days"): -0.1608,
+    ("random_forest", "Y2_5D_Forward_AbnormalVolume_LogRatio"): -0.1221,
+    ("random_forest", "Y3_ASPI_Recovery_Time"): -0.1608,
     ("xgboost", "Y1_ASPI_5D_Forward_LogReturn_Pct"): -1.7660,
-    ("xgboost", "Y2_abnormal_volume"): -0.4630,
-    ("xgboost", "Y3_recovery_days"): -0.1693,
+    ("xgboost", "Y2_5D_Forward_AbnormalVolume_LogRatio"): -0.4630,
+    ("xgboost", "Y3_ASPI_Recovery_Time"): -0.1693,
 }
 # Source: git show 85590a8:...notebooks/05_modeling_classification.ipynb executed output.
 BASELINE_C2 = pd.DataFrame([
@@ -182,7 +182,7 @@ def main():
     print(f"financial_damage real (the variable they were added to replace): "
           f"{int((ds.financial_damage > 0).sum())}/{len(ds)}")
     print(f"DesInventar matched: {int(ds.di_available.sum())}/{len(ds)}")
-    for t in ("Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_abnormal_volume", "Y3_recovery_days"):
+    for t in ("Y1_ASPI_5D_Forward_LogReturn_Pct", "Y2_5D_Forward_AbnormalVolume_LogRatio", "Y3_ASPI_Recovery_Time"):
         print(f"  {t}: {int(ds[t].notna().sum())}/{len(ds)} observed")
 
 

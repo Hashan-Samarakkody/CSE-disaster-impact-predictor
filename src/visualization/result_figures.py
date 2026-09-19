@@ -39,18 +39,18 @@ H_SHORT, H_MED, H_TALL = 2.4, 3.6, 5.0
 # absorbing EventWindow_0_5's formula, there is no separate CAR[0,+5] entry below.
 TARGET_LABELS = {
     "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · 5-day cumulative return from pre-event close",
-    "Y2_abnormal_volume": "Y2 · abnormal volume (V / 30-day mean − 1)",
-    "Y3_recovery_days": "Y3 · recovery time (trading days, capped 90)",
-    "Y1_EventWindow_0_10_LogReturn_Pct": "CAR[0,+10] · cumulative return, 10 trading days",
+    "Y2_5D_Forward_AbnormalVolume_LogRatio": "Y2 · abnormal volume (V / 30-day mean − 1)",
+    "Y3_ASPI_Recovery_Time": "Y3 · recovery time (trading days, capped 90)",
+    "Y1_ASPI_10D_Forward_LogReturn_Pct": "CAR[0,+10] · cumulative return, 10 trading days",
 }
 # Short forms for multi-panel figures, where the full labels collide.
 SHORT_TARGET_LABELS = {
     "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · CAR[0,+5]",
-    "Y2_abnormal_volume": "Y2 · abnormal volume",
-    "Y3_recovery_days": "Y3 · recovery days",
+    "Y2_5D_Forward_AbnormalVolume_LogRatio": "Y2 · abnormal volume",
+    "Y3_ASPI_Recovery_Time": "Y3 · recovery days",
     "Y1_sector_log_return": "Y1 · sector log return",
     "Y3_sector_recovery_days": "Y3 · sector recovery",
-    "Y1_EventWindow_0_10_LogReturn_Pct": "CAR[0,+10]",
+    "Y1_ASPI_10D_Forward_LogReturn_Pct": "CAR[0,+10]",
 }
 
 MODEL_LABELS = {
@@ -165,7 +165,7 @@ def plot_target_distributions(dataset, target_cols, bins: int = 20):
         ax2.ecdf(v, color=PALETTE["vermil"], marker=None, linestyle="-")
         ax2.set_ylabel("ECDF" if j == 0 else "")
         ax2.set_ylim(0, 1)
-        if t == "Y3_recovery_days":
+        if t == "Y3_ASPI_Recovery_Time":
             p0, p90 = float(np.mean(v == 0)), float(np.mean(v >= 90))
             ax2.annotate(f"P(Y3=0) = {p0:.2f}\nP(Y3=90) = {p90:.2f}", xy=(0.45, 0.25),
                          xycoords="axes fraction", fontsize=7)
@@ -176,7 +176,7 @@ def plot_target_distributions(dataset, target_cols, bins: int = 20):
     return fig
 
 
-def plot_target_dependence_y1_y3(dataset, y1="Y1_ASPI_5D_Forward_LogReturn_Pct", y3="Y3_recovery_days"):
+def plot_target_dependence_y1_y3(dataset, y1="Y1_ASPI_5D_Forward_LogReturn_Pct", y3="Y3_ASPI_Recovery_Time"):
     """Make the `Y3 = 0 <=> Y1 >= 0` identity visible rather than only asserted in prose."""
     import matplotlib.pyplot as plt
 

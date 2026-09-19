@@ -10,7 +10,7 @@ import pytest
 from src.utils.artifact_store import artifact_file
 
 BASELINE = artifact_file("frozen_baseline.json")
-TARGET = "Y2_abnormal_volume"
+TARGET = "Y2_5D_Forward_AbnormalVolume_LogRatio"
 
 # Float tolerance. Y2's own scale is ~0.5 (a volume ratio), so 1e-9 is far below any
 # numerically meaningful change while still absorbing platform float noise.

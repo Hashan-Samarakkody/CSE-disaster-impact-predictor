@@ -112,7 +112,7 @@ def main():
     data = pd.read_parquet(artifact_file("dataset.parquet")).reset_index(drop=True)
     feature_cols = json.loads((artifact_file("feature_spec.json")).read_text())["FEATURE_COLS"]
     event_dates = pd.to_datetime(data["event_date"])
-    y = data["Y3_recovery_days"].to_numpy(float)
+    y = data["Y3_ASPI_Recovery_Time"].to_numpy(float)
     observed = ~data["Y3_censored"].to_numpy(bool)
     drawdown = data["Y3_drawdown_occurred"].to_numpy(bool)
     end_dates = data["Y3_label_end_date"]

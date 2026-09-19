@@ -86,7 +86,7 @@ def test_y3_durations_and_censoring_match_the_frozen_dataset(y3_oof):
     for model, g in y3_oof.groupby("model"):
         rows = g["row"].to_numpy()
         np.testing.assert_allclose(g["duration"].to_numpy(float),
-                                   data["Y3_recovery_days"].to_numpy(float)[rows],
+                                   data["Y3_ASPI_Recovery_Time"].to_numpy(float)[rows],
                                    err_msg=model)
         assert (g["event_observed"].to_numpy() ==
                 ~data["Y3_censored"].to_numpy(bool)[rows]).all(), model

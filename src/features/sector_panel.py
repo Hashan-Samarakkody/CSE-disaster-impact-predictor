@@ -51,9 +51,9 @@ def build_sector_panel(sector_long: pd.DataFrame, events: pd.DataFrame,
     panel = panel.merge(events[["event_date"] + disaster_cols], on="event_date", how="left")
     # Y1_EventWindow_0_5_LogReturn_Pct no longer exists as a separate column
     panel = panel.rename(columns={"Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1_sector_log_return",
-                                  "Y3_recovery_days": "Y3_sector_recovery_days",
-                                  "Y1_EventWindow_0_10_LogReturn_Pct": "Y1_sector_car_10"})
-    panel = panel.drop(columns=[c for c in ("Y2_abnormal_volume",) if c in panel.columns])
+                                  "Y3_ASPI_Recovery_Time": "Y3_sector_recovery_days",
+                                  "Y1_ASPI_10D_Forward_LogReturn_Pct": "Y1_sector_car_10"})
+    panel = panel.drop(columns=[c for c in ("Y2_5D_Forward_AbnormalVolume_LogRatio",) if c in panel.columns])
 
     # event_id groups the rows that must never be split across a fold boundary.
     codes = {d: i for i, d in enumerate(sorted(panel["event_date"].unique()))}
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     panel = build_sector_panel(long, events)
     assert len(panel) == len(sectors) * len(events), len(panel)
     assert {"Y1_sector_log_return", "Y3_sector_recovery_days", "sector", "event_id"} <= set(panel.columns)
-    assert "Y2_abnormal_volume" not in panel.columns
+    assert "Y2_5D_Forward_AbnormalVolume_LogRatio" not in panel.columns
 
     folds = list(grouped_walk_forward(panel, train_events=2, test_events=1, step=1))
     assert folds, "expected at least one fold"

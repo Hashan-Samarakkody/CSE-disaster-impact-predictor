@@ -30,8 +30,11 @@ The repository has exactly three research targets. They are defined in
    event close over five trading sessions: 100 ln(P at t plus 5 divided by P at t minus 1),
    where t is the first trading session on or after the disaster date.
 2. **Volume crash magnitude**, column `Y2_abnormal_volume`, computed by
-   `calculate_volume_crash_magnitude`. Event day traded volume relative to its own trailing
-   thirty session mean, minus one.
+   `calculate_volume_crash_magnitude`. Mean traded volume over the five post event sessions
+   t0 to t0+4, with t0 counted as the first, relative to its own trailing thirty session
+   mean, minus one. Its label end date is the final session of that window, t0 plus four,
+   not t0: the walk forward purge reads it, and dating it at t0 would leave training rows
+   whose window overlaps the test period unpurged.
 3. **Market recovery days**, column `Y3_recovery_days`, computed by
    `calculate_market_recovery_days`. The number of trading sessions until the index regains
    its pre event level, right censored at ninety sessions or at the next qualifying

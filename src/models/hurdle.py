@@ -36,7 +36,10 @@ class HurdleRecoveryModel:
             self.degenerate_ = True
             return self
 
-        self.classifier.fit(X, recovered.astype(int))
+        # np.asarray so stage 1 is fitted the same way it is predicted (predict()
+        # converts too) -- a DataFrame here made sklearn warn about missing
+        # feature names on every predict call.
+        self.classifier.fit(np.asarray(X), recovered.astype(int))
         self.regressor.fit(np.asarray(X)[recovered], np.log1p(y[recovered]))
         return self
 
