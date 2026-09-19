@@ -112,7 +112,7 @@ def main() -> None:
     # safety-net zero-fill only (methodology-audit finding #14, matching notebook 04).
     _non_median_cols = [c for c in feature_cols if c not in MEDIAN_IMPUTE_COLS]
     X_all[_non_median_cols] = X_all[_non_median_cols].fillna(0.0)
-    y_all = dataset[["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y3_recovery_days"]].copy()
+    y_all = dataset[["Y1_ASPI_5D_Forward_LogReturn_Pct", "Y3_ASPI_Recovery_Time"]].copy()
     dates_all = dataset["event_date"]
     horizon_end_all = dataset["Y1_horizon_end_date"]
     gdp_all = dataset["gdp_current_usd"] if "gdp_current_usd" in dataset.columns else None

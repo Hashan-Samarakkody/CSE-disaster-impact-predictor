@@ -23,7 +23,7 @@ from src.utils.artifact_store import artifact_file
 
 ARTIFACTS = ROOT / "artifacts"
 RANDOM_STATE = 42
-TARGET = "Y3_recovery_days"
+TARGET = "Y3_ASPI_Recovery_Time"
 CAP = FeatureEngineeringConfig().max_recovery_days
 TRAIN_WINDOW, TEST_WINDOW, STEP = 30, 10, 10  # identical to notebook 02's cached `splits`
 
@@ -151,7 +151,7 @@ def main() -> None:
         yt_aft, yp_aft, lambda a, b: rmse_fn(a, yp_mean[: len(a)]) - rmse_fn(a, b))
 
     print("=" * 100)
-    print(f"Y3_recovery_days -- AFT survival model vs point-regression baselines "
+    print(f"Y3_ASPI_Recovery_Time -- AFT survival model vs point-regression baselines "
           f"(n={len(yt_aft)} pooled test points)")
     print("=" * 100)
     print(f"{'model':>20s} {'n':>4s} {'RMSE':>9s} {'MAE':>9s} {'pooled_R2':>10s}")

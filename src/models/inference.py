@@ -20,9 +20,9 @@ DISASTER_TYPES = ["Drought", "Flood", "Other", "Storm"]
 # Y1's description was stale twice over before this fix (methodology-audit findings #1
 TARGET_LABELS = {
     "Y1_ASPI_5D_Forward_LogReturn_Pct": "5-day cumulative return from the pre-event close",
-    "Y2_abnormal_volume": "Abnormal trading volume (V / 30d avg - 1)",
-    "Y3_recovery_days": "Recovery time (trading days, capped at 90)",
-    "Y1_EventWindow_0_10_LogReturn_Pct": "10-day cumulative return",
+    "Y2_5D_Forward_AbnormalVolume_LogRatio": "Forward abnormal volume, ln(mean V1..V5 / V_base)",
+    "Y3_ASPI_Recovery_Time": "Recovery time (trading sessions, right-censored at 90)",
+    "Y1_ASPI_10D_Forward_LogReturn_Pct": "10-day cumulative return",
 }
 
 # C1/C1b's "day-0" descriptions were also stale (same fix, finding #8), there is no
@@ -60,9 +60,9 @@ class ModelBundle:
 
         self.target_bounds = {
             "Y1_ASPI_5D_Forward_LogReturn_Pct": (None, None),
-            "Y2_abnormal_volume": (-1.0, None),
-            "Y3_recovery_days": (0.0, 90.0),
-            "Y1_EventWindow_0_10_LogReturn_Pct": (None, None),
+            "Y2_5D_Forward_AbnormalVolume_LogRatio": (None, None),
+            "Y3_ASPI_Recovery_Time": (0.0, 90.0),
+            "Y1_ASPI_10D_Forward_LogReturn_Pct": (None, None),
         }
 
     # ------------------------------------------------------------ events

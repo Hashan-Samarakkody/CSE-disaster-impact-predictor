@@ -40,45 +40,79 @@ MARKET_CAPITALIZATION_FILE = EXTERNAL_DATA_DIR / "cse_market_capitalization.csv"
 
 RANDOM_STATE = 42
 
-# The three research targets. Column names are frozen: they appear inside cached
-# artifacts and inside the regression test that holds the volume target fixed.
+# The three research targets, per docs/TARGET_DEFINITION_PROTOCOL.md (frozen 2026-09-19
+# at commit 928a255, before any performance under these definitions was observed).
+#
+#   Y1 = 100 * ln(P5 / P0)                              percent, unbounded
+#   Y2 = ln( mean(V1..V5) / mean(V_-30..V_-1) )         log ratio, unbounded
+#   Y3 = sessions to recovery, right-censored           [0, 90], time-to-event
+#
+# P0 is the last close BEFORE the prediction origin; P1..P5 and V1..V5 are the first five
+# complete sessions after it.
 ASPI_PERCENTAGE_CHANGE = "Y1_ASPI_5D_Forward_LogReturn_Pct"
-VOLUME_CRASH_MAGNITUDE = "Y2_abnormal_volume"
-MARKET_RECOVERY_DAYS = "Y3_recovery_days"
+VOLUME_CRASH_MAGNITUDE = "Y2_5D_Forward_AbnormalVolume_LogRatio"
+MARKET_RECOVERY_DAYS = "Y3_ASPI_Recovery_Time"
 
-# Pre registered ten session horizon variant of the ASPI target. It is a sensitivity
-# analysis of target one, not a fourth research target.
-ASPI_PERCENTAGE_CHANGE_10D = "Y1_EventWindow_0_10_LogReturn_Pct"
+# Pre registered horizon sensitivity analyses of target one. Never promoted to primary.
+ASPI_PERCENTAGE_CHANGE_10D = "Y1_ASPI_10D_Forward_LogReturn_Pct"
+ASPI_SENSITIVITY_COLS = [f"Y1_ASPI_{h}D_Forward_LogReturn_Pct" for h in (10, 15, 20)]
 
 TARGET_COLS = [ASPI_PERCENTAGE_CHANGE, VOLUME_CRASH_MAGNITUDE, MARKET_RECOVERY_DAYS,
                ASPI_PERCENTAGE_CHANGE_10D]
 
-# Definitional support of each target, from thesis section 3.2.2. Clipping a
-# prediction to these bounds can never increase its absolute error.
+# Columns kept so every target can be recomputed by hand. Never predictors.
+TARGET_AUDIT_COLS = ["prediction_origin_session", "P0", "Y2_V_base", "Y2_V_future5"]
+
+# Definitional support. Y2 is a LOG ratio now, so it is unbounded below.
 TARGET_BOUNDS = {
     ASPI_PERCENTAGE_CHANGE: (None, None),
-    VOLUME_CRASH_MAGNITUDE: (-1.0, None),
+    VOLUME_CRASH_MAGNITUDE: (None, None),
     MARKET_RECOVERY_DAYS: (0.0, 90.0),
     ASPI_PERCENTAGE_CHANGE_10D: (None, None),
 }
 
-# The session on which each target's label becomes known. Used only to purge
-# training rows whose label reaches into a test period.
+# The session on which each target's label becomes known. The walk forward purge reads
+# these; Y2's is the session of V5, not the prediction origin.
 TARGET_LABEL_END_DATE_COL = {
     ASPI_PERCENTAGE_CHANGE: "Y1_horizon_end_date",
-    ASPI_PERCENTAGE_CHANGE_10D: "Y1_EventWindow_0_10_horizon_end_date",
-    VOLUME_CRASH_MAGNITUDE: "Y2_label_end_date",
+    ASPI_PERCENTAGE_CHANGE_10D: "Y1_10D_horizon_end_date",
+    VOLUME_CRASH_MAGNITUDE: "Y2_horizon_end_date",
     MARKET_RECOVERY_DAYS: "Y3_label_end_date",
 }
 
-# Same mapping keyed by the classification label derived from each target.
 LABEL_END_DATE_COL = {
+    # C0 is the protocol's stage-1 label: D is decided by P1..P5, so its label closes on
+    # the same session as Y1's five-session horizon.
+    "C0_drawdown_occurs": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
     "C1_negative_return": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
     "C1b_adverse_move": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
     "C2_volume_spike": TARGET_LABEL_END_DATE_COL[VOLUME_CRASH_MAGNITUDE],
     "C3_recovers_in_90": TARGET_LABEL_END_DATE_COL[MARKET_RECOVERY_DAYS],
     "C3b_slow_recovery": TARGET_LABEL_END_DATE_COL[MARKET_RECOVERY_DAYS],
 }
+
+
+# Every column that is an outcome, a constituent of an outcome, or a bookkeeping date --
+# i.e. everything a predictor must never be built from. Feature construction is a
+# denylist, so a target-family column missing from this set is silently admitted as a
+# feature; that is exactly how Y2_V_future5 (the numerator of Y2) and the 15/20-session
+# forward returns reached the model on 2026-09-19. One set, so a new target column
+# cannot be added to the dataset without also landing here.
+NON_FEATURE_COLS = (
+    set(TARGET_COLS)
+    | set(ASPI_SENSITIVITY_COLS)        # 10/15/20D forward returns share P0 with Y1
+    | set(TARGET_AUDIT_COLS)            # P0, V_base, V_future5, prediction_origin_session
+    | set(TARGET_LABEL_END_DATE_COL.values())
+    | {f"Y1_{h}D_horizon_end_date" for h in (10, 15, 20)}
+    | {"Y3_event_observed", "Y3_censored", "Y3_censor_reason", "Y3_drawdown_occurred"}
+)
+
+
+def assert_no_target_leakage(feature_cols) -> None:
+    """Raise if any outcome-derived column reached the feature set."""
+    leaked = sorted(set(feature_cols) & NON_FEATURE_COLS)
+    if leaked:
+        raise AssertionError(f"outcome columns leaked into FEATURE_COLS: {leaked}")
 
 
 def clip_to_bounds(target: str, values):

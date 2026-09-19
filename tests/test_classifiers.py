@@ -14,10 +14,10 @@ def _targets(n=64, seed=0):
     rng = np.random.default_rng(seed)
     return pd.DataFrame({
         "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n),
-        "Y2_abnormal_volume": rng.normal(-0.13, 0.58, n),
-        "Y3_recovery_days": np.where(rng.random(n) < 0.14, 90.0, rng.exponential(6, n).round()),
-        # Y1_EventWindow_0_10_LogReturn_Pct: cumulative event-window return, added
-        "Y1_EventWindow_0_10_LogReturn_Pct": rng.normal(0, 0.04, n),
+        "Y2_5D_Forward_AbnormalVolume_LogRatio": rng.normal(-0.13, 0.58, n),
+        "Y3_ASPI_Recovery_Time": np.where(rng.random(n) < 0.14, 90.0, rng.exponential(6, n).round()),
+        # Y1_ASPI_10D_Forward_LogReturn_Pct: cumulative event-window return, added
+        "Y1_ASPI_10D_Forward_LogReturn_Pct": rng.normal(0, 0.04, n),
     })
 
 
@@ -98,7 +98,7 @@ def test_hurdle_degrades_gracefully_when_a_fold_has_no_censoring():
 def test_recovers_in_90_is_the_censoring_indicator():
     y = _targets()
     lab = label_recovers_in_90(y)
-    assert np.array_equal(lab.to_numpy(), (y["Y3_recovery_days"] < 90).astype(float).to_numpy())
+    assert np.array_equal(lab.to_numpy(), (y["Y3_ASPI_Recovery_Time"] < 90).astype(float).to_numpy())
 
 
 def test_verification_tests_agree_on_an_obvious_win_and_an_obvious_tie():
@@ -122,8 +122,8 @@ def test_labels_propagate_missing_targets_instead_of_asserting_the_negative_clas
 
     y = pd.DataFrame({
         "Y1_ASPI_5D_Forward_LogReturn_Pct": [0.01, -0.01, 0.02, -0.02],
-        "Y2_abnormal_volume": [0.5, -0.3, np.nan, np.nan],
-        "Y3_recovery_days": [0.0, 90.0, 5.0, 90.0],
+        "Y2_5D_Forward_AbnormalVolume_LogRatio": [0.5, -0.3, np.nan, np.nan],
+        "Y3_ASPI_Recovery_Time": [0.0, 90.0, 5.0, 90.0],
     })
     train_idx = np.arange(4)
 
@@ -145,8 +145,8 @@ def test_missing_labels_are_dropped_by_a_notna_mask():
 
     y = pd.DataFrame({
         "Y1_ASPI_5D_Forward_LogReturn_Pct": [0.01] * 6,
-        "Y2_abnormal_volume": [0.5, -0.3, np.nan, 0.2, np.nan, -0.1],
-        "Y3_recovery_days": [0.0] * 6,
+        "Y2_5D_Forward_AbnormalVolume_LogRatio": [0.5, -0.3, np.nan, 0.2, np.nan, -0.1],
+        "Y3_ASPI_Recovery_Time": [0.0] * 6,
     })
     labels = LABELS["C2_volume_spike"](y, np.arange(6), None)
     kept = np.arange(6)[labels.notna().to_numpy()]
@@ -167,9 +167,9 @@ def test_new_labels_are_registered_and_balanced():
     n = 40
     y = pd.DataFrame({
         "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n),
-        "Y2_abnormal_volume": rng.normal(0, 0.5, n),
-        "Y3_recovery_days": np.arange(n, dtype=float),      # 0..39, median 19.5
-        "Y1_EventWindow_0_10_LogReturn_Pct": rng.normal(0, 0.04, n),
+        "Y2_5D_Forward_AbnormalVolume_LogRatio": rng.normal(0, 0.5, n),
+        "Y3_ASPI_Recovery_Time": np.arange(n, dtype=float),      # 0..39, median 19.5
+        "Y1_ASPI_10D_Forward_LogReturn_Pct": rng.normal(0, 0.04, n),
     })
     train_idx = np.arange(n)
 
@@ -191,10 +191,10 @@ def test_slow_recovery_cut_comes_from_training_rows_only():
     # full column would sit far above the training median and mislabel the training rows.
     y = pd.DataFrame({
         "Y1_ASPI_5D_Forward_LogReturn_Pct": np.zeros(20),
-        "Y2_abnormal_volume": np.zeros(20),
-        "Y3_recovery_days": np.concatenate([np.arange(10, dtype=float),
+        "Y2_5D_Forward_AbnormalVolume_LogRatio": np.zeros(20),
+        "Y3_ASPI_Recovery_Time": np.concatenate([np.arange(10, dtype=float),
                                             np.full(10, 500.0)]),
-        "Y1_EventWindow_0_10_LogReturn_Pct": np.zeros(20),
+        "Y1_ASPI_10D_Forward_LogReturn_Pct": np.zeros(20),
     })
     lab = LABELS["C3b_slow_recovery"](y, np.arange(10))   # train on the first 10 only
     assert lab.iloc[:10].mean() == pytest.approx(0.5)      # median of 0..9 is 4.5
@@ -209,9 +209,9 @@ def test_new_labels_propagate_missing_targets():
 
     y = pd.DataFrame({
         "Y1_ASPI_5D_Forward_LogReturn_Pct": [0.01] * 4,
-        "Y2_abnormal_volume": [0.1] * 4,
-        "Y3_recovery_days": [1.0, 2.0, np.nan, 4.0],
-        "Y1_EventWindow_0_10_LogReturn_Pct": [0.0] * 4,
+        "Y2_5D_Forward_AbnormalVolume_LogRatio": [0.1] * 4,
+        "Y3_ASPI_Recovery_Time": [1.0, 2.0, np.nan, 4.0],
+        "Y1_ASPI_10D_Forward_LogReturn_Pct": [0.0] * 4,
     })
     assert LABELS["C3b_slow_recovery"](y, np.arange(4)).isna().sum() == 1
 

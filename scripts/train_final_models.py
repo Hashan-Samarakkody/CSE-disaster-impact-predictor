@@ -73,7 +73,7 @@ def fit_final_classifiers(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFram
 
 
 def fit_final_hurdle(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFrame) -> dict:
-    target = "Y3_recovery_days"
+    target = "Y3_ASPI_Recovery_Time"
     ok = y[target].notna().to_numpy()
     y_ok = y.loc[ok, target].to_numpy()
     # Real competing-risk censoring indicator (methodology-audit finding #7), not

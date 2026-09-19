@@ -20,9 +20,9 @@ def evaluate_regression(y_true, y_pred):
 # increase on any point.
 TARGET_BOUNDS = {
     "Y1_ASPI_5D_Forward_LogReturn_Pct": (None, None),
-    "Y2_abnormal_volume": (-1.0, None),
-    "Y3_recovery_days": (0.0, 90.0),
-    "Y1_EventWindow_0_10_LogReturn_Pct": (None, None),
+    "Y2_5D_Forward_AbnormalVolume_LogRatio": (None, None),
+    "Y3_ASPI_Recovery_Time": (0.0, 90.0),
+    "Y1_ASPI_10D_Forward_LogReturn_Pct": (None, None),
 }
 
 
@@ -205,7 +205,7 @@ if __name__ == "__main__":
 
     # Clipping is a projection onto the target's support: every true value already
     # lies inside it, so absolute error can never increase.
-    clipped = clip_to_bounds("Y3_recovery_days", np.array([-5.0, 45.0, 200.0]))
+    clipped = clip_to_bounds("Y3_ASPI_Recovery_Time", np.array([-5.0, 45.0, 200.0]))
     assert list(clipped) == [0.0, 45.0, 90.0], clipped
 
     print("metrics.py self-check passed")

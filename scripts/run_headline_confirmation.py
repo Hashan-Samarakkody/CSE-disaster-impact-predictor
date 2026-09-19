@@ -204,7 +204,7 @@ def main():
     print("Y2 -- best current model (random_forest, collinearity-drop features live in cache) "
           "vs naive_zero")
     print("=" * 100)
-    Y2 = "Y2_abnormal_volume"
+    Y2 = "Y2_5D_Forward_AbnormalVolume_LogRatio"
     rf_yt_folds, rf_yp_folds, rf_folds = per_fold_arrays_from_cache(results, "random_forest", Y2)
     rf_yt, rf_yp = np.concatenate(rf_yt_folds), np.concatenate(rf_yp_folds)
     print("\n[A] fold stability")

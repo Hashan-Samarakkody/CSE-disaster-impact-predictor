@@ -67,8 +67,8 @@ def test_regression_predictions_stay_inside_each_targets_definitional_support(bu
     row = bundle.build_feature_row(event_id, {})
     pred = bundle.predict_regression(row)
 
-    assert pred["Y2_abnormal_volume"] >= -1.0
-    assert 0.0 <= pred["Y3_recovery_days"] <= 90.0
+    assert pred["Y2_5D_Forward_AbnormalVolume_LogRatio"] >= -1.0
+    assert 0.0 <= pred["Y3_ASPI_Recovery_Time"] <= 90.0
 
 
 def test_classification_predictions_are_valid_probabilities_with_verdict_metadata(bundle):

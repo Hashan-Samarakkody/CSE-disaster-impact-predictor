@@ -41,25 +41,46 @@ def label_volume_spike(y, train_idx=None, dataset=None):
     """C2: Y2 > 0, i.e. mean volume over the five post-event sessions above the 30-session
     pre-event baseline.
 
-    Zero is where the target is centred by construction (Y2 = V/V_bar - 1), so this is the
-    natural cut rather than a chosen one.
+    Zero is where a LOG ratio is centred by construction (Y2 = 0 means future volume equals
+    the baseline exactly), so this is the natural cut rather than a chosen one.
     """
     # Y2 is unobserved for the 2000 archive year and for every post-2023 event
     # (countryeconomy publishes the index level, not volume). Those events must be
     # dropped, never scored as non-spikes, see _binarise.
-    v = y["Y2_abnormal_volume"]
+    v = y["Y2_5D_Forward_AbnormalVolume_LogRatio"]
     return pd.Series(_binarise(v > 0, v.notna()), index=v.index)
 
 
-def label_recovers_in_90(y, train_idx=None, dataset=None):
-    """C3: Y3 < 90, recovery observed inside the window. The threshold is the design
-    constant itself. This is also stage 1 of the hurdle model.
+def label_drawdown_occurs(y, train_idx=None, dataset=None):
+    """C0: D = 1 if min(P1..P5) < P0. STAGE 1 of the protocol's two-stage Y3 architecture
+    (docs/TARGET_DEFINITION_PROTOCOL.md 3.2).
+
+    "Will this disaster push the ASPI below the level it closed at before the event?"
+    Defined for every event, so this is the only Y3-family label with the full sample --
+    the duration questions below are conditional on D = 1 and lose the D = 0 events.
     """
-    v = y["Y3_recovery_days"]
-    unknown = (dataset["Y3_censor_reason"].reindex(v.index).eq("next_disaster")
-               if dataset is not None and "Y3_censor_reason" in dataset.columns
-               else pd.Series(False, index=v.index))
-    return pd.Series(_binarise(v < 90, v.notna() & ~unknown.fillna(False)), index=v.index)
+    v = dataset["Y3_drawdown_occurred"].reindex(y.index)
+    return pd.Series(_binarise(v.fillna(False), v.notna()), index=y.index)
+
+
+def label_recovers_in_90(y, train_idx=None, dataset=None):
+    """C3: recovery observed inside the 90-session window, conditional on a drawdown.
+
+    STAGE 2. Three exclusions, each for a different reason:
+      - D = 0: no recovery process exists. The protocol forbids treating these as
+        ordinary duration observations, so they are dropped rather than scored.
+      - censored by a competing disaster: the true status is unknowable.
+      - a cap-90 censoring IS informative (it did not recover in 90) and scores 0.
+    """
+    v = y["Y3_ASPI_Recovery_Time"]
+    reason = (dataset["Y3_censor_reason"].reindex(v.index)
+              if dataset is not None and "Y3_censor_reason" in dataset.columns
+              else pd.Series("", index=v.index))
+    observed = (dataset["Y3_event_observed"].reindex(v.index).fillna(0).astype(int)
+                if dataset is not None and "Y3_event_observed" in dataset.columns
+                else (v < 90).astype(int))
+    usable = v.notna() & ~reason.isin(["next_disaster", "no_drawdown"]).fillna(True)
+    return pd.Series(_binarise(observed == 1, usable), index=v.index)
 
 
 def label_adverse_move_sigma(y, train_idx=None, dataset=None):
@@ -80,16 +101,26 @@ def label_adverse_move_sigma(y, train_idx=None, dataset=None):
 
 
 def label_slow_recovery(y, train_idx, dataset=None):
-    """C3b: recovery slower than the median of THIS fold's training window."""
-    v = y["Y3_recovery_days"]
-    cut = float(np.nanmedian(v.iloc[train_idx]))
-    unknown = (dataset["Y3_censor_reason"].reindex(v.index).eq("next_disaster")
-               if dataset is not None and "Y3_censor_reason" in dataset.columns
-               else pd.Series(False, index=v.index))
-    return pd.Series(_binarise(v > cut, v.notna() & ~unknown.fillna(False)), index=v.index)
+    """C3b: recovery slower than the median of THIS fold's training window.
+
+    STAGE 2, so conditional on a drawdown: D = 0 events carry duration 0 by convention
+    and would otherwise flood the fast class with events that never fell at all. The cut
+    is taken over the conditional training rows only, for the same reason.
+    """
+    v = y["Y3_ASPI_Recovery_Time"]
+    reason = (dataset["Y3_censor_reason"].reindex(v.index)
+              if dataset is not None and "Y3_censor_reason" in dataset.columns
+              else pd.Series("", index=v.index))
+    usable = v.notna() & ~reason.isin(["next_disaster", "no_drawdown"]).fillna(True)
+    train_vals = v.iloc[train_idx][usable.iloc[train_idx]]
+    if train_vals.empty:
+        return pd.Series(np.nan, index=v.index)
+    cut = float(np.nanmedian(train_vals))
+    return pd.Series(_binarise(v > cut, usable), index=v.index)
 
 
 LABELS = {
+    "C0_drawdown_occurs": label_drawdown_occurs,
     "C1_negative_return": label_negative_return,
     "C1b_adverse_move": label_adverse_move,
     "C2_volume_spike": label_volume_spike,
@@ -202,8 +233,8 @@ if __name__ == "__main__":
     n = 64
     y = pd.DataFrame({
         "Y1_ASPI_5D_Forward_LogReturn_Pct": rng.normal(0, 0.014, n),
-        "Y2_abnormal_volume": rng.normal(-0.13, 0.58, n),
-        "Y3_recovery_days": np.where(rng.random(n) < 0.14, 90.0,
+        "Y2_5D_Forward_AbnormalVolume_LogRatio": rng.normal(-0.13, 0.58, n),
+        "Y3_ASPI_Recovery_Time": np.where(rng.random(n) < 0.14, 90.0,
                                      rng.exponential(6, n).round()),
     })
     train_idx = np.arange(30)
