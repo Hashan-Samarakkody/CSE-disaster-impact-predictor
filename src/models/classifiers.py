@@ -38,7 +38,8 @@ def label_adverse_move(y, train_idx, dataset=None):
 
 
 def label_volume_spike(y, train_idx=None, dataset=None):
-    """C2: Y2 > 0, i.e. volume above its own 30-day baseline.
+    """C2: Y2 > 0, i.e. mean volume over the five post-event sessions above the 30-session
+    pre-event baseline.
 
     Zero is where the target is centred by construction (Y2 = V/V_bar - 1), so this is the
     natural cut rather than a chosen one.

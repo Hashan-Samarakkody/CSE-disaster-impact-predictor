@@ -8,6 +8,7 @@ import pandas as pd
 ADVERSE_RESPONSE_WINDOW = 5
 DEFAULT_MAX_RECOVERY_DAYS = 90
 ASPI_FORWARD_SESSIONS = 5
+VOLUME_RESPONSE_SESSIONS = 5
 EVENT_WINDOW_SESSIONS = (10,)
 
 
@@ -40,19 +41,33 @@ def calculate_aspi_percentage_change(market, position, pre_event_close, sessions
 
 
 def calculate_volume_crash_magnitude(market, position, volume_col="trading_volume",
-                                     baseline_sessions=30):
-    """Event day volume relative to its own trailing baseline, minus one.
+                                     baseline_sessions=30,
+                                     response_sessions=VOLUME_RESPONSE_SESSIONS,
+                                     date_col="date"):
+    """Mean volume over the response window against its own trailing baseline, minus one.
 
-    Returns NaN when the series carries no volume column, which is the case for
-    the sector indices where the exchange publishes volume market wide only.
+    The response window is the FIVE post event sessions t0 .. t0+4, t0 counted as the
+    first. Returns (value, label_end_date); the label end date is the final session of
+    that window, NOT t0 -- the walk forward purge reads it, so dating it at t0 would
+    leave training rows whose window overlaps the test period unpurged.
+
+    Returns NaN when the series carries no volume column, which is the case for the
+    sector indices where the exchange publishes volume market wide only, and when the
+    window would run off the end of the series rather than be silently truncated.
     """
     if volume_col not in market.columns:
-        return np.nan
+        return np.nan, pd.NaT
     baseline_start = max(0, position - baseline_sessions)
     baseline_mean = market.iloc[baseline_start:position][volume_col].mean()
     if not baseline_mean or np.isnan(baseline_mean):
-        return np.nan
-    return float((market.iloc[position][volume_col] / baseline_mean) - 1.0)
+        return np.nan, pd.NaT
+    end = position + response_sessions - 1
+    if end >= len(market):
+        return np.nan, pd.NaT
+    window = market.iloc[position:end + 1][volume_col]
+    if window.isna().any():
+        return np.nan, pd.NaT
+    return float((window.mean() / baseline_mean) - 1.0), market.iloc[end][date_col]
 
 
 def find_competing_event_position(market, event_dates_sorted, row_index, date_col="date"):
@@ -119,8 +134,8 @@ def build_event_targets(market_df, disaster_df, date_col="date", price_col="aspi
 
         aspi_change, aspi_end_date = calculate_aspi_percentage_change(
             market, position, pre_event_close, ASPI_FORWARD_SESSIONS, date_col, price_col)
-        volume_crash = calculate_volume_crash_magnitude(market, position, volume_col)
-        volume_label_end_date = market.iloc[position][date_col]
+        volume_crash, volume_label_end_date = calculate_volume_crash_magnitude(
+            market, position, volume_col, date_col=date_col)
 
         competing_position = find_competing_event_position(
             market, event_dates_sorted, row_index, date_col)
@@ -165,7 +180,7 @@ if __name__ == "__main__":
     price = np.full(80, 100.0)
     price[40:46] = [95.0, 96.0, 97.0, 98.0, 99.0, 101.0]
     volume = np.full(80, 1_000.0)
-    volume[40] = 2_000.0
+    volume[40:45] = 2_000.0          # the whole five session response window
     market = pd.DataFrame({"date": sessions, "aspi_close": price, "trading_volume": volume})
     events = pd.DataFrame({"event_date": [sessions[40]]})
 
@@ -173,6 +188,8 @@ if __name__ == "__main__":
     row = out.iloc[0]
 
     assert row["Y2_abnormal_volume"] == 1.0, row["Y2_abnormal_volume"]
+    # Y2's label is not known until the response window closes at t0+4.
+    assert row["Y2_label_end_date"] == sessions[44], row["Y2_label_end_date"]
     assert abs(row["Y1_ASPI_5D_Forward_LogReturn_Pct"] - 100.0 * np.log(101.0 / 100.0)) < 1e-9
     assert bool(row["Y3_drawdown_occurred"])
     assert row["Y3_recovery_days"] == 5.0, row["Y3_recovery_days"]

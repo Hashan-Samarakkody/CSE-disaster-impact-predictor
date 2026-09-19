@@ -20,8 +20,10 @@ the market response.
 
 1. **ASPI percentage change.** The forward log return in percent from the last pre event
    close over five trading sessions.
-2. **Volume crash magnitude.** Event day traded volume relative to its own trailing thirty
-   session mean, minus one.
+2. **Abnormal trading volume.** Mean market wide traded volume over the five post event
+   sessions (t0 to t0+4, t0 counted as the first) relative to its own trailing thirty
+   session mean, minus one. The sign is two sided: a disaster can raise or suppress
+   turnover.
 3. **Market recovery days.** Trading sessions until the index regains its pre event level,
    right censored at ninety sessions or at the next qualifying disaster.
 
