@@ -24,16 +24,6 @@ Thumbs.db
 *.key
 secrets.*
 
-# Generated artifact cache. Every file here is rebuilt by the pipeline stages.
-# Figures in docs/figures/ are tracked instead, so the thesis can cite a stable path.
-artifacts/*
-
-# Exception: the frozen regression baseline is a historical snapshot of the
-# volume target at commit 1fbf6275. It cannot be regenerated from a later state,
-# and tests/test_volume_target_frozen.py compares the live pipeline against it.
-!artifacts/results/
-artifacts/results/*
-!artifacts/results/frozen_baseline.json
 
 # Transient logs and experiment scratch output
 *.log

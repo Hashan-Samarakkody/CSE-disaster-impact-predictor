@@ -1,0 +1,41 @@
+{
+  "written_utc": "2026-09-19T09:25:46+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "sector_classification_summary",
+  "rows": 20,
+  "columns": [
+    "label",
+    "model",
+    "n",
+    "n_pos",
+    "prevalence",
+    "majority_baseline_acc",
+    "accuracy",
+    "balanced_accuracy",
+    "mcc",
+    "precision",
+    "recall",
+    "f1",
+    "pr_auc",
+    "auc",
+    "auc_lo",
+    "auc_hi",
+    "auc_boot_lo",
+    "auc_boot_hi",
+    "beats_baseline"
+  ],
+  "note": "Sector-panel classification, grouped folds, event-clustered."
+}
