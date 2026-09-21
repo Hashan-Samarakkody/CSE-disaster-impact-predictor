@@ -96,7 +96,7 @@ same short window,  that later drop was never seen because the search had alread
 
 ### 3. Features
 
-- 68 columns in `FEATURE_COLS` (`artifacts/feature_spec.json`).
+- 68 columns in `FEATURE_COLS` (`artifacts/results/feature_spec.json`).
 - Every engineered market-price column is ADF/KPSS-tested before admission
   (`notebooks/02_features_targets.ipynb` §2.2.1); a unit root (ADF fails to reject)
   excludes the column. This test runs on a **development-period-only** slice of the
@@ -179,7 +179,7 @@ same short window,  that later drop was never seen because the search had alread
 - Time-aware SMOGN, fit on the fold's real, post-purge training rows only, with the
   pre-registered 25% synthetic-share cap, applied per (fold, target) inside the target
   loop (never once per fold shared across targets).
-- SMOGN on/off was measured, not assumed (P2-6, `artifacts/smogn_ablation.parquet`):
+- SMOGN on/off was measured, not assumed (P2-6, `artifacts/tables/smogn_ablation.parquet`):
   helps Y1/Y2/Y3 on both RMSE and pooled R2; on `Y1_EventWindow_0_10` the two metrics
   move in opposite directions by ~1%, judged as fold-count noise (n=40 pooled points),
   not a real effect. **Decision: SMOGN stays ON for all 4 targets.**
@@ -300,7 +300,7 @@ claims rest on):
   `notebooks/06_evaluation.ipynb` §6.2.2 re-scores RF's pooled R2 restricted to the 69
   `exact_day` events, using the same cached out-of-fold predictions (no re-fit), as a
   check on whether the headline number depends on those 5 alignment-uncertain rows.
-  Reported in `artifacts/exact_date_sensitivity.parquet`.
+  Reported in `artifacts/tables/exact_date_sensitivity.parquet`.
 
 ### 9. What "one last clean run" means
 
@@ -327,7 +327,7 @@ Written on 2026-09-17 before any experiment in it was executed, so that the expe
 
 **Written 2026-09-17, BEFORE any experiment below was executed.**
 Baseline commit: `1fbf6275` (`git rev-parse HEAD` at freeze time).
-Frozen baseline artifact: `artifacts/frozen_baseline.json` (`scripts/freeze_baseline.py`).
+Frozen baseline artifact: `artifacts/results/frozen_baseline.json` (`scripts/freeze_baseline.py`).
 Test suite at freeze: **99 passed** (`pytest tests/ -q`), plus the 20 new Y2-freeze
 assertions in `tests/test_y2_frozen.py`.
 
@@ -416,7 +416,7 @@ held-constant factor, not a result-driven change: the grid's whole purpose is th
 paired A-vs-C and horizon comparisons, and an augmentation whose minority mask is
 defined from each fold's own target distribution would vary across the 4 horizons and
 3 information sets, confounding exactly the contrasts being measured. SMOGN's effect is
-already measured separately and reported (`artifacts/smogn_ablation.parquet`, ablation
+already measured separately and reported (`artifacts/tables/smogn_ablation.parquet`, ablation
 B6, protocol section 5), and the existing frozen Y1/Y2/Y3 pipeline keeps it ON and is
 untouched by this grid.
 
@@ -891,7 +891,7 @@ Evidence that the volume crash magnitude target did not move while the return an
 2026-09-17 Y1/Y3 improvement work was required to leave it untouched. This report is the
 before/after evidence, and `tests/test_y2_frozen.py` is the mechanical enforcement.
 
-* **Before** = commit `1fbf6275`, captured in `artifacts/frozen_baseline.json`
+* **Before** = commit `1fbf6275`, captured in `artifacts/results/frozen_baseline.json`
   (`scripts/freeze_baseline.py`), taken before a single line of improvement code existed.
 * **After** = the same artifacts re-read at the end of the improvement work.
 * **Tolerance** = `1e-9` absolute, on a target whose own scale is ~0.5. This is float
@@ -901,8 +901,8 @@ before/after evidence, and `tests/test_y2_frozen.py` is the mechanical enforceme
 
 The improvement work adds files; it changes no file the frozen pipeline reads.
 
-* The four Y1 horizon targets are built **in memory** from `artifacts/market.parquet`
-  (`src/targets/return_horizons.py`), not by regenerating `artifacts/dataset.parquet`.
+* The four Y1 horizon targets are built **in memory** from `artifacts/tables/market.parquet`
+  (`src/targets/return_horizons.py`), not by regenerating `artifacts/tables/dataset.parquet`.
   `dataset.parquet`,  which is where `Y2_abnormal_volume` lives,  is never rewritten, so
   Y2's target values cannot move.
 * `src/features/feature_engineering.py`, `src/training/walk_forward.py`,
@@ -971,7 +971,7 @@ one of them.
 ### Mechanical enforcement
 
 `tests/test_y2_frozen.py`,  20 tests, all passing,  asserts, against
-`artifacts/frozen_baseline.json`:
+`artifacts/results/frozen_baseline.json`:
 
 1. `test_y2_target_values_unchanged`,  all 74 Y2 values.
 2. `test_y2_event_sample_unchanged`,  the 74 event dates, in order.
@@ -1002,7 +1002,7 @@ This is the before/after of *method*, not of numbers. The numbers are in
 and whether it was worth it. Several of these rows say "no measurable gain",  those are
 kept deliberately.
 
-Baseline = commit `1fbf6275`, frozen in `artifacts/frozen_baseline.json`.
+Baseline = commit `1fbf6275`, frozen in `artifacts/results/frozen_baseline.json`.
 
 ---
 
@@ -1077,7 +1077,7 @@ See `docs/Y2_FROZEN_VALIDATION_REPORT.md`.
 
 Roughly 75 minutes of compute for the Y1 grid (240 configurations x 4 folds with nested
 selection inside purged inner CV), ~1 minute for Y3. The Stage-A expected-return estimates
-are cached (`artifacts/aspi_expected_return_market_only.parquet`) because they depend only on frozen
+are cached (`artifacts/tables/aspi_expected_return_market_only.parquet`) because they depend only on frozen
 inputs.
 
 ### What was NOT done, and why
@@ -1946,7 +1946,7 @@ Given that the study exists to predict catastrophic impacts, a model with accept
 
 **Measured 2026-09-16 (E08/E09, RF, all 3 targets, same folds/purge/median-impute/
 selection/inner-CV, `use_smogn` the only difference, see
-`notebooks/04_modeling_regression.ipynb` §4.2b, `artifacts/smogn_ablation.parquet`):**
+`notebooks/04_modeling_regression.ipynb` §4.2b, `artifacts/tables/smogn_ablation.parquet`):**
 
 | target | RMSE no-SMOGN | RMSE with-SMOGN | pooled R2 no-SMOGN | pooled R2 with-SMOGN | verdict |
 |---|---|---|---|---|---|
@@ -2700,7 +2700,7 @@ A further feature/model pass was then run, cited and reasoned before implementat
   the test set) -> RF-importance top-k, on each fold's real training rows only. Standard
   filter-method combination for small-N tabular data (VIF/correlation pruning + importance
   ranking; a >0.75 correlation-pair diagnostic table is also generated and saved to
-  `artifacts/y1_feature_stability.csv`, but the ACTUAL drop threshold stays at the
+  `artifacts/tables/y1_feature_stability.csv`, but the ACTUAL drop threshold stays at the
   pre-registered 0.95, per author decision, not the harder 0.75 that would count as
   revising a pre-declared rule after seeing results).
 - **PCA**,  added as a reported ablation only (`notebooks/04_modeling_regression.ipynb`,
@@ -2834,7 +2834,7 @@ methodological win. 97/97 tests pass.
 ExtraTrees, single-task modeling, OOF ensemble weighting, shrinkage)
 
 See `scripts/run_aspi_return_experiments.py` for the full implementation and
-`artifacts/y1_experiments_ranked.csv` / `artifacts/y1_feature_stability.csv` for results.
+`artifacts/tables/y1_experiments_ranked.csv` / `artifacts/tables/y1_feature_stability.csv` for results.
 Numbers appended below once the run completes.
 
 #### 2026-09-16: methodology-audit freeze, target names, units, inclusion threshold
@@ -3267,7 +3267,7 @@ real index before recording.
 Added `notebooks/06_evaluation.ipynb` §6.2.2, which re-scores RF's pooled R2 restricted
 to the 69 `exact_day` events using the SAME cached out-of-fold predictions (no re-fit,
 just a filtered evaluation via the row-index tracking above). Result
-(`artifacts/exact_date_sensitivity.parquet`): all 4 targets move by a few hundredths of
+(`artifacts/tables/exact_date_sensitivity.parquet`): all 4 targets move by a few hundredths of
 R2 in either direction (e.g. Y1 0.058 -> 0.073, Y2 0.176 -> 0.156), no target's
 headline number depends on the 5 imprecise-date rows in a way that would change its
 qualitative conclusion.
@@ -3276,7 +3276,7 @@ qualitative conclusion.
 already implemented in `scripts/run_aspi_return_experiments.py` (a `feature_log` /
 `selection_frequency` table, written but the script had never been run, flagged as
 pending in this document since 2026-09-14). Running it as part of this pass produced
-`artifacts/y1_feature_stability.csv` for real, closing the gap for Y1 (the study's
+`artifacts/tables/y1_feature_stability.csv` for real, closing the gap for Y1 (the study's
 primary magnitude target); the other targets don't have an equivalent per-fold
 stability table, which is a real but smaller residual scope gap, not something silently
 claimed as done.

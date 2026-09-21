@@ -41,7 +41,8 @@ RF_PARAM_GRID = {"n_estimators": [100, 200], "max_depth": [4, None], "min_sample
 XGB_PARAM_GRID = {"n_estimators": [100, 200], "max_depth": [3, 6], "learning_rate": [0.05, 0.1]}
 ET_PARAM_GRID = {"n_estimators": [200, 400], "max_depth": [4, None], "min_samples_leaf": [1, 4]}
 
-FROZEN_BASELINE = {"rmse": 2.489, "mae": 1.929, "r2": 0.085}
+# Reference metrics come from artifacts/results/frozen_baseline.json rather than being
+# retyped here, so the check cannot drift away from the snapshot it is meant to guard.
 FROZEN_TOL = 0.01  # loud-fail tolerance, not a fudge factor
 
 
@@ -129,6 +130,24 @@ def record(store, y_true, y_pred, fold_i):
 
 def pooled(store):
     return np.concatenate(store["y_true"]), np.concatenate(store["y_pred"])
+
+
+def frozen_reference():
+    """Pooled RMSE, MAE and R2 for the ensemble on TARGET, from the frozen snapshot.
+
+    Returns None when the snapshot is absent or does not carry this target.
+    """
+    path = artifact_file("frozen_baseline.json")
+    if not path.exists():
+        return None
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    store = snapshot.get("models", {}).get("ensemble", {}).get(TARGET)
+    if store is None:
+        return None
+    def to_array(values):
+        return np.array([np.nan if v is None else v for v in values], dtype=float)
+
+    return evaluate_regression(to_array(store["y_true"]), to_array(store["y_pred"]))
 
 
 def full_report(name, y_true, y_pred, y_zero_true, y_zero_pred):
@@ -366,17 +385,22 @@ def main():
          "y_pred": baseline_results["ensemble"][TARGET]["y_pred"]})
     m_b = evaluate_regression(yt_b, yp_b)
     print(f"cached ensemble/{TARGET}: RMSE={m_b['rmse']:.3f} MAE={m_b['mae']:.3f} R2={m_b['r2']:+.3f}")
-    drift = {k: m_b[k] - v for k, v in FROZEN_BASELINE.items()}
-    if all(abs(d) < FROZEN_TOL for d in drift.values()):
-        print("MATCHES the numbers you froze (RMSE=2.489 MAE=1.929 R2=+0.085) -- confirmed intact.")
+    reference = frozen_reference()
+    if reference is None:
+        print("artifacts/results/frozen_baseline.json is absent, so there is nothing to "
+              "compare against. Using the current cache as the baseline below.")
     else:
-        print("WARNING: cached ensemble no longer matches the numbers you froze "
-              f"(drift: {drift}). This is EXPECTED, not a bug -- the collinearity-drop + "
-              "GP/SVR/Quantile wiring approved in the prior turn was already composed into "
-              "select_top_features before this run, so Ridge/RF/XGBoost (and therefore the "
-              "ensemble) were refit on a slightly different feature set than when 2.489/"
-              "1.929/0.085 were first reported. Using the ACTUAL current cache as the real "
-              "baseline for everything below; flagging the delta rather than silently eating it.")
+        drift = {k: m_b[k] - v for k, v in reference.items()}
+        print(f"frozen snapshot: RMSE={reference['rmse']:.3f} MAE={reference['mae']:.3f} "
+              f"R2={reference['r2']:+.3f}")
+        if all(abs(d) < FROZEN_TOL for d in drift.values()):
+            print("MATCHES the frozen snapshot, confirmed intact.")
+        else:
+            print(f"WARNING: the cached ensemble has drifted from the frozen snapshot "
+                  f"(drift: {drift}). Stop and find the cause before reading anything "
+                  "below: the snapshot is only re taken for a deliberate, pre declared "
+                  "change to a target definition. Using the current cache as the baseline "
+                  "for everything below, and flagging the delta rather than eating it.")
     yz_store = naive_zero_baseline(y_all, dates_all, horizon_end_all, splits)
     yzt, yzp = pooled(yz_store)
 

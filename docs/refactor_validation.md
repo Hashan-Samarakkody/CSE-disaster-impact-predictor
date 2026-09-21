@@ -68,7 +68,24 @@ left failing: **25 of 153 tests failed** at the start of this pass.
     notebook and in `docs/notebooks/01_data_acquisition.md`. It is deliberately not re run:
     its six sources are live and unpinned.
 11. **One broken documentation link**, to the deleted `architecture/data_acquisition.md`.
-12. **`docs/target_definitions.md` contradicted the frozen protocol outright**, describing
+12. **`scripts/run_aspi_return_experiments.py` compared against a retyped constant.** It
+    carried `FROZEN_BASELINE = {2.489, 1.929, 0.085}` in its source, a pre protocol
+    reference, and explained every mismatch with a stale narrative about a feature wiring
+    change from an earlier turn. The check now reads the reference from
+    `artifacts/results/frozen_baseline.json`, so it cannot drift from the snapshot it
+    guards, and its warning names the real remedy.
+13. **Thirteen artifact paths in `docs/audit.md` pointed at the pre refactor cache root**,
+    for example `artifacts/frozen_baseline.json` rather than
+    `artifacts/results/frozen_baseline.json`. All repointed. Two similar strings in this
+    document and one in `scripts/run_garch_ablation.py` were also corrected, except where
+    the old path is quoted deliberately as the description of a fixed bug.
+14. **`artifacts/tables/training_dataset.csv` was an orphan.** Seventy six events, the
+    pre alignment count, carrying target columns retired two revisions ago
+    (`Y1_aspi_log_return`, `Y2_abnormal_volume`, `Y3_recovery_days`, `Y1_car_5`,
+    `Y1_car_10`). No script, notebook or document read or wrote it, and nothing in the
+    current pipeline reproduces it. Removed; `dataset.parquet` supersedes it and git
+    history retains it.
+15. **`docs/target_definitions.md` contradicted the frozen protocol outright**, describing
     the superseded endpoints, the ratio minus one volume target and the trough anchored
     recovery scan. Rewritten against the implementation, with the observed distributions
     recomputed and the worked example re derived from the raw market series.
@@ -100,6 +117,7 @@ left failing: **25 of 153 tests failed** at the start of this pass.
 | `scripts/audit_results.py` | executed |
 | `scripts/generate_feature_dictionary.py` | executed |
 | `scripts/make_architecture_diagram.py` | executed |
+| `scripts/run_aspi_return_experiments.py` | executed, seven minutes, both ranked tables rewritten |
 | `scripts/freeze_baseline.py` | executed once, deliberately, see A.5 |
 
 ## A.4 Independent verification of the target columns

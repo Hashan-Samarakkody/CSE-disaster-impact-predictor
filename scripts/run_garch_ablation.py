@@ -104,7 +104,7 @@ def main() -> None:
     feature_cols, type_cols = spec["FEATURE_COLS"], spec["TYPE_COLS"]
     if "garch_cond_vol" not in feature_cols:
         raise SystemExit(
-            "garch_cond_vol is not in artifacts/feature_spec.json -- re-run "
+            "garch_cond_vol is not in artifacts/results/feature_spec.json, re-run "
             "notebooks/02_features_targets.ipynb first.")
 
     X_all = dataset[feature_cols].copy()

@@ -114,8 +114,13 @@ comparison it is cited as.
 `scripts/run_garch_ablation.py` measures whether the conditional volatility feature earns
 its place.
 
-`scripts/run_aspi_return_experiments.py` is the earlier controlled return experiment series, run
-before the pre declared grid and reported as such.
+`scripts/run_aspi_return_experiments.py` is the earlier controlled return experiment
+series, run before the pre declared grid and reported as such. It takes about seven
+minutes and writes `artifacts/tables/y1_experiments_ranked.csv` and
+`artifacts/tables/y1_feature_stability.csv`. It opens by comparing the cached ensemble
+against `artifacts/results/frozen_baseline.json` and stops being quiet if the two have
+drifted; the reference is read from that snapshot rather than retyped in the script, so
+the check cannot go stale.
 
 `scripts/run_headline_confirmation.py` re confirms the return and volume headline numbers
 against the cached predictions.
