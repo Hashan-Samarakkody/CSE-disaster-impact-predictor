@@ -41,7 +41,7 @@ COX_MAX_FEATURES = 5
 warnings.filterwarnings("ignore")
 
 
-# ------------------------------------------------------------------ curve helpers
+# curve helpers
 
 def _median_from_curve(surv_grid):
     """First grid time where S(t) <= 0.5, read numerically off the predicted curve.
@@ -106,7 +106,7 @@ def km_curve(durations, observed, n_rows):
     return np.tile(np.clip(s, 0.0, 1.0), (n_rows, 1))
 
 
-# ------------------------------------------------------------------ main
+# main
 
 def main():
     data = pd.read_parquet(artifact_file("dataset.parquet")).reset_index(drop=True)
@@ -194,7 +194,7 @@ def main():
     oof.to_parquet(artifact_file("recovery_grid_predictions.parquet"), index=False)
     print(f"\nwrote recovery_grid_predictions.parquet ({len(oof)} rows, {oof.model.nunique()} models)")
 
-    # ----------------------------------------------------------- metrics
+    # metrics
     episodes_all = build_episode_ids(event_dates)
     metrics, calib = [], []
     for name, g in oof.groupby("model", sort=False):
@@ -241,7 +241,7 @@ def main():
                                                     index=False)
     print(f"wrote recovery_grid_metrics.parquet ({len(mt)} models), recovery_probability_calibration.parquet")
 
-    # ----------------------------------------------------------- recovery categories
+    # recovery categories
     cat = recovery_categories(oof, episodes_all)
     cat.to_parquet(artifact_file("recovery_category_metrics.parquet"), index=False)
     print(f"wrote recovery_category_metrics.parquet ({len(cat)} rows)")

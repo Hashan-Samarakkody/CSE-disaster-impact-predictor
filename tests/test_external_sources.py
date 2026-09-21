@@ -42,7 +42,7 @@ def desinventar():
         "vivafec": [20.0, 2.0, 9.0], "muertos": [3.0, 0.0, 11.0]})
 
 
-# ------------------------------------------------------------------ Block A: hazard
+# Block A: hazard
 
 def test_hazard_accumulates_exactly_three_days(power):
     row = build_hazard_features([EVENT], power).iloc[0]
@@ -85,7 +85,7 @@ def test_hazard_anomaly_baseline_stops_before_the_event_window(power):
     assert row.hz_precip_anom == pytest.approx(33.0)
 
 
-# ------------------------------------------------------------ Block B: DesInventar
+# Block B: DesInventar
 
 def test_desinventar_respects_the_declared_window(desinventar):
     assert DI_WINDOW == (-7, 14)
@@ -110,7 +110,7 @@ def test_desinventar_flags_unmatched_events_instead_of_reporting_zero_damage(des
     assert row.di_affected_log == 0.0  # zero, but di_available says why
 
 
-# -------------------------------------------------------------------- Block C: FX
+# Block C: FX
 
 @pytest.fixture
 def fx():
@@ -138,7 +138,7 @@ def test_fx_volatility_is_positive_on_a_noisy_series():
     assert build_fx_features([EVENT], noisy).iloc[0].fx_vol_30 > 0
 
 
-# -------------------------------------------------------------- Block D: elections
+# Block D: elections
 
 @pytest.fixture
 def polls():
@@ -158,7 +158,7 @@ def test_election_flag_is_off_beyond_five_days(polls):
     assert row.election_within_5d == 0.0
 
 
-# ------------------------------------------------------- Block E: series extension
+# Block E: series extension
 
 def test_extension_never_overwrites_the_archive():
     archive = pd.DataFrame({"date": pd.date_range("2023-06-01", "2023-06-28"),
@@ -201,7 +201,7 @@ def test_declared_blocks_match_the_builders(power, desinventar, fx, polls):
     assert built == declared
 
 
-# --------------------------------------- pooled_frame alignment under skipped folds
+# pooled_frame alignment under skipped folds
 
 def test_pooled_frame_uses_recorded_folds_when_one_is_skipped():
     """A skipped fold in the MIDDLE must not shift the event mapping."""

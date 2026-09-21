@@ -11,18 +11,21 @@ why the frozen volume target holds by construction rather than by care.
 
 `scripts/freeze_baseline.py`
 
-Writes `artifacts/results/frozen_baseline.json`, a snapshot of the pipeline at commit
-`1fbf6275`: the commit hash, every event id and date, every target value, the fold
-definitions, every model's pooled out of fold predictions, the per fold and pooled metrics,
-the bootstrap verdict rows and the classification summary.
+Writes `artifacts/results/frozen_baseline.json`, a snapshot of the pipeline: the commit
+hash, every event id and date, every target value, the fold definitions, every model's
+pooled out of fold predictions, the per fold and pooled metrics, the bootstrap verdict
+rows and the classification summary.
 
-It exists because the improvement work on the return and recovery targets was allowed to
-touch shared infrastructure but not to move the volume target.
+It exists because work on the return and recovery targets is allowed to touch shared
+infrastructure but not to move the volume target.
 `tests/test_volume_target_frozen.py` reads this file back and fails if any volume number
 changes. That snapshot cannot be rebuilt from a later state, so it is the one file under
 `artifacts/` that is version controlled.
 
-Run it once. Re running it overwrites the reference and defeats its purpose.
+The current snapshot was taken on 2026-09-21 at commit `f076bd9`, replacing the one taken
+at commit `1fbf6275`, which pinned the pre protocol volume definition. Run this script
+once per deliberate, pre declared change to a target definition, and never otherwise:
+re running it overwrites the reference and defeats its purpose.
 
 ## 2. The return prediction grid
 
@@ -73,9 +76,10 @@ training fold median.
 Writes `recovery_grid_predictions.parquet`, `recovery_grid_metrics.parquet`,
 `recovery_probability_calibration.parquet` and `recovery_category_metrics.parquet`.
 
-Supports: the finding that exact recovery duration cannot be predicted, that events can be
-ranked by recovery speed better than a Kaplan Meier baseline, and that the two stage model
-produces well calibrated recovery probabilities.
+Supports: the finding that exact recovery duration cannot be predicted, and the ranking
+result, which under the frozen target protocol no longer clears chance. The best
+concordance interval still contains 0.5, so the recovery target is reported as not
+predictable rather than as suggestive.
 
 ## 4. Final tables
 

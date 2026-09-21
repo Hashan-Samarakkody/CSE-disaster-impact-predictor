@@ -47,6 +47,15 @@ election and ASPI extension downloads. Each carries a provenance sidecar.
 
 Nothing precedes this stage. Everything follows it. Stage 02 reads all four tables.
 
+## Execution status
+
+This notebook ships without stored cell outputs. Its six external sources are live and
+unpinned, so a re run can return revised figures, which would move every downstream number
+including the frozen targets. That is a data change rather than a reproduction, so the
+cached tables under `artifacts/tables/` and `artifacts/external/`, each with a provenance
+sidecar, are the record of what this stage produced. Re run it only when a deliberate data
+refresh is intended, and expect every later stage to need re running with it.
+
 ## Methodological decisions made here
 
 1. **Damage is missing, not zero.** When EM-DAT records no damage figure the value stays

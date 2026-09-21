@@ -1,54 +1,34 @@
-"""Y1 multi-horizon event-window targets, and the market/disaster feature partition."""
+"""Y1 horizon column names, and the market/disaster feature partition.
+
+The horizon values themselves are built once, by src/targets/event_targets.py, and
+stored in dataset.parquet. This module only names those columns, so the repository
+carries a single definition of Y1 and its pre-registered horizon sensitivities.
+"""
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
+from src.config.settings import (ASPI_PERCENTAGE_CHANGE, ASPI_SENSITIVITY_COLS,
+                                 TARGET_LABEL_END_DATE_COL)
 
 HORIZONS = (5, 10, 15, 20)
 PRINCIPAL_HORIZON = 5
 
 
 def horizon_col(h: int) -> str:
-    return f"Y1_ASPI_EventWindow_0_{h}_LogReturn_Pct"
+    """Dataset column holding 100 * ln(Ph / P0) for horizon h."""
+    if h == PRINCIPAL_HORIZON:
+        return ASPI_PERCENTAGE_CHANGE
+    return f"Y1_ASPI_{h}D_Forward_LogReturn_Pct"
 
 
 def horizon_end_col(h: int) -> str:
-    return f"Y1_ASPI_EventWindow_0_{h}_horizon_end_date"
+    """Dataset column holding the session on which horizon h closes."""
+    if h == PRINCIPAL_HORIZON:
+        return TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE]
+    return f"Y1_{h}D_horizon_end_date"
 
 
-def build_horizon_targets(market: pd.DataFrame, event_dates, horizons=HORIZONS,
-                          date_col: str = "date", price_col: str = "aspi_close") -> pd.DataFrame:
-    """One row per event (in the order given), one column pair per horizon."""
-    market = market.sort_values(date_col).reset_index(drop=True)
-    dates = pd.to_datetime(market[date_col])
-    prices = market[price_col].to_numpy(dtype=float)
-
-    rows = []
-    for event_date in pd.to_datetime(pd.Series(event_dates)):
-        pos_candidates = np.flatnonzero(dates.to_numpy() >= np.datetime64(event_date))
-        row = {}
-        if len(pos_candidates) == 0 or pos_candidates[0] == 0:
-            for h in horizons:
-                row[horizon_col(h)] = np.nan
-                row[horizon_end_col(h)] = pd.NaT
-            rows.append(row)
-            continue
-        pos = int(pos_candidates[0])
-        price_tm1 = prices[pos - 1]
-        for h in horizons:
-            end = pos + h
-            if end < len(prices) and np.isfinite(prices[end]) and price_tm1 > 0:
-                row[horizon_col(h)] = float(100.0 * np.log(prices[end] / price_tm1))
-                row[horizon_end_col(h)] = dates.iloc[end]
-            else:
-                row[horizon_col(h)] = np.nan
-                row[horizon_end_col(h)] = pd.NaT
-        rows.append(row)
-    return pd.DataFrame(rows)
-
-
-# ---------------------------------------------------------------- information sets
+# information sets
 
 MARKET_FEATURES = [
     "log_return", "lag_return_t-1", "lag_return_t-2", "lag_return_t-3", "lag_return_t-5",
@@ -99,24 +79,12 @@ def information_sets(available_cols) -> dict[str, list[str]]:
 
 
 if __name__ == "__main__":
-    # Alignment self-check on a synthetic 40-session series with a known geometric path.
-    sessions = pd.date_range("2020-01-01", periods=40, freq="B")
-    prices = 100.0 * np.exp(np.arange(40) * 0.01)      # +1% log return per session
-    market = pd.DataFrame({"date": sessions, "aspi_close": prices})
-    # Event lands on a non-trading Saturday -> t must be the following Monday.
-    event = pd.Timestamp("2020-01-11")
-    out = build_horizon_targets(market, [event])
-    t = int(np.flatnonzero(sessions >= event)[0])
-    assert sessions[t].weekday() == 0, sessions[t]
-    for h in HORIZONS:
-        # 100 * ln(P_{t+h}/P_{t-1}) over a +1%/session log path spans h+1 sessions.
-        assert abs(out[horizon_col(h)].iloc[0] - (h + 1) * 1.0) < 1e-9, h
-        assert out[horizon_end_col(h)].iloc[0] == sessions[t + h]
-
-    # Not enough remaining sessions -> NaN, never a truncated window.
-    late = build_horizon_targets(market, [sessions[-3]])
-    assert np.isnan(late[horizon_col(20)].iloc[0])
-    assert not np.isnan(late[horizon_col(5)].iloc[0]) or True  # h=5 also short here
+    # The horizon columns must be the ones the protocol freezes, so the grid script and
+    # dataset.parquet cannot drift apart.
+    assert horizon_col(5) == ASPI_PERCENTAGE_CHANGE
+    assert [horizon_col(h) for h in (10, 15, 20)] == ASPI_SENSITIVITY_COLS
+    assert horizon_end_col(5) == "Y1_horizon_end_date"
+    assert horizon_end_col(10) == "Y1_10D_horizon_end_date"
 
     sets = information_sets(MARKET_FEATURES + DISASTER_FEATURES)
     assert set(sets["combined"]) == set(MARKET_FEATURES) | set(DISASTER_FEATURES)

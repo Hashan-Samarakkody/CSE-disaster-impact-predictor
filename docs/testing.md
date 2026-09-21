@@ -31,9 +31,10 @@ rather than calendar days, that a window which runs off the end of the series yi
 missing value rather than a truncated one, and that the recovery clock respects both the
 adverse response gate and the competing event cap.
 
-`tests/test_return_horizons.py` does the same for the four pre declared return horizons and
-additionally asserts that the five session horizon reproduces the frozen pipeline's own
-column exactly. A drift between the two would mean one of them is wrong.
+`tests/test_return_horizons.py` covers the four pre declared return horizons. It asserts
+that the horizon column names are the ones the frozen protocol defines, that every one of
+them exists in the built dataset, and that their values follow the protocol alignment when
+recomputed directly from the raw market series rather than from the code that wrote them.
 
 It also asserts that the market and disaster information sets partition every feature
 column with no overlap, and that no severity or hazard column has leaked into the market
@@ -42,13 +43,12 @@ between runs.
 
 ### 2.2 The frozen volume target
 
-`tests/test_volume_target_frozen.py` is the most important file in the suite. The volume
-crash magnitude target is the study's one statistically supported continuous result, and
-the improvement work on the other two targets was required to leave it untouched.
+`tests/test_volume_target_frozen.py` is the most important file in the suite. Forward
+abnormal volume is the study's one statistically supported continuous result, and nothing
+done to the other two targets is allowed to move it.
 
 Twenty assertions compare the live artifacts against
-`artifacts/results/frozen_baseline.json`, a snapshot taken at commit `1fbf6275` before any
-improvement code existed:
+`artifacts/results/frozen_baseline.json`:
 
 1. all seventy four target values
 2. the event sample and its dates, in order
@@ -61,12 +61,21 @@ improvement code existed:
 8. the classification arm: AUC, balanced accuracy, the AUC interval, Matthews correlation
    and the precision recall AUC
 
-Tolerance is 1e-9 absolute on a target whose own scale is about 0.5. That is float noise,
+Tolerance is 1e-9 absolute on a target whose own scale is about 0.6. That is float noise,
 not a materiality threshold.
+
+The snapshot was re taken on 2026-09-21, at commit `f076bd9`, after the target definitions
+were re frozen in `docs/TARGET_DEFINITION_PROTOCOL.md` on 2026-09-19. The previous
+snapshot, taken at commit `1fbf6275`, pinned the earlier volume definition, a ratio minus
+one over the event day window, which the protocol replaced with a log ratio over the five
+sessions after the prediction origin. Those assertions could not pass and were not meant
+to: the definition they guarded no longer exists. The re freeze is recorded here and in
+`docs/refactor_validation.md` rather than done silently.
 
 A failure here is a stop and diagnose signal, not a number to re freeze. If one of these
 ever fails, find the cause, write it down in `docs/audit.md`, and only then consider
-regenerating the baseline.
+regenerating the baseline. Regenerating it is justified only by a deliberate, pre declared
+change to the target definition itself.
 
 ### 2.3 Leakage and chronology
 
@@ -83,8 +92,10 @@ differently from its censoring blind counterpart, which is the whole reason for 
 them. The sharpest test corrupts a censored row's prediction by a thousand days and asserts
 that the uncensored point error does not move.
 
-`tests/test_classifiers.py` covers the five label definitions, the metric calculations and
-the two stage hurdle model, including its degenerate fold fallback.
+`tests/test_classifiers.py` covers the six label definitions, the metric calculations and
+the two stage hurdle model, including its degenerate fold fallback. It also checks that the
+stage one drawdown label is defined for every event while the two duration labels drop the
+events that never fell, which is what the protocol requires of a conditional stage.
 
 ### 2.5 Experiment artifacts
 

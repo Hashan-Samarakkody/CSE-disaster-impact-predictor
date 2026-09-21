@@ -8,6 +8,22 @@ separate documents, in the order a reader should meet them.
 Read Part 1 first if you want to know what the pipeline does and why. Read Part 7 if you
 want to know how it got there, including what was tried and abandoned.
 
+**Naming note for entries written before 2026-09-19.** On that date the three target
+definitions were frozen in `docs/TARGET_DEFINITION_PROTOCOL.md`, which renamed two of the
+columns and changed their formulas. Entries below that predate the freeze use the earlier
+names and the earlier arithmetic, and they are kept verbatim because they are the record
+of what was actually run at the time. The mapping is:
+
+| Pre protocol column | Current column | What also changed |
+|---|---|---|
+| `Y1_ASPI_5D_Forward_LogReturn_Pct` | unchanged | the endpoint moved from `P[t0+5]` to `P5 = market[position + 4]` |
+| `Y2_abnormal_volume` | `Y2_5D_Forward_AbnormalVolume_LogRatio` | a ratio minus one became a log ratio |
+| `Y3_recovery_days` | `Y3_ASPI_Recovery_Time` | the drawdown gate narrowed to `P1..P5`, the scan starts at `k = 1` rather than the trough, and no drawdown became its own censor reason |
+| `Y1_EventWindow_0_10_LogReturn_Pct` | `Y1_ASPI_10D_Forward_LogReturn_Pct` | same alignment change as Y1 |
+
+Any number in this file that predates 2026-09-19 was produced under the earlier
+definitions. The current numbers are in `docs/results.md`.
+
 ## Contents
 
 1. Part 1. Frozen analysis protocol

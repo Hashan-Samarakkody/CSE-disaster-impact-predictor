@@ -20,7 +20,7 @@ from src.models.inference import LABEL_DESCRIPTIONS, TARGET_LABELS, get_bundle  
 
 st.set_page_config(page_title="CSE Disaster Impact Predictor", layout="wide")
 
-# ---------------------------------------------------------------- theme (MUI v6 look)
+# theme (MUI v6 look)
 
 INK = INK2 = INK3 = "#000000"
 PRIMARY, GOOD, WARN, BAD = "#1565C0", "#2E7D32", "#ED6C02", "#D32F2F"
@@ -186,7 +186,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------------- event picker
+# event picker
 
 events = bundle.list_events()
 events["choice"] = events["event_date"] + "  --  " + events["disaster_type"]
@@ -246,7 +246,7 @@ overrides = {
 }
 feature_row = bundle.build_feature_row(event_id, overrides)
 
-# ---------------------------------------------------------------- event summary
+# event summary
 
 st.markdown(
     f"### {icon('calendar_today')}Event: {real_row['event_date'].date()} — {real_row['disaster_type']}",
@@ -261,7 +261,7 @@ mui_tiles([
 ])
 st.plotly_chart(aspi_window_chart(pd.to_datetime(real_row["event_date"])), use_container_width=True)
 
-# ---------------------------------------------------------------- regression
+# regression
 
 st.markdown(f"## {icon('trending_up')}Regression targets", unsafe_allow_html=True)
 st.caption(
@@ -300,8 +300,9 @@ st.markdown('<div class="mui-card">', unsafe_allow_html=True)
 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 st.markdown("</div>", unsafe_allow_html=True)
 st.caption(
-    "None of the three original targets (5-day forward return, abnormal volume, recovery days) "
-    "beat both naive baselines in the walk-forward audit. Treat 'model prediction' as "
+    "None of the three targets (5-session forward return, forward abnormal volume, "
+    "recovery duration) beat both naive baselines in the walk-forward audit. "
+    "Treat 'model prediction' as "
     "the pipeline's best point estimate, not as evidence it is accurate."
 )
 
@@ -337,7 +338,7 @@ st.caption(
     "for completeness, not as the recommended model."
 )
 
-# ---------------------------------------------------------------- classification
+# classification
 
 st.markdown(f"## {icon('checklist')}Classification labels", unsafe_allow_html=True)
 st.caption(
@@ -391,11 +392,14 @@ def _highlight(row):
 st.markdown('<div class="mui-card">', unsafe_allow_html=True)
 st.dataframe(clf_df.style.apply(_highlight, axis=1), use_container_width=True, hide_index=True)
 st.markdown("</div>", unsafe_allow_html=True)
+_cleared = int((clf_df["Beats baseline?"] == "yes").sum())
 st.caption(
-    "Only the green row (`C2_volume_spike`) clears both the majority rule and chance "
-    "in the recorded walk-forward audit. The red rows are shown for completeness -- "
-    "their predictions here are no more trustworthy than a coin flip, regardless of "
-    "how confident the number looks."
+    (f"{_cleared} of {len(clf_df)} labels (green) clear both the majority rule and chance "
+     if _cleared else
+     "No label clears both the majority rule and chance ")
+    + "in the recorded walk-forward audit. The red rows are shown for completeness: "
+      "their predictions here are no more trustworthy than a coin flip, regardless of "
+      "how confident the number looks."
 )
 
 st.divider()

@@ -26,8 +26,8 @@ sys.path.insert(0, str(ROOT))
 
 from src.evaluation.collinearity import CollinearityRFTopK
 from src.evaluation.verification import build_episode_ids, paired_bootstrap_delta
-from src.targets.return_horizons import (HORIZONS, build_horizon_targets, horizon_col,
-                                        horizon_end_col, information_sets)
+from src.targets.return_horizons import (HORIZONS, horizon_col, horizon_end_col,
+                                        information_sets)
 from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
                                        median_impute_from_train, purge_horizon_overlap)
 from src.utils.artifact_store import artifact_file
@@ -56,7 +56,7 @@ warnings.filterwarnings("ignore")
 _SELECTOR_CACHE = Path(tempfile.mkdtemp(prefix="y1_selector_cache_"))
 
 
-# ------------------------------------------------------------------ inner CV
+# inner CV
 
 def purged_inner_splits(dates, label_end, n_splits=3):
     """Purged temporal inner CV (`notebooks/_shared.purged_inner_cv`'s rule), but
@@ -84,7 +84,7 @@ def purged_inner_splits(dates, label_end, n_splits=3):
     return []
 
 
-# ------------------------------------------------------------------ estimators
+# estimators
 
 def _pipeline(steps):
     from joblib import Memory
@@ -141,7 +141,7 @@ def build_search(name, k, cv_splits):
                         n_jobs=1, refit=True), grid
 
 
-# ------------------------------------------------------------------ Stage A
+# Stage A
 
 def stage_a_expected_returns(market_feats, event_positions, horizons):
     """Normal-market expected h-session return for every event, estimated ONLY from
@@ -157,16 +157,17 @@ def stage_a_expected_returns(market_feats, event_positions, horizons):
     F = mf[feat_cols].shift(1)                            # features known at p-1
     out = {}
     for h in horizons:
+        # Same alignment as the target: Ph = price[p + h - 1], P0 = price[p - 1].
         fwd = np.full(len(mf), np.nan)
-        valid = np.arange(1, len(mf) - h)
-        fwd[valid] = 100.0 * np.log(price[valid + h] / price[valid - 1])
+        valid = np.arange(1, len(mf) - h + 1)
+        fwd[valid] = 100.0 * np.log(price[valid + h - 1] / price[valid - 1])
         preds = []
         for pos in event_positions:
             if pos is None:
                 preds.append(np.nan)
                 continue
-            # Label of a training row at p settles at session p+h; require p+h < pos.
-            usable = np.arange(1, max(1, pos - h))
+            # A training row at p settles at session p + h - 1; require that before pos.
+            usable = np.arange(1, max(1, pos - h + 1))
             rows = usable[np.isfinite(fwd[usable]) & F.iloc[usable].notna().all(axis=1).to_numpy()]
             if len(rows) < 250:
                 preds.append(np.nan)
@@ -179,7 +180,7 @@ def stage_a_expected_returns(market_feats, event_positions, horizons):
     return out
 
 
-# ------------------------------------------------------------------ main grid
+# main grid
 
 def main():
     dataset = pd.read_parquet(artifact_file("dataset.parquet"))
@@ -188,8 +189,9 @@ def main():
     feature_cols = json.loads((artifact_file("feature_spec.json")).read_text())["FEATURE_COLS"]
     event_dates = pd.to_datetime(dataset["event_date"]).reset_index(drop=True)
 
-    targets = build_horizon_targets(market, event_dates)
-    data = pd.concat([dataset.reset_index(drop=True), targets], axis=1)
+    # Horizon targets come straight from dataset.parquet, which event_targets.py built
+    # under the frozen protocol. Rebuilding them here would be a second definition.
+    data = dataset.reset_index(drop=True)
     sets = information_sets(feature_cols)
 
     md = market.sort_values("date").reset_index(drop=True)
@@ -298,7 +300,7 @@ def main():
     oof.to_parquet(artifact_file("aspi_grid_predictions.parquet"), index=False)
     print(f"\nwrote aspi_grid_predictions.parquet ({len(oof)} rows)")
 
-    # ----------------------------------------------------------- metrics + verdicts
+    # metrics + verdicts
     metrics, verdicts = [], []
     episode_ids_all = build_episode_ids(event_dates)
 
@@ -350,7 +352,7 @@ def main():
           f"aspi_grid_verdicts.parquet ({len(vt)} comparisons, "
           f"{int(vt['boot_beats'].sum()) if len(vt) else 0} with a CI excluding zero)")
 
-    # ----------------------------------------------------------- feature stability
+    # feature stability
     st = pd.DataFrame(stability_rows)
     n_folds = st.groupby(["horizon", "info_set", "k"])["fold"].nunique().rename("n_folds")
     stab = (st.groupby(["horizon", "info_set", "k", "feature"])
@@ -363,7 +365,7 @@ def main():
     stab.to_parquet(artifact_file("aspi_grid_feature_stability.parquet"), index=False)
     print(f"wrote aspi_grid_feature_stability.parquet ({len(stab)} rows)")
 
-    # ----------------------------------------------------------- direction (secondary)
+    # direction (secondary)
     direction = run_direction_analysis(data, event_dates, splits, sets["combined"])
     direction.to_parquet(artifact_file("aspi_direction_metrics.parquet"), index=False)
     print(f"wrote aspi_direction_metrics.parquet ({len(direction)} rows)")

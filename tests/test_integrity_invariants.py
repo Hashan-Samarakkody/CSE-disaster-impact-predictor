@@ -12,7 +12,7 @@ from src.evaluation.collinearity import REDUNDANCY_THRESHOLD, redundant_drop_set
 from src.training.walk_forward import generate_walk_forward_splits
 
 
-# ------------------------------------------------- chronological walk-forward
+# chronological walk-forward
 
 def test_walk_forward_never_trains_on_the_future():
     """Thesis 3.7.1 forbids k-fold. Every training index must precede every test index."""
@@ -40,7 +40,7 @@ def test_walk_forward_yields_nothing_when_the_sample_is_too_small():
     assert list(generate_walk_forward_splits(20, 30, 10, 10)) == []
 
 
-# --------------------------------------------------- sector panel: event grouping
+# sector panel: event grouping
 
 @pytest.fixture
 def panel():
@@ -71,7 +71,7 @@ def test_sector_folds_are_chronological(panel):
         assert panel.event_id.iloc[tr].max() < panel.event_id.iloc[te].min()
 
 
-# ------------------------------------------- event-clustered bootstrap must not shrink
+# event-clustered bootstrap must not shrink
 
 def test_event_block_bootstrap_is_wider_than_resampling_rows_independently():
     """The whole point of clustering. Treating 20 correlated sector rows as 20
@@ -106,7 +106,7 @@ def test_event_block_bootstrap_point_estimate_favours_the_better_model():
     assert out["delta_rmse"] > 0  # positive favours model a, which here is the good one
 
 
-# --------------------------------------- the pre-declared collinearity drop rule
+# the pre-declared collinearity drop rule
 
 def test_drop_rule_keeps_the_least_derived_member():
     """Pre-declared rule: within a group correlated above |rho| >= 0.95, keep the most
@@ -134,7 +134,7 @@ def test_drop_rule_threshold_is_the_declared_one():
     assert REDUNDANCY_THRESHOLD == 0.95
 
 
-# --------------------------------------------------- Y3 window contamination
+# Y3 window contamination
 
 def test_truncate_overlapping_windows_flags_events_inside_a_prior_window():
     """29 of 64 Y3 windows contained a later qualifying disaster. The helper that

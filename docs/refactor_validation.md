@@ -1,7 +1,168 @@
 # Refactor validation
 
-What the 2026-09-17 repository refactor changed, what was actually executed afterwards, and
-what was verified. Nothing below is claimed unless it was run.
+What the repository refactors changed, what was actually executed afterwards, and what was
+verified. Nothing here is claimed unless it was run.
+
+Two passes are recorded. Part A is the 2026-09-21 validation pass, which repaired the
+repository after the target definitions were re frozen on 2026-09-19 and re ran the whole
+workflow under them. Part B is the original 2026-09-17 restructuring pass, kept unchanged
+as the record of what moved where. Part B's numbers describe the pre protocol targets and
+are historical.
+
+---
+
+# Part A. The 2026-09-21 validation pass
+
+## A.1 Why it was needed
+
+On 2026-09-19 the three targets were re specified and frozen in
+`docs/TARGET_DEFINITION_PROTOCOL.md`. The notebooks and `src/targets/event_targets.py`
+were updated with them, but the rest of the repository was not, and the test suite was
+left failing: **25 of 153 tests failed** at the start of this pass.
+
+## A.2 Defects found and fixed
+
+1. **A second, contradictory definition of target one.**
+   `src/targets/return_horizons.py` built its own horizon columns as
+   `100 ln(P[pos + h] / P[pos - 1])`, one session later than the protocol's
+   `Ph = market[position + h - 1]`. The return grid modelled those columns while every
+   other stage modelled the dataset's own, so the two disagreed on all 74 events, by up to
+   3.38 percentage points at the five session horizon. The builder is deleted; the module
+   now only names the columns, and the grid reads them from `dataset.parquet`. One
+   definition of Y1 now exists in the repository.
+2. **The same off by one in the market only baseline.** `stage_a_expected_returns` in
+   `scripts/run_aspi_return_grid.py` estimated a forward return over `price[p + h]`, so
+   the study's primary baseline predicted a different quantity from the target it was
+   compared against. Corrected, along with the purge bound that depends on it, and the
+   stale cached estimates were deleted and rebuilt.
+3. **The Y3 hurdle model was fed the no drawdown events.** Under the protocol those events
+   carry duration 0 with no recovery observed, so the hurdle read them as censored and
+   predicted the 90 session cap against a true zero. Its mean absolute error was 56.0
+   sessions against 12.1 for predicting zero. It is now fitted and scored on drawdown
+   events only, as the protocol's stage two requires, giving 27.5 sessions. It still loses
+   to every baseline, and that result is kept.
+4. **`label_adverse_move_sigma` was dead code** that referenced a module deleted in the
+   2026-09-17 refactor and a target definition that no longer exists. Removed.
+5. **`LABEL_DESCRIPTIONS` had no entry for `C0_drawdown_occurs`**, so the demo app would
+   have raised a `KeyError` as soon as the final classifier bundle was refitted with the
+   six current labels. Added.
+6. **The demo app hard coded a result.** Its classification caption asserted that
+   `C2_volume_spike` is the one label that clears both the majority rule and chance. Under
+   the current run no label does. The caption is now derived from the table it sits under.
+7. **Figure axis labels described the old Y2.** `src/visualization/result_figures.py`
+   labelled the target as a ratio minus one. Corrected to the log ratio, and the figures
+   regenerated.
+8. **Stale tests, rewritten rather than deleted.** The Y3 session counting tests encoded
+   the pre protocol convention; the classification label test passed `dataset=None` to a
+   label that now needs it; two tests pinned findings rather than behaviour, asserting that
+   the recovery concordance interval must exclude 0.5 and that specific classification
+   labels must beat their baseline. Those two now assert internal consistency between each
+   artifact's numbers and its own verdict column, which catches drift without freezing a
+   conclusion in place.
+9. **70 decorative comment separators, four oversized docstrings, two oversized comment
+   blocks and several truncated comments**, the latter left mid sentence by an earlier
+   shortening pass.
+10. **Notebook 01 shipped pre refactor stored outputs** naming
+    `src/data_pipeline/cse_raw_loaders.py`, `data/2000 data.xls` and absolute machine
+    paths, none of which exist. Its outputs are cleared and the reason is documented in the
+    notebook and in `docs/notebooks/01_data_acquisition.md`. It is deliberately not re run:
+    its six sources are live and unpinned.
+11. **One broken documentation link**, to the deleted `architecture/data_acquisition.md`.
+12. **`docs/target_definitions.md` contradicted the frozen protocol outright**, describing
+    the superseded endpoints, the ratio minus one volume target and the trough anchored
+    recovery scan. Rewritten against the implementation, with the observed distributions
+    recomputed and the worked example re derived from the raw market series.
+
+## A.3 What was executed
+
+| What | Status |
+|---|---|
+| `pytest tests/ -q` | **152 passed, 0 failed** |
+| `pyflakes` over `src`, `scripts`, `tests`, `apps`, `notebooks` | clean |
+| Module self checks | 12 of 12 pass |
+| Notebook 02, features and targets | not re run; unchanged by this pass, and its output is independently re verified below |
+| Notebook 03, exploratory analysis | executed end to end |
+| Notebook 04, regression modelling | not re run; unchanged by this pass, its artifacts date from the 2026-09-19 protocol run |
+| Notebook 05, classification and hurdle | executed end to end, twice, the second time after the hurdle fix |
+| Notebook 06, evaluation | executed end to end |
+| Notebook 07, explainability | executed end to end |
+| Notebook 08, sector panel | executed end to end, twice, the second time after a column rename |
+| Notebook 09, synthesis | contains no code cells |
+| Notebook 01, data acquisition | deliberately not executed, see defect 10 |
+| Uncaught errors in any notebook output | **0 across all nine** |
+| `scripts/run_aspi_return_grid.py` | executed, 87 minutes, 252 configurations and 720 comparisons rewritten |
+| `scripts/run_recovery_survival_grid.py` | executed, all four recovery artifacts rewritten |
+| `scripts/run_survival_model.py` | executed |
+| `scripts/run_garch_ablation.py` | executed |
+| `scripts/run_headline_confirmation.py` | executed |
+| `scripts/train_final_models.py` | executed, both bundles rewritten |
+| `scripts/build_final_tables.py` | executed, 240 and 15 row tables |
+| `scripts/audit_results.py` | executed |
+| `scripts/generate_feature_dictionary.py` | executed |
+| `scripts/make_architecture_diagram.py` | executed |
+| `scripts/freeze_baseline.py` | executed once, deliberately, see A.5 |
+
+## A.4 Independent verification of the target columns
+
+`tests/test_return_horizons.py` now recomputes every horizon value for every event
+directly from `market.parquet`, using the protocol's own indexing, and compares it against
+`dataset.parquet` at a tolerance of 1e-9. It also checks `P0` for every event. All 74
+events and all four horizons agree. That is an independent check of the target column, not
+a check of the code that wrote it against itself.
+
+## A.5 The frozen baseline was re taken, deliberately
+
+`artifacts/results/frozen_baseline.json` pinned the pre protocol volume target, a ratio
+minus one over the event day window. The protocol replaced it with a log ratio over the
+five sessions after the prediction origin, so twenty assertions in
+`tests/test_volume_target_frozen.py` were failing against a definition that no longer
+exists. The baseline was re taken on 2026-09-21 at commit `f076bd9`, and the fact is
+recorded here, in `docs/testing.md` and in `docs/experiments.md` rather than done
+silently. Re freezing is justified only by a deliberate, pre declared change to a target
+definition.
+
+## A.6 Result changes caused by the re specification
+
+These are consequences of the author's own change of definition, not of the repair work.
+
+| Result | Before the protocol | After |
+|---|---|---|
+| Return magnitude | 0 of 720 comparisons significant | unchanged, 0 of 720 |
+| Return direction at ten sessions | AUC 0.752, interval [0.567, 0.896], Holm p 0.032 | AUC 0.817, interval [0.657, 0.940], Holm p below 0.001 |
+| Forward abnormal volume | Gaussian process and support vector regression beat both baselines | the ensemble beats both baselines, pooled R squared 0.334, Holm p 0.021 against naive zero |
+| Recovery duration | concordance 0.657, interval [0.522, 0.769], reported as suggestive | concordance 0.535, interval [0.371, 0.697], no result |
+| Recovery hurdle | reported as losing | still losing, and now measured on the right sample |
+
+The recovery result is the one that reverses. It is documented in
+`docs/improvements_to_thesis/improvements_to_thesis.md` entry 2, and no attempt was made
+to recover it.
+
+## A.7 Remaining limitations
+
+1. **Notebook 04 was not re executed in this pass.** Nothing this pass changed affects it:
+   its inputs, its target columns and the modules it imports are unchanged, and its
+   artifacts are from the 2026-09-19 run under the current protocol. Notebooks 05 to 08
+   were re run on top of those artifacts and agree with them. A full six hour re execution
+   would confirm bit level stability and has not been performed.
+2. **Notebook 01 was not executed**, for the reason in defect 10.
+3. **The sector panel still zero fills its own feature matrix** rather than using the
+   global median values the index level pipeline uses. It is a secondary analysis and the
+   gap is disclosed rather than closed, because closing it would change a result for a
+   stylistic reason.
+4. **The thesis document was not supplied**, so
+   `docs/improvements_to_thesis/improvements_to_thesis.md` says which of its entries are
+   unverified against the thesis text and asks the author to check them.
+5. **A deprecation warning from `nbformat`** about cells missing an id field is still
+   emitted. It is harmless with the current version and is not suppressed, because
+   silencing a forward compatibility warning hides a real future break.
+
+---
+
+# Part B. The 2026-09-17 restructuring pass
+
+The numbers and target names in this part describe the pre protocol targets and are kept
+as the historical record of what moved where.
+
 
 ## 1. Repository execution status
 

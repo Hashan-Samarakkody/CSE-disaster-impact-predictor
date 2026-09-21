@@ -7,7 +7,7 @@ import pandas as pd
 
 # Deterministic functions of OTHER feature columns: recomputed after interpolation
 # rather than interpolated, so the identity that holds in the real table also holds on
-# every synthetic row. Definitions mirror feature_eng.py and notebook 02.
+# every synthetic row. Definitions mirror src/features/feature_engineering.py and notebook 02.
 DERIVED_COLS = (
     "log_financial_damage",
     "log_population_affected",

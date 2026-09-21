@@ -35,22 +35,21 @@ NEUTRAL = "0.92"        # masked / not-distinguishable-from-zero cells
 WIDTH_FULL, WIDTH_HALF = 6.3, 3.1
 H_SHORT, H_MED, H_TALL = 2.4, 3.6, 5.0
 
-# Y1 rebaselined onto the pre-event close (methodology-audit finding #8, 2026-09-16),
-# absorbing EventWindow_0_5's formula, there is no separate CAR[0,+5] entry below.
+# Axis labels for the three frozen targets and the 10-session sensitivity analysis.
 TARGET_LABELS = {
-    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · 5-day cumulative return from pre-event close",
-    "Y2_5D_Forward_AbnormalVolume_LogRatio": "Y2 · abnormal volume (V / 30-day mean − 1)",
-    "Y3_ASPI_Recovery_Time": "Y3 · recovery time (trading days, capped 90)",
-    "Y1_ASPI_10D_Forward_LogReturn_Pct": "CAR[0,+10] · cumulative return, 10 trading days",
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · 5-session log return from the pre-event close (%)",
+    "Y2_5D_Forward_AbnormalVolume_LogRatio": "Y2 · log(5-session mean volume / 30-session baseline)",
+    "Y3_ASPI_Recovery_Time": "Y3 · recovery time (trading sessions, censored at 90)",
+    "Y1_ASPI_10D_Forward_LogReturn_Pct": "Y1 sensitivity · 10-session log return (%)",
 }
 # Short forms for multi-panel figures, where the full labels collide.
 SHORT_TARGET_LABELS = {
-    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · CAR[0,+5]",
+    "Y1_ASPI_5D_Forward_LogReturn_Pct": "Y1 · 5-session return",
     "Y2_5D_Forward_AbnormalVolume_LogRatio": "Y2 · abnormal volume",
     "Y3_ASPI_Recovery_Time": "Y3 · recovery days",
     "Y1_sector_log_return": "Y1 · sector log return",
     "Y3_sector_recovery_days": "Y3 · sector recovery",
-    "Y1_ASPI_10D_Forward_LogReturn_Pct": "CAR[0,+10]",
+    "Y1_ASPI_10D_Forward_LogReturn_Pct": "Y1 · 10-session return",
 }
 
 MODEL_LABELS = {
@@ -84,7 +83,7 @@ def _pretty(name: str) -> str:
             .replace("disaster_", ""))
 
 
-# --------------------------------------------------------------- style and export
+# style and export
 
 
 def apply_thesis_style(base: int = 9, serif: bool = False) -> None:
@@ -145,7 +144,7 @@ def stamp(fig, text: str) -> None:
              color=PALETTE["grey"], transform=fig.transFigure)
 
 
-# --------------------------------------------------------------- descriptive figures
+# descriptive figures
 
 
 def plot_target_distributions(dataset, target_cols, bins: int = 20):
@@ -356,7 +355,7 @@ def plot_walk_forward_folds(splits, dataset, y, target="Y1_ASPI_5D_Forward_LogRe
     return fig
 
 
-# --------------------------------------------------------------- evaluation figures
+# evaluation figures
 
 
 def plot_model_vs_baseline(results, target_cols, metric="rmse",

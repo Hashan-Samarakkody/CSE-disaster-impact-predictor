@@ -1,4 +1,4 @@
-"""Y1 multi-horizon target construction and the market/disaster information partition."""
+"""Y1 horizon column naming and the market/disaster information partition."""
 
 from __future__ import annotations
 
@@ -8,59 +8,56 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from src.config.settings import ASPI_PERCENTAGE_CHANGE, ASPI_SENSITIVITY_COLS
 from src.targets.return_horizons import (DISASTER_FEATURES, HORIZONS, MARKET_FEATURES,
-                                         build_horizon_targets, horizon_col,
-                                         horizon_end_col, information_sets)
+                                         horizon_col, horizon_end_col, information_sets)
 from src.utils.artifact_store import artifact_file
 
 
+def test_horizon_names_are_the_frozen_protocol_columns():
+    """One definition of Y1 only. If these names drift from settings, the grid script
+    silently starts modelling a different target from the one in dataset.parquet."""
+    assert horizon_col(5) == ASPI_PERCENTAGE_CHANGE
+    assert [horizon_col(h) for h in (10, 15, 20)] == ASPI_SENSITIVITY_COLS
+    assert horizon_end_col(5) == "Y1_horizon_end_date"
+    assert [horizon_end_col(h) for h in (10, 15, 20)] == [
+        f"Y1_{h}D_horizon_end_date" for h in (10, 15, 20)]
 
-@pytest.fixture
-def synthetic_market():
-    sessions = pd.date_range("2020-01-01", periods=60, freq="B")
-    prices = 100.0 * np.exp(np.arange(60) * 0.01)     # +1% log return per session
-    return pd.DataFrame({"date": sessions, "aspi_close": prices}), sessions
 
-
-def test_horizons_are_trading_sessions_not_calendar_days(synthetic_market):
-    """The series is business-day only, so a Saturday event must align to the next Monday
-    and every horizon must be counted in sessions from there."""
-    market, sessions = synthetic_market
-    event = pd.Timestamp("2020-01-11")            # a Saturday
-    out = build_horizon_targets(market, [event])
-    t = int(np.flatnonzero(sessions >= event)[0])
-    assert sessions[t].weekday() == 0
+def test_every_horizon_column_exists_in_the_built_dataset():
+    dataset = pd.read_parquet(artifact_file("dataset.parquet"))
     for h in HORIZONS:
-        assert out[horizon_end_col(h)].iloc[0] == sessions[t + h]
+        assert horizon_col(h) in dataset.columns, h
+        assert horizon_end_col(h) in dataset.columns, h
+        assert dataset[horizon_col(h)].notna().mean() > 0.9, h
 
 
-def test_formula_is_log_return_from_pre_event_close(synthetic_market):
-    """Y_h = 100 ln(P_{t+h} / P_{t-1}), baselined on the LAST PRE-EVENT close, so the
-    window spans h+1 sessions of a +1%/session path."""
-    market, sessions = synthetic_market
-    out = build_horizon_targets(market, [sessions[20]])
-    for h in HORIZONS:
-        assert out[horizon_col(h)].iloc[0] == pytest.approx((h + 1) * 1.0, abs=1e-9)
+def test_horizon_values_follow_the_protocol_alignment():
+    """Ph = market[position + h - 1] and P0 = market[position - 1], checked against the
+    raw market series rather than against the code that wrote the column."""
+    market = pd.read_parquet(artifact_file("market.parquet")).sort_values("date")
+    market = market.reset_index(drop=True)
+    dates = pd.to_datetime(market["date"]).to_numpy()
+    prices = market["aspi_close"].to_numpy(float)
+    dataset = pd.read_parquet(artifact_file("dataset.parquet"))
+
+    for row in dataset.itertuples():
+        position = int(np.flatnonzero(dates >= np.datetime64(row.event_date))[0])
+        assert prices[position - 1] == pytest.approx(row.P0)
+        for h in HORIZONS:
+            value = getattr(row, horizon_col(h))
+            if not np.isfinite(value):
+                continue
+            want = 100.0 * np.log(prices[position + h - 1] / prices[position - 1])
+            assert value == pytest.approx(want, abs=1e-9), (row.event_date, h)
 
 
-def test_short_window_is_nan_never_truncated(synthetic_market):
-    market, sessions = synthetic_market
-    out = build_horizon_targets(market, [sessions[-3]])
-    assert np.isnan(out[horizon_col(20)].iloc[0])
-    assert pd.isna(out[horizon_end_col(20)].iloc[0])
-
-
-def test_event_before_first_session_is_nan(synthetic_market):
-    market, sessions = synthetic_market
-    out = build_horizon_targets(market, [sessions[0]])      # no P_{t-1} exists
-    assert out[[horizon_col(h) for h in HORIZONS]].isna().all(axis=None)
-
-
-def test_horizon_end_dates_are_monotone_in_h(synthetic_market):
-    market, sessions = synthetic_market
-    out = build_horizon_targets(market, [sessions[10]])
-    ends = [out[horizon_end_col(h)].iloc[0] for h in HORIZONS]
-    assert ends == sorted(ends) and len(set(ends)) == len(ends)
+def test_horizon_end_dates_are_monotone_in_h():
+    dataset = pd.read_parquet(artifact_file("dataset.parquet"))
+    ends = dataset[[horizon_end_col(h) for h in HORIZONS]].dropna()
+    assert len(ends) > 0
+    increasing = ends.apply(lambda r: list(r) == sorted(r) and len(set(r)) == len(r), axis=1)
+    assert increasing.all()
 
 
 def test_information_sets_partition_every_feature_column():
@@ -86,22 +83,3 @@ def test_no_disaster_column_leaks_into_the_market_set():
     assert "population_affected" not in MARKET_FEATURES
     assert "total_deaths" not in MARKET_FEATURES
     assert set(MARKET_FEATURES).isdisjoint(DISASTER_FEATURES)
-
-
-def test_real_market_series_produces_finite_targets_for_most_events():
-    """Smoke test against the cached artifacts: the alignment rule must actually resolve
-    on the real CSE calendar, not just a synthetic business-day index."""
-    if not (artifact_file("market.parquet")).exists():
-        pytest.skip("artifacts/market.parquet missing")
-    market = pd.read_parquet(artifact_file("market.parquet"))
-    dataset = pd.read_parquet(artifact_file("dataset.parquet"))
-    out = build_horizon_targets(market, pd.to_datetime(dataset["event_date"]))
-    assert len(out) == len(dataset)
-    for h in HORIZONS:
-        assert out[horizon_col(h)].notna().mean() > 0.9, h
-    # h=5 must reproduce the frozen pipeline's own Y1 column, which uses the identical
-    # formula and alignment, a drift here means one of the two is wrong.
-    frozen = dataset["Y1_ASPI_5D_Forward_LogReturn_Pct"].to_numpy(float)
-    both = np.isfinite(frozen) & out[horizon_col(5)].notna().to_numpy()
-    np.testing.assert_allclose(out[horizon_col(5)].to_numpy(float)[both], frozen[both],
-                               atol=1e-9)

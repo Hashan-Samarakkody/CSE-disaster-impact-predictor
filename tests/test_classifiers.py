@@ -21,13 +21,40 @@ def _targets(n=64, seed=0):
     })
 
 
+def _dataset(y, seed=1):
+    """Y3 bookkeeping columns the stage-1 and stage-2 labels read alongside the targets."""
+    rng = np.random.default_rng(seed)
+    drawdown = y["Y3_ASPI_Recovery_Time"].to_numpy() > 0
+    observed = drawdown & (y["Y3_ASPI_Recovery_Time"].to_numpy() < 90)
+    reason = np.where(~drawdown, "no_drawdown",
+                      np.where(observed, "recovered",
+                               rng.choice(["90_day_cap", "next_disaster"], len(y))))
+    return pd.DataFrame({"Y3_drawdown_occurred": drawdown,
+                         "Y3_event_observed": observed.astype(int),
+                         "Y3_censor_reason": reason}, index=y.index)
+
+
 def test_all_labels_are_binary_and_defined_for_every_event():
     y = _targets()
+    dataset = _dataset(y)
     train_idx = np.arange(30)
     for name, fn in LABELS.items():
-        lab = fn(y, train_idx, None)
+        lab = fn(y, train_idx, dataset)
         assert len(lab) == len(y), name
         assert set(np.unique(lab.dropna())) <= {0.0, 1.0}, name
+
+
+def test_drawdown_label_covers_every_event_while_the_duration_labels_do_not():
+    """C0 is stage 1 and is defined for all events; C3 and C3b are conditional on a
+    drawdown, so they must drop the D = 0 rows rather than score them."""
+    y = _targets()
+    dataset = _dataset(y)
+    train_idx = np.arange(30)
+    assert LABELS["C0_drawdown_occurs"](y, train_idx, dataset).notna().all()
+    for name in ("C3_recovers_in_90", "C3b_slow_recovery"):
+        defined = LABELS[name](y, train_idx, dataset).notna()
+        assert defined.sum() < len(y), name
+        assert not defined[~dataset["Y3_drawdown_occurred"]].any(), name
 
 
 def test_adverse_move_cut_point_uses_training_rows_only():

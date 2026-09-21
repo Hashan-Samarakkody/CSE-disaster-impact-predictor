@@ -18,30 +18,43 @@ the market response.
 
 ## The three prediction targets
 
-1. **ASPI percentage change.** The forward log return in percent from the last pre event
-   close over five trading sessions.
-2. **Abnormal trading volume.** Mean market wide traded volume over the five post event
-   sessions (t0 to t0+4, t0 counted as the first) relative to its own trailing thirty
-   session mean, minus one. The sign is two sided: a disaster can raise or suppress
-   turnover.
-3. **Market recovery days.** Trading sessions until the index regains its pre event level,
-   right censored at ninety sessions or at the next qualifying disaster.
+Definitions are frozen in `docs/TARGET_DEFINITION_PROTOCOL.md` and implemented in
+`src/targets/event_targets.py`. `P0` is the last ASPI close known before the disaster,
+`Pk` and `Vk` are the close and the market wide volume of the kth complete trading
+session after it.
 
-These three are the whole research question. There is no fourth target. Definitions live in
-`src/targets/event_targets.py` and the readable aliases in `src/config/settings.py`.
+1. **ASPI return magnitude**, `Y1_ASPI_5D_Forward_LogReturn_Pct`. The forward log return
+   in percent over the first five complete sessions, `100 ln(P5 / P0)`.
+2. **Forward abnormal trading volume**, `Y2_5D_Forward_AbnormalVolume_LogRatio`. The log
+   ratio of mean volume over those five sessions to the mean of the thirty sessions
+   before the event, `ln(mean(V1..V5) / mean(V-30..V-1))`. The sign is two sided: a
+   disaster can raise or suppress turnover.
+3. **Market recovery duration**, `Y3_ASPI_Recovery_Time`. A time to event outcome. Whether
+   a drawdown occurs at all is stage one; conditional on one, the duration is the number
+   of sessions until the index regains `P0`, right censored at ninety sessions or at the
+   next qualifying disaster.
+
+These three are the whole research question. There is no fourth target. The ten, fifteen
+and twenty session return columns are pre registered horizon sensitivity analyses of
+target one, and the six classification labels are binary views of the same three targets.
+`docs/target_definitions.md` states each one precisely, with the observed distributions
+and a worked example.
 
 ## What the study found
 
+All numbers below come from the walk forward evaluation in this repository, re run in full
+on 2026-09-21 under the frozen target protocol.
+
 | Target | What is predictable | Best validated model | Evidence | Supported |
 |---|---|---|---|---|
-| ASPI percentage change, magnitude | nothing | none | 0 of 720 comparisons with an interval excluding zero, across a pre declared 240 configuration grid | No |
-| ASPI percentage change, direction at ten sessions | the sign of the return | logistic regression, combined features | AUC 0.752, interval [0.567, 0.896], Holm p 0.032 | Yes |
-| Volume crash magnitude | the size of the response | support vector regression, Gaussian process | paired bootstrap interval excludes zero against both baselines | Yes |
-| Market recovery days | ranking and probabilities, not the day | two stage drawdown plus Weibull survival model | concordance 0.657, interval [0.522, 0.769], fails the family wise correction | Suggestive |
+| Y1, return magnitude | nothing | none | 0 of 720 paired bootstrap comparisons across a pre declared 240 configuration grid had an interval excluding zero. Best pooled R squared anywhere in the grid is 0.092 | No |
+| Y1, return direction at ten sessions | the sign of the return | logistic regression, combined features, ten selected features | ROC AUC 0.817, episode clustered interval [0.657, 0.940], Holm corrected p below 0.001, balanced accuracy 0.757 | Yes |
+| Y2, forward abnormal volume | the size of the response | ensemble of the regression families | pooled R squared 0.334, delta RMSE interval excludes zero against both naive baselines, Holm corrected p 0.021 against naive zero | Yes |
+| Y3, recovery duration | nothing, in either duration or ranking | none | every model loses to the training mean baseline on RMSE, and the best Harrell concordance is 0.535 with an interval of [0.371, 0.697] | No |
 
-Read that table with its negatives intact. Exact return magnitude and exact recovery
-duration are not predictable at this sample size, and the study reports that rather than
-working around it. The full numbers are in `docs/results.md` and what they license is in
+Read that table with its negatives intact. Exact return magnitude and recovery duration are
+not predictable at this sample size, and the study reports that rather than working around
+it. The full numbers are in `docs/results.md` and what they license is in
 `docs/interpretation.md`.
 
 ## High level methodology
@@ -113,8 +126,13 @@ Run the notebooks in numeric order. Each stage reads what it needs from `artifac
 writes what it produces back there, so a later stage fails with a clear message naming the
 missing artifact if an earlier one has not run.
 
+Stage 01 is the exception. Its six external sources are live and unpinned, so re running it
+can return revised figures and move every downstream number. Its outputs are already cached
+under `artifacts/tables/` and `artifacts/external/`, and it ships without stored cell
+outputs for that reason. Start at stage 02 unless a data refresh is intended.
+
 ```
-notebooks/01_data_acquisition.ipynb        slow, network access required
+notebooks/01_data_acquisition.ipynb        slow, network access, live unpinned sources
 notebooks/02_features_targets.ipynb        fast
 notebooks/03_eda_diagnostics.ipynb         fast, fits nothing
 notebooks/04_modeling_regression.ipynb     slowest, over an hour
@@ -130,6 +148,7 @@ Then the experiment scripts:
 ```bash
 python scripts/run_aspi_return_grid.py          # about 75 minutes
 python scripts/run_recovery_survival_grid.py    # about 1 minute
+python scripts/train_final_models.py            # fits the bundle the demo app serves
 python scripts/build_final_tables.py
 python scripts/audit_results.py
 ```
@@ -164,6 +183,8 @@ improvement work began. It cannot be rebuilt from a later state, and
 | Document | What it covers |
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | how the whole system fits together, start here |
+| [docs/TARGET_DEFINITION_PROTOCOL.md](docs/TARGET_DEFINITION_PROTOCOL.md) | the frozen specification of the three targets, the binding definition |
+| [docs/target_definitions.md](docs/target_definitions.md) | the same three targets written for a thesis reader, with observed distributions and a worked example |
 | [docs/notebooks/](docs/notebooks/) | one file per notebook stage, nine in total |
 | [docs/audit.md](docs/audit.md) | the complete research record: the frozen protocol, every pre declaration, the full dated change log, and every rejected variant |
 | [docs/results.md](docs/results.md) | every number the executed repository produced |
@@ -188,10 +209,11 @@ in sample fits for demonstration, not out of sample predictions, and the app say
 Seventy four events and forty pooled out of fold test points. There is no final lockbox
 holdout, because at this sample size setting one aside would cost folds the study cannot
 spare, so an adaptive selection risk remains that the bootstrap and the family wise
-correction reduce but do not eliminate. Across four folds, 35.6 per cent of selected
+correction reduce but do not eliminate. Across four folds, 35.7 per cent of selected
 features were selected in exactly one fold, so no single fold's selection is treated as a
-finding. The recovery target has thirty one observed recoveries in the pooled test set,
-which is thin for a survival model with twenty covariates.
+finding. The recovery target has fourteen observed recoveries in the pooled test set
+against twenty six censored ones, which is thin for a survival model with twenty
+covariates and is the main reason that target returns no result.
 
 ## License
 

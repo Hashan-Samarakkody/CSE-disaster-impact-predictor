@@ -79,13 +79,9 @@ def calculate_forward_abnormal_volume(market, position, volume_col="trading_volu
                                       date_col="date"):
     """Y2 = ln( mean(V1..V5) / mean(V_{-30}..V_{-1}) ).
 
-    Returns (value, label_end_date, v_base, v_future). The label end date is the session
-    of V5 -- the purge reads it, and dating it at the origin would leave training rows
-    whose response window overlaps the test period unpurged.
-
-    NaN when the frame carries no volume column (the sector indices, where the exchange
-    publishes volume market wide only), when the baseline is short or non-positive, or
-    when the response window would run off the end of the series.
+    Returns (value, label_end_date, v_base, v_future); the label end date is V5's session,
+    which the purge reads. NaN when the frame carries no volume column, when the baseline
+    is short or non-positive, or when the response window runs off the end of the series.
     """
     if volume_col not in market.columns:
         return np.nan, pd.NaT, np.nan, np.nan
@@ -127,23 +123,14 @@ def find_competing_event_position(market, event_dates_sorted, row_index, date_co
 def calculate_recovery_time(market, position, b, t_next=None,
                             max_sessions=MAX_RECOVERY_SESSIONS,
                             drawdown_window=DRAWDOWN_WINDOW, price_col="aspi_close"):
-    """Y3 as a time-to-event outcome.
+    """Y3 as a time-to-event outcome, per TARGET_DEFINITION_PROTOCOL.md section 3.
 
     Returns (duration, event_observed, censor_reason, drawdown_occurred).
-
-        D          = 1 if min(P1..P5) < B
-        T_recovery = min{k >= 1 : Pk >= B and there exists j < k with Pj < B}
-        T_observed = min(T_recovery, T_next, 90)
-        event      = 1 only if T_recovery < T_next and T_recovery <= 90
-
-    The scan starts at k = 1, not at the trough: the specification requires the first
-    session that regains B after ANY prior dip, and anchoring on the trough would skip a
-    genuine recovery that precedes a later, deeper dip.
-
-    D = 0 is a distinct state, not a zero-length recovery. It carries duration 0 with
-    event_observed = 0 so that a survival model cannot mistake it for an instant
-    recovery; stage 1 predicts D, stage 2 is fitted on D = 1 only.
+    D = 0 is a distinct state, not a zero-length recovery: duration 0 with no event
+    observed, so a survival model cannot read it as an instant recovery.
     """
+    # The scan starts at k = 1, not at the trough. Anchoring on the trough would skip a
+    # genuine recovery that precedes a later, deeper dip.
     if not np.isfinite(b) or b <= 0:
         return np.nan, 0, "no_baseline", False
 
@@ -254,7 +241,7 @@ if __name__ == "__main__":
             out["trading_volume"] = np.asarray(volumes, dtype=float)
         return pd.DataFrame(out)
 
-    # --- Y1: the protocol's own example. P0 = 10,000; P5 = 9,700 -> -3.0459 ---
+    # Y1: the protocol's own example. P0 = 10,000; P5 = 9,700 -> -3.0459
     prices = [10_000.0] * 30 + [9_900.0, 9_880.0, 9_860.0, 9_840.0, 9_700.0] + [9_700.0] * 100
     m = frame(prices)
     y1, end = calculate_aspi_forward_log_return(m, 30, 10_000.0, 5)
@@ -263,7 +250,7 @@ if __name__ == "__main__":
     # P5 is the FIFTH complete session after the origin, i.e. row position+4.
     assert end == sessions[34], end
 
-    # --- Y2: the protocol's own example. V_base = 20e6, V_future5 = 30e6 -> 0.4055 ---
+    # Y2: the protocol's own example. V_base = 20e6, V_future5 = 30e6 -> 0.4055
     vols = [20e6] * 30 + [30e6] * 5 + [20e6] * 100
     m = frame([100.0] * 135, vols)
     y2, end, vb, vf = calculate_forward_abnormal_volume(m, 30)
@@ -273,7 +260,7 @@ if __name__ == "__main__":
     assert abs(100 * (np.exp(y2) - 1) - 50.0) < 1e-9        # reads as +50%
     assert end == sessions[34], end                          # V5, not the origin
 
-    # --- Y3: the protocol's own example. B = 10,000, recovery at k = 12 ---
+    # Y3: the protocol's own example. B = 10,000, recovery at k = 12
     path = [9_850.0, 9_600.0, 9_500.0, 9_700.0, 9_850.0, 9_900.0,
             9_910.0, 9_920.0, 9_930.0, 9_940.0, 9_950.0, 10_020.0]
     m = frame([10_000.0] * 30 + path + [10_020.0] * 100)
@@ -303,7 +290,7 @@ if __name__ == "__main__":
     m = frame([100.0] * 30 + [95.0, 101.0, 90.0, 90.0, 90.0] + [90.0] * 100)
     assert calculate_recovery_time(m, 30, 100.0)[0] == 2.0
 
-    # --- end to end ---
+    # end to end
     prices = [100.0] * 30 + [99.0, 98.0, 97.0, 98.0, 99.0, 101.0] + [101.0] * 100
     vols = [1_000.0] * 30 + [2_000.0] * 5 + [1_000.0] * 101
     market = pd.DataFrame({"date": sessions[:len(prices)], "aspi_close": prices,

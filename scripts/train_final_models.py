@@ -74,11 +74,14 @@ def fit_final_classifiers(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFram
 
 def fit_final_hurdle(X: pd.DataFrame, y: pd.DataFrame, dataset: pd.DataFrame) -> dict:
     target = "Y3_ASPI_Recovery_Time"
-    ok = y[target].notna().to_numpy()
+    # Stage 2 of the protocol's Y3 architecture, so events with no drawdown are excluded:
+    # they carry duration 0 as a recorded state, not as an instant recovery, and feeding
+    # them in makes the model predict the 90 session cap for a true zero.
+    ok = (y[target].notna() & dataset["Y3_drawdown_occurred"].astype(bool)).to_numpy()
     y_ok = y.loc[ok, target].to_numpy()
-    # Real competing-risk censoring indicator (methodology-audit finding #7), not
-    # `y_ok < 90` alone, see AFTRecoveryModel/HurdleRecoveryModel.fit docstrings.
-    recovered_ok = ~dataset["Y3_censored"].loc[y.loc[ok].index].to_numpy()
+    # Real competing-risk censoring indicator, not `y_ok < 90` alone: a row censored by a
+    # later qualifying disaster has y < 90 and is still not an observed recovery.
+    recovered_ok = dataset["Y3_event_observed"].loc[y.loc[ok].index].to_numpy().astype(bool)
     feats = _select_top_features(X.loc[ok], recovered_ok.astype(int))
 
     model = HurdleRecoveryModel(

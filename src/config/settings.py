@@ -40,15 +40,9 @@ MARKET_CAPITALIZATION_FILE = EXTERNAL_DATA_DIR / "cse_market_capitalization.csv"
 
 RANDOM_STATE = 42
 
-# The three research targets, per docs/TARGET_DEFINITION_PROTOCOL.md (frozen 2026-09-19
-# at commit 928a255, before any performance under these definitions was observed).
-#
-#   Y1 = 100 * ln(P5 / P0)                              percent, unbounded
-#   Y2 = ln( mean(V1..V5) / mean(V_-30..V_-1) )         log ratio, unbounded
-#   Y3 = sessions to recovery, right-censored           [0, 90], time-to-event
-#
-# P0 is the last close BEFORE the prediction origin; P1..P5 and V1..V5 are the first five
-# complete sessions after it.
+# The three research targets, defined in docs/TARGET_DEFINITION_PROTOCOL.md and frozen
+# there on 2026-09-19 at commit 928a255, before any performance under these definitions
+# was observed. P0 is the last close before the prediction origin.
 ASPI_PERCENTAGE_CHANGE = "Y1_ASPI_5D_Forward_LogReturn_Pct"
 VOLUME_CRASH_MAGNITUDE = "Y2_5D_Forward_AbnormalVolume_LogRatio"
 MARKET_RECOVERY_DAYS = "Y3_ASPI_Recovery_Time"
@@ -63,7 +57,7 @@ TARGET_COLS = [ASPI_PERCENTAGE_CHANGE, VOLUME_CRASH_MAGNITUDE, MARKET_RECOVERY_D
 # Columns kept so every target can be recomputed by hand. Never predictors.
 TARGET_AUDIT_COLS = ["prediction_origin_session", "P0", "Y2_V_base", "Y2_V_future5"]
 
-# Definitional support. Y2 is a LOG ratio now, so it is unbounded below.
+# Definitional support. Y2 is a log ratio, so it is unbounded below as well as above.
 TARGET_BOUNDS = {
     ASPI_PERCENTAGE_CHANGE: (None, None),
     VOLUME_CRASH_MAGNITUDE: (None, None),
@@ -92,12 +86,9 @@ LABEL_END_DATE_COL = {
 }
 
 
-# Every column that is an outcome, a constituent of an outcome, or a bookkeeping date --
-# i.e. everything a predictor must never be built from. Feature construction is a
-# denylist, so a target-family column missing from this set is silently admitted as a
-# feature; that is exactly how Y2_V_future5 (the numerator of Y2) and the 15/20-session
-# forward returns reached the model on 2026-09-19. One set, so a new target column
-# cannot be added to the dataset without also landing here.
+# Every outcome column, every constituent of one, and every bookkeeping date: what a
+# predictor must never be built from. Feature construction is a denylist, so a
+# target-family column missing here is silently admitted as a feature.
 NON_FEATURE_COLS = (
     set(TARGET_COLS)
     | set(ASPI_SENSITIVITY_COLS)        # 10/15/20D forward returns share P0 with Y1

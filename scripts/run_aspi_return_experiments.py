@@ -45,7 +45,7 @@ FROZEN_BASELINE = {"rmse": 2.489, "mae": 1.929, "r2": 0.085}
 FROZEN_TOL = 0.01  # loud-fail tolerance, not a fudge factor
 
 
-# --------------------------------------------------------------- shared glue
+# shared glue
 # (mirrors notebooks/04_modeling_regression.ipynb's own helpers, duplicated here per
 # this repo's existing convention of small standalone scripts, see run_garch_ablation.py)
 
@@ -174,7 +174,7 @@ def print_report(r):
           f"delta_MAE={r['delta_mae_vs_zero']:+.4f} CI=[{lo_m:+.4f},{hi_m:+.4f}]")
 
 
-# --------------------------------------------------------------- data loading
+# data loading
 
 def load_data():
     dataset = pd.read_parquet(artifact_file("dataset.parquet"))
@@ -194,7 +194,7 @@ def load_data():
     return dataset, X_all, y_all, dates_all, horizon_end_all, gdp_all, splits, feature_cols, type_cols
 
 
-# --------------------------------------------------------------- Section G: leakage audit
+# Section G: leakage audit
 
 def leakage_audit(dates_all, horizon_end_all, splits):
     rows = []
@@ -228,7 +228,7 @@ def leakage_audit(dates_all, horizon_end_all, splits):
     return table
 
 
-# --------------------------------------------------------------- Section 3: market-regime features
+# Section 3: market-regime features
 
 def build_regime_features(dataset):
     market = pd.read_parquet(artifact_file("market.parquet")).sort_values("date").reset_index(drop=True)
@@ -286,7 +286,7 @@ def add_fold_train_only_regime_flags(X_tr, X_te):
     return X_tr, X_te
 
 
-# --------------------------------------------------------------- generic single-target walk-forward
+# generic single-target walk-forward
 
 def run_single_target(X_all, y_all, dates_all, horizon_end_all, gdp_all, splits, type_cols,
                       model_names=("ridge", "random_forest", "xgboost"), use_smogn=True,

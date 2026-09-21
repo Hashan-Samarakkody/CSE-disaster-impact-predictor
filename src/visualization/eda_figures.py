@@ -13,7 +13,7 @@ def _pretty(name: str) -> str:
             .replace("disaster ", "").strip())
 
 
-# --------------------------------------------------------------- missingness
+# missingness
 
 
 def plot_missingness_matrix(dataset, cols=None, damage_source_col="damage_source",
@@ -109,7 +109,7 @@ def plot_missingness_ranked(dataset, cols=None, top_n=25,
     return fig, frac
 
 
-# --------------------------------------------------------------- outliers
+# outliers
 
 
 def outlier_table(series, iqr_k: float = 1.5, mad_z: float = 3.5):
@@ -181,7 +181,7 @@ def plot_outlier_panel(dataset, cols, date_col="event_date", label_top=3,
     return fig, pd.DataFrame(summary)
 
 
-# --------------------------------------------------------------- distributions
+# distributions
 
 
 def plot_feature_distributions(dataset, cols, ncols=4, bins=18,
@@ -251,7 +251,7 @@ def plot_qq_grid(dataset, target_cols, name="eda_05_qq_targets"):
     return fig, pd.DataFrame(rows)
 
 
-# --------------------------------------------------------------- relationships
+# relationships
 
 
 def plot_target_scatter_matrix(dataset, targets, features, name="eda_06_scatter_matrix"):
@@ -342,7 +342,7 @@ def plot_feature_target_correlation(dataset, target, feature_cols, top_n=20,
     return fig, frame
 
 
-# --------------------------------------------------------------- acquisition / context
+# acquisition / context
 
 
 def plot_event_timeline(market, dataset, price_col="aspi_close", date_col="date",

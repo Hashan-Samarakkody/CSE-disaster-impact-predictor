@@ -15,15 +15,14 @@ below traces to a number in `docs/results.md`, and every number there traces to 
 
 # Part 1. The one paragraph answer
 
-When a qualifying disaster strikes Sri Lanka, this study can say three things about the
-Colombo Stock Exchange. First, it can estimate how unusual trading volume will be on the
-event day. That estimate is imprecise but better than chance, and it is the study's
-strongest result. Second, at a ten session horizon it can indicate with reasonable
-confidence that the index will not fall, although it detects actual falls less than half
-the time. Third, it can state the probability that the market recovers within 10, 20, 30,
-60 or 90 trading sessions, and those probabilities are well calibrated. It cannot say how
-far the index will move, and it cannot say on which day recovery will occur. Both of those
-were tested systematically and found to be unpredictable at this sample size.
+When a qualifying disaster strikes Sri Lanka, this study can say two things about the
+Colombo Stock Exchange. First, it can estimate how unusual trading volume will be over the
+five sessions that follow. That estimate is imprecise but better than chance, and it is
+the study's strongest continuous result. Second, at a ten session horizon it can indicate
+with reasonable confidence which way the index will move, and that is the one finding that
+survives a family wise correction. It cannot say how far the index will move, and it can
+say nothing useful about recovery duration, in days or in rank order. Both of those were
+tested systematically and found to be unpredictable at this sample size.
 
 The economically interesting version of the same sentence: the market's attention to
 disasters is predictable, its repricing is not.
@@ -32,41 +31,44 @@ disasters is predictable, its repricing is not.
 
 # Part 2. What can be said about each of the three targets
 
-## 2.1 Volume crash magnitude: the size can be estimated
+## 2.1 Forward abnormal volume: the size can be estimated
 
-Evidence: pooled out of sample R squared of 0.27, RMSE 0.455, against a target whose own
-standard deviation is 0.58. Gaussian process and support vector regression both beat the
-zero baseline and the training fold mean with a paired episode clustered bootstrap
-interval excluding zero. Support vector regression against the zero baseline also survives
-a Holm family wise correction.
+Evidence: pooled out of sample R squared of 0.334 for the ensemble, pooled RMSE 0.488
+against a target whose own pooled standard deviation is 0.607, on 34 test points. The
+ensemble beats both naive baselines with a paired episode clustered bootstrap interval
+excluding zero, and its advantage over the zero baseline survives a Holm family wise
+correction at p 0.021. Random forest, extreme gradient boosting, the shallow network and
+the stacked model all beat the zero baseline on a single test as well.
 
 Safe sentence for the thesis:
 
-> Abnormal trading volume is predictable out of sample. The model explains roughly 27 per
-> cent of the variation in the event day volume response, and its advantage over a no
-> effect baseline is statistically supported.
+> Forward abnormal trading volume is predictable out of sample. The model explains roughly
+> a third of the variation in the five session volume response, and its advantage over a
+> no effect baseline is statistically supported after correction for multiplicity.
 
-What this does not license: a precise number. The typical error is about 0.36 in ratio
-units, so a prediction of twenty per cent above normal is consistent with anything from
-fifteen per cent below to fifty five per cent above. Write "can estimate", not "can tell
-you".
+What this does not license: a precise number. The typical absolute error is 0.38 in log
+ratio units, which is a factor of about 1.5 either way, so a prediction of twenty per cent
+above normal turnover is consistent with anything from roughly twenty per cent below to
+eighty per cent above. Write "can estimate", not "can tell you".
 
-## 2.2 ASPI percentage change: direction yes, size no
+## 2.2 ASPI return: direction yes, magnitude no
 
 The magnitude result is a negative one and is reported as such. Across 240 pre declared
 configurations and 720 statistical comparisons, no confidence interval excluded zero. The
-best pooled R squared anywhere in the grid is 0.075, with a delta RMSE interval of
-[-0.560, +1.045].
+best pooled R squared anywhere in the grid is 0.092, at the ten session horizon on the
+disaster only information set, and its delta RMSE interval against the market only
+expected return baseline is [-0.388, +1.046].
 
 The direction result is genuine and is the only finding in the study that survives a
 family wise correction. At the ten session horizon, logistic regression on the combined
-information set with ten features reaches a ROC AUC of 0.752, episode clustered interval
-[0.567, 0.896], Holm corrected p of 0.032.
+information set with ten selected features reaches a ROC AUC of 0.817, episode clustered
+interval [0.657, 0.940], Holm corrected p below 0.001, with a balanced accuracy of 0.757
+and a Matthews correlation of 0.530.
 
 The direction model is not symmetric, and this must be stated rather than buried.
-Sensitivity is 0.476 against a specificity of 0.842. In words: when the index did fall over
-the following ten sessions the model caught it less than half the time, and when the index
-did not fall the model said so correctly about five times in six.
+Sensitivity is 0.619 against a specificity of 0.895. In words: when the index did fall
+over the following ten sessions the model caught it about three times in five, and when it
+did not fall the model said so correctly about nine times in ten.
 
 Safe sentences for the thesis:
 
@@ -74,40 +76,48 @@ Safe sentences for the thesis:
 > information at this sample size. This was tested systematically across a pre declared
 > grid and is reported as a finding.
 
-> At a ten session horizon the model is a reliable indicator that the index will not
-> decline. It is not a reliable detector of declines.
+> At a ten session horizon the direction of the index response is predictable above
+> chance. The model is a more reliable indicator that the index will not decline than a
+> detector of declines.
 
-This result holds at ten sessions only. At five sessions it fails outright, AUC 0.552. At
-fifteen and twenty sessions it is suggestive but does not survive correction.
+This result holds at ten sessions only. At five sessions it fails outright, AUC 0.574. At
+fifteen sessions the interval excludes chance on a single test, AUC 0.694, but does not
+survive correction, and at twenty sessions it fails.
 
-## 2.3 Market recovery days: probabilities yes, the day no
+## 2.3 Market recovery duration: no result
 
-Half the events recover within four trading sessions and the mean is 16.6, because a few
-very slow recoveries pull the average out. That spread is exactly why a single number
-prediction fails.
+Under the frozen target protocol this target returns nothing. Half of the events that fall
+at all regain their pre event level within five sessions, and the mean duration is 14.3
+because a few very slow recoveries pull the average out, so a single number prediction has
+nothing to lock onto.
 
-What works is ranking and probability. The two stage model, a drawdown occurrence
-classifier followed by a Weibull accelerated failure time fit on the drawdown cases,
-reaches a Harrell concordance of 0.657 with an episode clustered interval of
-[0.522, 0.769], against 0.477 for a training fold Kaplan Meier baseline. Its recovery
-probabilities are well calibrated, with a maximum deviation of 4.5 percentage points from
-the observed Kaplan Meier value across five horizons.
+Neither does the ranking. The best of the fifteen survival configurations reaches a
+Harrell concordance of 0.535 with an episode clustered interval of [0.371, 0.697], against
+0.503 for a training fold Kaplan Meier baseline. Every interval in the family contains
+0.5. On the point regression side every model loses to the training mean baseline on RMSE,
+and the two stage hurdle loses to it too, at a mean absolute error of 27.5 sessions
+against 18.3 for the training mean.
+
+The sample is the reason. Forty pooled test points carry only fourteen observed
+recoveries against twenty six censored ones, and twenty two of the seventy four events
+never fell below their pre event level at all, so they pose no recovery question and are
+excluded from the conditional stage by construction.
 
 Safe sentence for the thesis:
 
-> Exact recovery duration cannot be predicted. Events can be ranked by likely recovery
-> speed better than chance, and the model produces well calibrated probabilities of
-> recovery within 10, 20, 30, 60 and 90 trading sessions. The ranking result does not
-> survive a multiplicity correction and is reported as suggestive rather than established.
+> Recovery duration is not predictable from pre event information at this sample size,
+> neither as a duration nor as a ranking. Fourteen observed recoveries in the pooled test
+> set is too thin a base for a survival model with twenty covariates, and this is reported
+> as a negative finding rather than worked around.
 
 ## 2.4 Summary table
 
 | Target | What is predictable | Best validated model | Evidence | Statistically supported |
 |---|---|---|---|---|
-| ASPI percentage change, magnitude | nothing | none | 0 of 720 comparisons with an interval excluding zero | No |
-| ASPI percentage change, direction at ten sessions | the sign of the return | logistic regression, combined features, ten features | AUC 0.752, interval [0.567, 0.896], Holm p 0.032 | Yes |
-| Volume crash magnitude | the size of the response | support vector regression and Gaussian process | delta RMSE interval excludes zero against both baselines | Yes |
-| Market recovery days | ranking and probabilities, not the day | two stage drawdown plus Weibull AFT | concordance 0.657, interval [0.522, 0.769], fails Holm | Suggestive |
+| Y1, return magnitude | nothing | none | 0 of 720 comparisons with an interval excluding zero | No |
+| Y1, return direction at ten sessions | the sign of the return | logistic regression, combined features, ten features | AUC 0.817, interval [0.657, 0.940], Holm p below 0.001 | Yes |
+| Y2, forward abnormal volume | the size of the response | the ensemble | pooled R squared 0.334, interval excludes zero against both baselines, Holm p 0.021 against naive zero | Yes |
+| Y3, recovery duration | nothing | none | best concordance 0.535, interval [0.371, 0.697]; every model loses to the training mean on RMSE | No |
 
 ---
 
@@ -115,19 +125,21 @@ Safe sentence for the thesis:
 
 1. That the model predicts how far the index will move after a disaster. It does not.
 2. That disaster severity information improves return prediction beyond market state. Not
-   demonstrated: the combined set wins at three of four horizons and loses at the fourth,
-   every interval spanning zero.
-3. That the normal market plus disaster residual decomposition improved anything. It did
-   not, and it was the worst information set at the fifteen and twenty session horizons.
-4. That recovery duration can be predicted to a number of days. It cannot.
-5. That the recovery concordance result is statistically established. It is suggestive and
-   fails the Holm correction at p 0.165.
-6. That a positive pooled R squared is evidence of skill on its own. The best one in the
-   grid carries an interval of [-0.560, +1.045].
-7. That any feature is important on the strength of one fold's selection. Across four
-   folds, 35.6 per cent of all selected features were selected in exactly one fold.
-8. That the ten session direction result transfers to other horizons or to magnitude. It
+   demonstrated: the combined set beats the market only expected return baseline at three
+   of four horizons and loses at the fourth, every interval spanning zero.
+3. That the normal market plus disaster residual decomposition improved anything. It was
+   the worst of the four information sets at three of the four horizons.
+4. That recovery duration can be predicted, as a number of sessions or as a ranking. It
+   cannot, on either measure.
+5. That a positive pooled R squared is evidence of skill on its own. The best one in the
+   return grid is 0.092 and carries a delta RMSE interval of [-0.388, +1.046].
+6. That any feature is important on the strength of one fold's selection. Across four
+   folds, 35.7 per cent of all selected features were selected in exactly one fold.
+7. That the ten session direction result transfers to other horizons or to magnitude. It
    does not.
+8. That the study found nothing. Two of the four questions asked return a supported
+   positive answer, and the negatives are themselves findings about market efficiency at
+   the event horizon.
 
 ---
 
@@ -138,13 +150,15 @@ to delete, and gives wording for the claims that are now defensible.
 
 ## 4.1 The one paragraph summary of what changed
 
-The volume target is untouched and remains the statistically supported result. The return
-magnitude result is now a systematic negative finding rather than a weak positive one,
-which is stronger and more defensible. Return direction at ten sessions is newly shown to
-be predictable above chance and is the only finding that survives a family wise
-correction. Recovery duration is re founded on right censored survival analysis, which
-replaces an inflated pooled R squared with an honest concordance index and, more usefully,
-calibrated recovery probabilities.
+All three targets were re specified on 2026-09-19 in
+`docs/TARGET_DEFINITION_PROTOCOL.md`, before any performance under the new definitions was
+observed, and every number in this repository now comes from that specification. Under it,
+forward abnormal volume remains the supported continuous result and is stronger than
+before. Return magnitude is a systematic negative finding rather than a weak positive one,
+which is more defensible. Return direction at ten sessions is predictable above chance and
+is the only finding that survives a family wise correction. Recovery duration, re founded
+on right censored survival analysis, now returns no result at all: the concordance
+interval contains chance and every point model loses to the training mean.
 
 ## 4.2 Chapter 3, methodology
 
@@ -152,9 +166,10 @@ Replace the two horizon description of the return target with the four pre decla
 horizons:
 
 > For each qualifying event the index return is measured over h in {5, 10, 15, 20} trading
-> sessions as 100 ln(P at t plus h divided by P at t minus 1), where t is the first valid
-> trading session on or after the disaster date and P at t minus 1 is the last valid pre
-> event close. Horizons are counted in trading sessions, never calendar days. Five sessions
+> sessions as 100 ln(Ph divided by P0), where P0 is the last close fully observed before
+> the disaster became known and Ph is the close of the hth complete trading session after
+> it. Horizons are counted in trading sessions, never calendar days, and counting starts
+> at one, so the five session horizon closes on the fifth complete session. Five sessions
 > is the principal target; ten, fifteen and twenty are pre specified sensitivity analyses.
 > All four were declared before any was scored.
 
@@ -171,10 +186,12 @@ Add a subsection on information sets. This is the methodological core of the rev
 
 Replace the point regression framing of recovery duration:
 
-> Recovery duration is right censored by construction. Seventeen of seventy four events are
-> censored, eight at the ninety day design cap and nine by a competing later qualifying
-> disaster. The primary analysis is therefore an accelerated failure time model fitted to
-> genuine events only. Synthetic oversampled rows are excluded from every survival fit,
+> Recovery duration is right censored by construction. Thirty eight of seventy four events
+> carry no observed recovery: twenty two never fell below their pre event level and so pose
+> no recovery question, ten were censored by a competing later qualifying disaster, and six
+> reached the ninety session design cap. The primary analysis is therefore a two stage
+> model, a drawdown classifier followed by an accelerated failure time fit on the drawdown
+> events only. Synthetic oversampled rows are excluded from every survival fit,
 > because interpolation can produce a duration but not a valid event indicator, so a
 > synthetic row would assert a recovery that was never observed.
 
@@ -201,21 +218,24 @@ from `docs/thesis_materials/final_table_aspi.csv`. Do not select rows from it.
 Give return direction its own subsection, clearly separated from magnitude, and follow it
 immediately with the caveat that classification success is not regression success.
 
-Leave the volume target section unchanged. It is now mechanically verified by
-`tests/test_volume_target_frozen.py`.
+Rewrite the volume target section against the new definition. It is now a log ratio over
+the five sessions after the prediction origin rather than a ratio minus one over the event
+day window, so the reported units, the worked example and the conversion back to a
+percentage all change. The result itself is stronger under the new definition, and it is
+mechanically pinned by `tests/test_volume_target_frozen.py`.
 
-Replace the recovery headline. Delete the pooled R squared of 0.155 as a headline number
-and keep it only as a disclosed diagnostic of the distortion that point regression on
-censored data introduces. Add the calibration table, which is the most practically useful
-output the study has for this target.
+Replace the recovery section entirely. Under the frozen protocol this target returns no
+result: report the concordance and its interval, the fact that every point model loses to
+the training mean, and the observed recovery count that explains why. Keep the calibration
+table as evidence of what was attempted, not as a positive finding.
 
 Add a feature stability paragraph:
 
-> Across four folds, 35.6 per cent of all selected features were selected in exactly one
-> fold. No variable is described as important on the basis of a single fold's selection.
-> The most consistently selected disaster variable is the DesInventar log affected
-> population, and the most consistently selected market variable is the one session lagged
-> return.
+> Across four folds, 35.7 per cent of all selected features were selected in exactly one
+> fold and 20.0 per cent in every fold. No variable is described as important on the basis
+> of a single fold's selection. At the ten session horizon on the combined information set
+> the one session lagged return is selected in every fold, and the DesInventar log affected
+> population in three of four.
 
 ## 4.4 Chapter 5, discussion and limitations
 
@@ -224,14 +244,15 @@ Add a feature stability paragraph:
 2. Discuss the asymmetry between direction and magnitude. It is consistent with a market
    that reprices reliably in sign but whose size is dominated by idiosyncratic noise at this
    sample size.
-3. Explain concretely that seventeen of seventy four events are censored and that scoring
-   them as observed inflates apparent recovery performance.
-4. State that with 720 plus 15 plus 8 comparisons, one nominally significant result is
-   expected by chance, which is why the Holm correction is reported, and that the ten
-   session direction result survives it.
-5. Keep the small sample limitations: no lockbox holdout, forty pooled test points, thirty
-   one observed recoveries, and a twenty covariate survival model against thirty one events,
-   which is the most likely reason its corrected p value is 0.165.
+3. Explain concretely that thirty eight of seventy four events carry no observed recovery
+   and that scoring them as observed inflates apparent recovery performance.
+4. State that with 720 return comparisons plus 15 survival models plus 8 direction
+   comparisons, several nominally significant results are expected by chance, which is why
+   the Holm correction is reported, and that only the ten session direction result
+   survives it.
+5. Keep the small sample limitations: no lockbox holdout, forty pooled test points, and
+   only fourteen observed recoveries inside them, which is the most likely reason the
+   recovery target returns nothing under any of the fifteen configurations tried.
 6. State the pre declared omission: the direction analysis was declared on the combined
    information set only, so no incremental claim can be made for direction. Adding that arm
    after seeing the result would be a post hoc extension and is deliberately not done.
@@ -247,6 +268,6 @@ Add a feature stability paragraph:
 | Recovery survival table | `docs/thesis_materials/final_table_recovery.csv` |
 | Recovery calibration table | `artifacts/tables/recovery_probability_calibration.parquet` |
 | Per event recovery probabilities | `artifacts/tables/recovery_grid_predictions.parquet` |
-| Volume target results | existing artifacts, do not regenerate |
+| Volume target results | `artifacts/tables/verdict_table.parquet` |
 
 Rebuild the two final tables with `python scripts/build_final_tables.py`.

@@ -10,6 +10,10 @@ import pytest
 pytest.importorskip("pandas")
 
 from pathlib import Path
+
+import pandas as pd
+
+from src.models.classifiers import LABELS
 from src.utils.artifact_store import artifact_file
 
 ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
@@ -77,19 +81,15 @@ def test_classification_predictions_are_valid_probabilities_with_verdict_metadat
     row = bundle.build_feature_row(event_id, {})
     pred = bundle.predict_classification(row)
 
-    # C4_car5_negative removed 2026-09-16 (methodology-audit finding #8): identical to
-    # C1_negative_return once Y1 absorbed EventWindow_0_5's formula.
-    assert set(pred) == {"C1_negative_return", "C1b_adverse_move", "C2_volume_spike",
-                         "C3_recovers_in_90", "C3b_slow_recovery"}
+    summary = pd.read_parquet(artifact_file("classification_summary.parquet"))
+    assert set(pred) == set(LABELS)
     for name, info in pred.items():
         assert 0.0 <= info["probability"] <= 1.0, name
         assert isinstance(info["beats_baseline"], bool), name
-
-    # Measured result after wiring collinearity-drop into feature selection here too
-    assert pred["C2_volume_spike"]["beats_baseline"]
-    assert not pred["C1_negative_return"]["beats_baseline"]
-    # New confirmed result after the Y3 adverse-response-gate fix (finding #11,
-    assert pred["C3b_slow_recovery"]["beats_baseline"]
+        # The served flag must be the one the walk forward evaluation actually recorded,
+        # never a value baked into the bundle at fit time.
+        recorded = summary[summary.label == name]["beats_baseline"].any()
+        assert info["beats_baseline"] == bool(recorded), name
 
 
 def test_hurdle_prediction_stays_inside_the_censored_support(bundle):

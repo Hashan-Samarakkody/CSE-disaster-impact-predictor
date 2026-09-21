@@ -1,4 +1,4 @@
-# Target definition protocol — FROZEN
+# Target definition protocol, FROZEN
 
 **Frozen at commit:** `928a255d0c23429a20ff062c7f09bf06f0186d31`
 **Branch:** `update`
@@ -47,7 +47,7 @@ So `P5 = market[position + 4]` and `V1…V5 = market[position … position + 4]`
 
 ---
 
-## TARGET 1 — ASPI return magnitude
+## TARGET 1. ASPI return magnitude
 
 **Name:** `Y1_ASPI_5D_Forward_LogReturn_Pct`
 
@@ -77,7 +77,7 @@ Y1_20 = 100 × ln( P20 / P0 )
 
 ---
 
-## TARGET 2 — Forward abnormal trading volume
+## TARGET 2. Forward abnormal trading volume
 
 **Name:** `Y2_5D_Forward_AbnormalVolume_LogRatio`
 
@@ -108,7 +108,7 @@ predicted future volume  = V_base × exp(Y2)
 
 ---
 
-## TARGET 3 — Market recovery duration
+## TARGET 3. Market recovery duration
 
 **Name:** `Y3_ASPI_Recovery_Time`
 
@@ -135,8 +135,8 @@ events are **not** forced to behave like ordinary recovery-duration observations
 
 Model architecture, two stages:
 
-- **Stage 1** — predict whether a drawdown occurs (`D`).
-- **Stage 2** — conditional on `D = 1`, predict recovery duration.
+- **Stage 1**: predict whether a drawdown occurs (`D`).
+- **Stage 2**: conditional on `D = 1`, predict recovery duration.
 
 ### 3.3 Recovery event
 
