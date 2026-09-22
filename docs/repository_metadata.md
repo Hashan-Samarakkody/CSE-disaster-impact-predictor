@@ -49,7 +49,7 @@ has to be done by hand.
 
 ## Status
 
-**Outstanding, requires the repository owner.** Everything inside the repository that
+**Applied 2026-09-22 by the repository owner.** Everything inside the repository that
 carried the same two claims has already been corrected: `README.md` states the ex post
 framing in its Research objective section, and the neutral target name is used in
 `README.md`, `docs/architecture.md`, `docs/target_definitions.md` and
