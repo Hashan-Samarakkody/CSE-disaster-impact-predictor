@@ -1,0 +1,19 @@
+target,result_class,censoring_aware,model,baseline,n,RMSE_model_diagnostic,RMSE_baseline_diagnostic,delta_RMSE_diagnostic,ci_low,ci_high,p_holm,holm_significant,verdict
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,ridge,naive_zero,40,22.01456350014614,24.41823089414956,2.4036673940034206,0.7076051331763792,3.678122170992202,0.2205,False,BEATS BASELINE
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,ridge,naive_train_mean,40,22.01456350014614,21.597324937233417,-0.417238562912722,-2.7333153197166635,3.5424337306416267,1.0,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,random_forest,naive_zero,40,22.408495192051035,24.41823089414956,2.0097357020985243,0.15109045596738963,3.795813024833846,0.6478,False,BEATS BASELINE
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,random_forest,naive_train_mean,40,22.408495192051035,21.597324937233417,-0.8111702548176183,-3.6451522378545134,3.404349040558805,1.0,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,xgboost,naive_zero,40,26.746567335773044,24.41823089414956,-2.3283364416234846,-9.544356266445824,1.650161851552271,1.0,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,xgboost,naive_train_mean,40,26.746567335773044,21.597324937233417,-5.149242398539627,-10.82836115904886,0.19951756568269963,1.0,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,gp,naive_zero,40,22.861787738164754,24.41823089414956,1.5564431559848053,0.8805775259836901,2.239988988617105,0.0188,True,BEATS BASELINE
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,gp,naive_train_mean,40,22.861787738164754,21.597324937233417,-1.2644628009313372,-4.163307000945207,3.8143589203103097,1.0,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,svr,naive_zero,40,22.73057851841998,24.41823089414956,1.6876523757295807,1.084271090070659,2.330901475804739,0.0,True,BEATS BASELINE
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,svr,naive_train_mean,40,22.73057851841998,21.597324937233417,-1.1332535811865618,-4.047083558040129,4.069423069538223,1.0,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,quantile,naive_zero,40,21.98894528988544,24.41823089414956,2.4292856042641198,0.2983282238744614,4.863664232761797,0.6006,False,BEATS BASELINE
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,quantile,naive_train_mean,40,21.98894528988544,21.597324937233417,-0.3916203526520228,-3.0801331814214175,4.47044008189084,1.0,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,mlp,naive_zero,40,25.617882372964402,24.41823089414956,-1.1996514788148431,-9.05939144155088,3.3236001268761743,,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,mlp,naive_train_mean,40,25.617882372964402,21.597324937233417,-4.020557435730986,-9.486559042781753,1.527879879944409,,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,ensemble,naive_zero,40,23.588482831750465,24.41823089414956,0.8297480623990943,-2.3385288104481337,2.7528746834675344,,False,"better, not distinguishable"
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,ensemble,naive_train_mean,40,23.588482831750465,21.597324937233417,-1.9911578945170483,-4.446519970202455,1.6990063254201766,,False,worse than baseline
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,stacked,naive_zero,30,20.593372661251642,21.547621678505497,0.9542490172538542,-2.8806653402017877,3.9352303214818334,,False,"better, not distinguishable"
+Y3_ASPI_Recovery_Time,censoring-blind diagnostic,False,stacked,naive_train_mean,30,20.593372661251642,18.969517458085022,-1.6238552031666202,-4.211059550504015,1.6527865725281992,,False,worse than baseline

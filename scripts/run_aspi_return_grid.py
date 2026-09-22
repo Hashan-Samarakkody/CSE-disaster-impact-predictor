@@ -190,11 +190,15 @@ def main():
         positions.append(int(cand[0]) if len(cand) and cand[0] > 0 else None)
 
     cache = artifact_file("aspi_expected_return_market_only.parquet")
-    if cache.exists():
-        cached = pd.read_parquet(cache)
+    cached = pd.read_parquet(cache) if cache.exists() else None
+    # A cache written under a different HORIZONS is stale, not reusable (T4 added h=1).
+    if cached is not None and all(str(h) in cached.columns for h in HORIZONS):
         expected = {h: cached[str(h)].to_numpy(float) for h in HORIZONS}
         print(f"Stage A: reusing {cache.name}")
     else:
+        if cached is not None:
+            missing = [h for h in HORIZONS if str(h) not in cached.columns]
+            print(f"Stage A: {cache.name} lacks horizons {missing}; refitting")
         print("Stage A: fitting per-event normal-market expected-return models ...")
         expected = stage_a_expected_returns(market_feats, positions, HORIZONS)
         pd.DataFrame({str(h): expected[h] for h in HORIZONS}).to_parquet(cache, index=False)

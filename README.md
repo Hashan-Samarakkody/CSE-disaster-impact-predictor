@@ -55,18 +55,23 @@ and a worked example.
 ## What the study found
 
 All numbers below come from the walk forward evaluation in this repository, re run in full
-on 2026-09-21 under the frozen target protocol.
+on 2026-09-22 under the frozen target protocol and under the Revision 2 changes
+(`docs/audit.md` Part 8). Every figure traces to that single run.
 
 | Target | What is predictable | Best validated model | Evidence | Supported |
 |---|---|---|---|---|
-| Y1, return magnitude | nothing | none | 0 of 720 paired bootstrap comparisons across a pre declared 240 configuration grid had an interval excluding zero. Best pooled R squared anywhere in the grid is 0.092 | No |
-| Y1, return direction at ten sessions | the sign of the return | logistic regression, combined features, ten selected features | ROC AUC 0.817, episode clustered interval [0.657, 0.940], Holm corrected p below 0.001, balanced accuracy 0.757 | Yes |
-| Y2, forward abnormal volume | the size of the response | ensemble of the regression families | pooled R squared 0.334, delta RMSE interval excludes zero against both naive baselines, Holm corrected p 0.021 against naive zero | Yes |
-| Y3, recovery duration | nothing, in either duration or ranking | none | every model loses to the training mean baseline on RMSE, and the best Harrell concordance is 0.535 with an interval of [0.371, 0.697] | No |
+| Y1, return magnitude | nothing | none | 0 of 1350 paired bootstrap comparisons across a 465 configuration grid had an interval excluding zero, and 0 of the 18 comparison confirmatory family survived Holm (smallest corrected p 0.641). Best pooled R squared in the notebook arm is 0.042 | No |
+| Y1, return direction at ten sessions | the sign of the return | logistic regression, combined features, ten selected features | ROC AUC 0.817, episode clustered interval [0.657, 0.940], Holm corrected p below 0.001, balanced accuracy 0.757. The ten session horizon is the one pre declared for direction; at the primary five session horizon the AUC is 0.574 and its interval spans 0.5 | Yes |
+| Y2, forward abnormal volume | possibly the size of the response, on weak evidence | random forest, the strongest confirmatory model | pooled R squared 0.334 for the ensemble and 0.303 for the random forest. Under T8 model parity the random forest delta RMSE interval still excludes zero against both baselines, [0.037, 0.175] against naive zero, but it does not survive Holm (corrected p 0.078). Only 34 of 74 events carry an observed label, and the missingness is structured: volume is unavailable for 2000 and for events after 2023, which is the first and the last of the four folds | Qualified |
+| Y3, recovery duration | nothing, in either duration or ranking | none | every model loses to the training mean baseline on RMSE, and the best Harrell concordance is 0.535 with an interval of [0.371, 0.697]. Every concordance interval contains 0.5, and the Kaplan Meier and Aalen Johansen baselines have the best integrated Brier scores | No |
 
 Read that table with its negatives intact. Exact return magnitude and recovery duration are
 not predictable at this sample size, and the study reports that rather than working around
-it. The full numbers are in `docs/results.md` and what they license is in
+it. The volume result is qualified rather than supported: it is the only target whose
+interval excludes zero, and it still fails the family wise correction on 34 observations.
+Separately, the real time and ex post information sets perform almost identically on the
+principal analysis, +0.0930 against +0.0932 delta RMSE, so knowing the finalised severity
+of an event adds essentially nothing to what the market's own prior state already implies. The full numbers are in `docs/results.md` and what they license is in
 `docs/interpretation.md`.
 
 ## High level methodology

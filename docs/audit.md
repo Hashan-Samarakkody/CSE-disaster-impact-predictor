@@ -3673,3 +3673,89 @@ study's contribution stands either way: a measurable realised market reaction to
 disaster does not imply that reaction can be forecast out of sample. No further target,
 horizon, algorithm, threshold, feature count or observation removal follows from whatever
 these revisions produce.
+
+
+## 8.11 Change log for Revision 2, and the single final run
+
+Dated 2026-09-22. This section records what each task changed and where its result now
+lives. It is appended, as Part 8 has been throughout; nothing above it was edited.
+
+| Task | What changed | Files touched | Artifact produced |
+|---|---|---|---|
+| T0 | Revision 2 pre-declaration, written before any new result | `docs/audit.md` Part 8 | none, documentation |
+| T1 | Second, orthogonal partition of the features by availability at the prediction origin: `REALTIME_FEATURES` (37) and `EXPOST_FEATURES` (31). `information_sets()` returns five keys, and raises on a column missing from either partition | `src/targets/return_horizons.py`, `scripts/run_aspi_return_grid.py` | `artifacts/results/feature_spec.json` gains `AVAILABILITY_CLASS` |
+| T2 | Aalen-Johansen cumulative incidence, chosen over Fine-Gray because the arm is a marginal baseline carrying no covariates, plus a sensitivity run excluding the ten events censored by a subsequent disaster | `src/models/survival_recovery.py`, `scripts/run_recovery_survival_grid.py` | `recovery_grid_metrics.parquet` and `*_excl_competing.parquet` |
+| T3 | `Y3_REGRESSION_IS_DIAGNOSTIC = True`; every Y3 regression row is labelled a censoring-blind diagnostic, and the survival grid is the primary Y3 table | `src/config/settings.py`, `scripts/build_final_tables.py` | `final_table_recovery.csv`, `final_table_recovery_regression_diagnostic.csv` (18 rows, all labelled) |
+| T4 | `HORIZONS = (1, 5, 10, 15, 20)`, `PRINCIPAL_HORIZON` unchanged at 5. The new column is registered in `NON_FEATURE_COLS` | `src/targets/return_horizons.py`, `src/config/settings.py` | new horizon columns in `dataset.parquet` |
+| T5 | Y2 at 1, 5, 10 and 20 sessions against the same thirty-session baseline, the percentage form `100 * (exp(Y2) - 1)`, and a winsorised variant. Missing volume stays missing | `src/targets/event_targets.py` | new Y2 columns in `dataset.parquet` |
+| T6 | Market model moved out of the grid script into a target module; abnormal return per horizon, estimated strictly on pre-origin sessions. Factor alignment accumulates, forward-fills and differences, to survive the CSE/S&P calendar mismatch | `src/targets/abnormal_returns.py` (new) | abnormal return columns in `dataset.parquet` |
+| T7 | `confirmatory` flag on the metrics and verdict tables; Holm applied to that subset only; exploratory comparisons written separately | `scripts/run_aspi_return_grid.py`, `src/evaluation/verification.py` | `aspi_grid_verdicts.parquet` (18 confirmatory), `aspi_grid_verdicts_exploratory.parquet` (1332) |
+| T8 | Tuned-versus-untuned asymmetry removed. In the notebook arm the Gaussian process kernel, the SVR `C` and the quantile `alpha` are now selected on the same purged inner splits as ridge, random forest and XGBoost; the MLP is excluded from the notebook confirmatory set and reported as exploratory there, and is tuned inside the confirmatory family in the grid | `notebooks/04_modeling_regression.ipynb`, `scripts/run_aspi_return_grid.py` | `results_regression.pkl` |
+| T9 | `mode` parameter on the split generator, sliding by default so nothing existing moves, expanding starts the training block at index zero | `src/training/walk_forward.py` | used by T15 |
+| T10 | `STUDY_END` at 2025-12-31 and a market-data bound ninety sessions after the last qualifying event. Series truncated 6366 to 6266 sessions, ending 2026-04-16 | `src/config/settings.py`, `src/data/cse_market_data.py` | `market.parquet` |
+| T11 | Event-study inference, structurally separate from `verification.py` and asserted so by an AST import check in both directions | `src/evaluation/event_study.py` (new), `scripts/run_event_study.py` | `event_study_*.parquet`, event-time figures |
+| T12 | Sample-selection flow instrumented at every exclusion | `src/data/emdat_disasters.py`, `src/features/feature_engineering.py` | `sample_flow.parquet`, flow figure |
+| T13 | Leakage check promoted out of the notebook and into pytest | `tests/test_no_leakage.py` (new) | none, test only |
+| T14 | Exact lock file, the transitive closure of `requirements.txt` rather than a bare pip freeze | `config/requirements.lock.txt` (new), `README.md` | 141 packages, Python 3.12.10 |
+| T15 | One runner over the closed list, one consolidated table | `scripts/run_robustness_suite.py` (new) | `robustness_suite.parquet`, 26 checks |
+| D1 | Repository description corrected; the About field is a github.com setting and needs the owner | `docs/repository_metadata.md` (new) | none |
+| D2 | README states the log-ratio definition and the percentage companion | `README.md` | none |
+| D3 | Volume verdict restated under T8 parity as Qualified rather than Yes, with the 34 held-out points and the structured missingness beside it | `README.md` | none |
+| D4 | The pre-registration claim narrowed to the one that is verifiable | `README.md`, `docs/architecture.md` | none |
+| D5 | MIT on the code, separate explicit terms for the third-party data, on the owner's instruction | `LICENSE` | none |
+| D6 | `FORWARD_ABNORMAL_VOLUME`; `VOLUME_CRASH_MAGNITUDE` kept as a deprecated alias; the frozen column string is untouched | `src/config/settings.py` | none |
+
+### The frozen Y2 baseline was re-anchored, and why
+
+`tests/test_volume_target_frozen.py` failed on eight assertions after the re-run. The
+cause is T8 and nothing else: the Gaussian process, the SVR and the quantile regressor
+now select their hyperparameters on the purged inner splits instead of carrying fixed
+values, so their predictions moved. Exactly those three models failed, and every model
+that was already tuned passed unchanged.
+
+What did not move is what the freeze exists to protect: the Y2 target values, the event
+sample, the fold definitions and the classification results all passed untouched. The
+baseline had been frozen at commit `f076bd96`, which predates T8, and T8's own acceptance
+criterion requires the volume verdict to be recomputed under parity and reported as it
+comes out. The baseline was therefore re-anchored at commit `9043bbf7`, and the previous
+one is retained beside it as `artifacts/results/frozen_baseline_superseded_f076bd96.json`
+so that the move stays auditable rather than being erased.
+
+### One defect found and fixed during the run
+
+`scripts/run_aspi_return_grid.py` reused a cached stage-A expected-return table without
+checking that it covered the current `HORIZONS`. T4 added the one-session horizon, the
+cache had been written without it, and the grid died on a `KeyError`. The cache is now
+reused only when it carries every horizon in `HORIZONS`, and otherwise refits and says
+which were missing. Stage A was refit, giving an estimate for 69 of 74 events at every
+horizon.
+
+### The single final run
+
+Executed 2026-09-22 in the order Section 2 mandates. Notebooks 01, 02 and 03 had already
+been re-run under Phase 1. Notebook 04 ran 11:50 to 14:53, notebook 05 to 15:07,
+notebook 06 to 15:10, the return grid 15:10 to 17:50, then `train_final_models.py`,
+`build_final_tables.py` and `audit_results.py`. Full suite: 226 passed.
+
+Fold geometry is unchanged by everything above: four outer folds, thirty training events,
+ten test events, three inner splits, forty pooled held-out points. The event count remains
+74 and the sample flow still reconciles 110 to 94 to 74.
+
+### Results, stated in the direction they landed
+
+- Y1 magnitude: 0 of 450 configurations significant on even a single uncorrected test;
+  0 of the 18 confirmatory comparisons had an interval excluding zero; smallest Holm
+  corrected p is 0.641.
+- Y1 direction at the pre-declared ten-session horizon: ROC AUC 0.817, interval
+  [0.657, 0.940], Holm corrected p below 0.001. This is the only comparison anywhere in
+  the study that survives a family-wise correction.
+- Y2: pooled R squared 0.334 for the ensemble, 0.303 for the random forest. The random
+  forest interval excludes zero against both baselines but does not survive Holm,
+  corrected p 0.078, on 34 held-out points with structured missingness.
+- Y3: every concordance interval contains 0.5; the Kaplan-Meier and Aalen-Johansen
+  baselines carry the best integrated Brier scores.
+- Realised response: no detectable return response, CAAR(1,5) = +0.0006 with all p above
+  0.85. Volume CAAR(1,5) = +0.63 log points, with only the Corrado rank test firing,
+  p = 0.024, against BMP p = 0.186 and Kolari-Pynnonen p = 0.298.
+- Real time against ex post on the principal analysis: +0.0930 against +0.0932. Finalised
+  severity information adds essentially nothing.

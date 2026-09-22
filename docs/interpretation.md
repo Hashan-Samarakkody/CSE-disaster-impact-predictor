@@ -25,7 +25,7 @@ say nothing useful about recovery duration, in days or in rank order. Both of th
 tested systematically and found to be unpredictable at this sample size.
 
 The economically interesting version of the same sentence: the market's attention to
-disasters is predictable, its repricing is not.
+disasters is predictable, its repricing is not. The event study sharpens that further: the realised return response is not merely unforecastable, it is not detectable at all, CAAR(1,5) = +0.0006 with every test p above 0.85.
 
 ---
 
@@ -33,18 +33,31 @@ disasters is predictable, its repricing is not.
 
 ## 2.1 Forward abnormal volume: the size can be estimated
 
-Evidence: pooled out of sample R squared of 0.334 for the ensemble, pooled RMSE 0.488
-against a target whose own pooled standard deviation is 0.607, on 34 test points. The
-ensemble beats both naive baselines with a paired episode clustered bootstrap interval
-excluding zero, and its advantage over the zero baseline survives a Holm family wise
-correction at p 0.021. Random forest, extreme gradient boosting, the shallow network and
-the stacked model all beat the zero baseline on a single test as well.
+Evidence: pooled out of sample R squared of 0.334 for the ensemble and 0.303 for the
+random forest, pooled RMSE 0.488 against a target whose own pooled standard deviation is
+0.607, on 34 test points. Under the T8 model parity rule the random forest is the
+strongest model in the confirmatory set, and its paired episode clustered bootstrap
+interval excludes zero against both naive baselines, [0.037, 0.175] against the zero
+baseline. It does not survive the Holm family wise correction, at corrected p 0.078.
+
+Two qualifications belong beside that number and must travel with it. First, the earlier
+draft of this document reported a Holm corrected p of 0.021 and called the target
+predictable. That figure came from a comparison in which the shallow network carried fixed
+hyperparameters while the tree models were tuned, which T8 identified as an invalid
+comparison; once every model is selected on the same purged inner splits, the advantage
+shrinks and no longer survives correction. Second, the target is observed for only 34 of
+74 events, and the missingness is structured rather than random: market wide volume is
+unavailable for the 2000 archive year and for events after 2023, which is the first and
+the last of the four folds, so the estimate rests on the middle of the sample period.
 
 Safe sentence for the thesis:
 
-> Forward abnormal trading volume is predictable out of sample. The model explains roughly
-> a third of the variation in the five session volume response, and its advantage over a
-> no effect baseline is statistically supported after correction for multiplicity.
+> Forward abnormal trading volume shows the strongest evidence of out of sample
+> predictability in this study, with a model explaining roughly a third of the variation
+> in the five session volume response and an uncertainty interval excluding the no effect
+> baseline. The evidence is suggestive rather than conclusive: it does not survive
+> correction for multiplicity, it rests on 34 held out observations, and the missing
+> labels are concentrated in the first and last validation folds.
 
 What this does not license: a precise number. The typical absolute error is 0.38 in log
 ratio units, which is a factor of about 1.5 either way, so a prediction of twenty per cent
@@ -53,11 +66,10 @@ eighty per cent above. Write "can estimate", not "can tell you".
 
 ## 2.2 ASPI return: direction yes, magnitude no
 
-The magnitude result is a negative one and is reported as such. Across 240 pre declared
-configurations and 720 statistical comparisons, no confidence interval excluded zero. The
-best pooled R squared anywhere in the grid is 0.092, at the ten session horizon on the
-disaster only information set, and its delta RMSE interval against the market only
-expected return baseline is [-0.388, +1.046].
+The magnitude result is a negative one and is reported as such. Across 465 configurations
+and 1350 statistical comparisons, no confidence interval excluded zero, and within the 18
+comparison confirmatory family the smallest Holm corrected p is 0.641. The best pooled R
+squared in the notebook arm is 0.042.
 
 The direction result is genuine and is the only finding in the study that survives a
 family wise correction. At the ten session horizon, logistic regression on the combined
@@ -114,9 +126,9 @@ Safe sentence for the thesis:
 
 | Target | What is predictable | Best validated model | Evidence | Statistically supported |
 |---|---|---|---|---|
-| Y1, return magnitude | nothing | none | 0 of 720 comparisons with an interval excluding zero | No |
+| Y1, return magnitude | nothing | none | 0 of 1350 comparisons with an interval excluding zero; 0 of the 18 confirmatory comparisons survive Holm | No |
 | Y1, return direction at ten sessions | the sign of the return | logistic regression, combined features, ten features | AUC 0.817, interval [0.657, 0.940], Holm p below 0.001 | Yes |
-| Y2, forward abnormal volume | the size of the response | the ensemble | pooled R squared 0.334, interval excludes zero against both baselines, Holm p 0.021 against naive zero | Yes |
+| Y2, forward abnormal volume | possibly the size of the response | random forest, the strongest confirmatory model | pooled R squared 0.303 for the random forest and 0.334 for the ensemble; interval excludes zero against both baselines but Holm corrected p is 0.078; 34 held out points with structured missingness | Qualified |
 | Y3, recovery duration | nothing | none | best concordance 0.535, interval [0.371, 0.697]; every model loses to the training mean on RMSE | No |
 
 ---
@@ -246,7 +258,7 @@ Add a feature stability paragraph:
    sample size.
 3. Explain concretely that thirty eight of seventy four events carry no observed recovery
    and that scoring them as observed inflates apparent recovery performance.
-4. State that with 720 return comparisons plus 15 survival models plus 8 direction
+4. State that with 1350 return comparisons plus 16 survival models plus 10 direction
    comparisons, several nominally significant results are expected by chance, which is why
    the Holm correction is reported, and that only the ten session direction result
    survives it.

@@ -34,9 +34,10 @@ tables in `docs/thesis_materials/final_table_aspi.csv` and
 | Sample period | 2000-09-18 to 2025-11-27 |
 | Outer validation | chronological walk forward, train 30, test 10, step 10, four folds |
 | Pooled test points | 40 per configuration, the identical events for every candidate and every baseline |
-| Return grid | 4 horizons x 4 information sets x 3 feature capacities x 5 model families = 240 configurations |
-| Return comparisons | 240 x 3 baselines = 720 paired bootstrap tests |
-| Survival grid | 15 configurations, 13 survival models and 2 baselines |
+| Return grid | 5 horizons x 6 information sets x 3 feature capacities x 5 model families = 465 configurations |
+| Return comparisons | 1350 paired bootstrap tests, of which 18 form the confirmatory family and 1332 are exploratory |
+| Confirmatory family | horizon 5, the real_time and ex_post information sets, capacity 10, and the models ridge, random forest and MLP against three baselines. Holm is applied to these 18 and to nothing else |
+| Survival grid | 16 configurations, including the Aalen-Johansen competing risks arm added by T2 |
 | Classification arm | 6 labels x 3 model families, against a majority rule baseline |
 | Seed | `RANDOM_STATE = 42` throughout, never varied to obtain a better score |
 
@@ -47,17 +48,41 @@ into the primary criterion.
 
 ## 2. Headline answers
 
-- **Return magnitude is not predictable.** 0 of 720 comparisons produced an interval
-  excluding zero. The best pooled R squared anywhere in the grid is 0.092.
+These are the numbers from the single final run of 2026-09-22, under the Revision 2
+changes recorded in `docs/audit.md` Part 8. Where a figure below differs from an earlier
+draft of this document, the cause is T8: the Gaussian process, the support vector
+regressor and the quantile regressor are now tuned on the same purged inner splits as
+every other model, so the tuned-against-untuned comparison that produced the earlier
+volume verdict no longer exists.
+
+- **Return magnitude is not predictable.** 0 of 450 configurations was significant on even
+  a single uncorrected test, and 0 of the 18 confirmatory comparisons produced an interval
+  excluding zero. The smallest Holm corrected p in the confirmatory family is 0.641. The
+  best pooled R squared in the notebook arm is 0.042.
 - **Return direction at ten sessions is predictable.** Logistic regression on the combined
   information set reaches ROC AUC 0.817, interval [0.657, 0.940], and it is the only
-  result in this body of work that survives a Holm correction, at p below 0.001.
-- **Forward abnormal volume is predictable.** The ensemble reaches pooled R squared 0.334
-  and beats both naive baselines, surviving the Holm correction against the zero baseline
-  at p 0.021.
+  result in this body of work that survives a Holm correction, at p below 0.001. The ten
+  session horizon is the one pre-declared for direction; at the primary five session
+  horizon the AUC is 0.574 with an interval spanning 0.5.
+- **Forward abnormal volume is the one qualified positive.** The ensemble reaches pooled R
+  squared 0.334 and the random forest, the strongest confirmatory model, reaches 0.303.
+  The random forest interval excludes zero against both naive baselines, [0.037, 0.175]
+  against the zero baseline, but it does not survive the Holm correction, at corrected p
+  0.078. It rests on 34 held-out points, and the missingness is structured: volume is
+  unavailable for 2000 and for events after 2023, the first and last of the four folds.
+  Report this as suggestive, not as established.
 - **Recovery duration is not predictable, in duration or in rank.** Every point model
-  loses to the training mean, and every concordance interval in the survival family
-  contains 0.5.
+  loses to the training mean, every concordance interval in the survival family contains
+  0.5, and the Kaplan-Meier and Aalen-Johansen baselines carry the best integrated Brier
+  scores, so the fitted models are worse calibrated than doing nothing.
+- **Later knowledge of severity buys almost nothing.** On the principal analysis the
+  real_time information set gives a delta RMSE of +0.0930 and the ex_post set +0.0932.
+  The finalised EM-DAT, DesInventar, NASA POWER and World Bank variables move the result
+  by 0.0002.
+- **A measurable response does not imply a forecastable one.** The event study finds no
+  detectable realised return response at all, CAAR(1,5) = +0.0006 with every test p above
+  0.85, while volume shows CAAR(1,5) = +0.63 log points on which only the Corrado rank
+  test fires, p 0.024, against BMP p 0.186 and Kolari-Pynnonen p 0.298.
 
 ---
 
