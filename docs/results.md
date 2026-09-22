@@ -146,7 +146,7 @@ return baseline, which represents what the market's own state already implied.
 |        15 | combined      |  20 | random_forest |       0.1498 |  -0.7853 |    0.9120 |   1.0000 | B - suggestive but uncertain |
 |        20 | market_only   |  20 | random_forest |       0.2760 |  -0.7552 |    1.1875 |   1.0000 | B - suggestive but uncertain |
 
-Every interval contains zero. Across all 720 comparisons, against all three baselines, the
+Every interval contains zero. Across all 1350 comparisons, against all three baselines, the
 count of intervals excluding zero is zero, and the count surviving the Holm correction is
 also zero.
 

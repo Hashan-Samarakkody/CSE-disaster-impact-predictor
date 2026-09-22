@@ -139,7 +139,7 @@ target hold by construction rather than by care.
 | Script | Purpose | Cost |
 |---|---|---|
 | `scripts/freeze_baseline.py` | snapshot every target value, fold, prediction and metric into `frozen_baseline.json` | instant |
-| `scripts/run_aspi_return_grid.py` | the 240 configuration return prediction grid | about 75 minutes |
+| `scripts/run_aspi_return_grid.py` | the 465 configuration return prediction grid | about 160 minutes |
 | `scripts/run_recovery_survival_grid.py` | the censoring aware recovery survival grid | about 1 minute |
 | `scripts/build_final_tables.py` | assemble the final result tables from the two grids | instant |
 

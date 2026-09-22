@@ -3730,6 +3730,16 @@ reused only when it carries every horizon in `HORIZONS`, and otherwise refits an
 which were missing. Stage A was refit, giving an estimate for 69 of 74 events at every
 horizon.
 
+### A number in the pre-declaration that the run superseded
+
+Part 8.4 describes the return grid as 240 configurations and 720 comparisons, because that
+is what it was when the pre-declaration was written. T1 then added the real_time and
+ex_post information sets and T4 added the one-session horizon, which widened it to 465
+configurations and 1350 comparisons. The confirmatory family is unaffected: it was
+pre-declared as horizon 5, the two availability information sets, capacity 10 and three
+model families, and it ran at exactly that, 18 comparisons. Part 8.4 is left as written,
+because a pre-declaration that is edited after the fact is not a pre-declaration.
+
 ### The single final run
 
 Executed 2026-09-22 in the order Section 2 mandates. Notebooks 01, 02 and 03 had already

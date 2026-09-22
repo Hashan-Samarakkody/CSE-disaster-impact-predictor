@@ -31,9 +31,11 @@ re running it overwrites the reference and defeats its purpose.
 
 `scripts/run_aspi_return_grid.py`, about seventy five minutes.
 
-Executes the pre declared grid in `docs/audit.md` Part 2: four horizons of five, ten,
-fifteen and twenty trading sessions, four information sets, three feature capacities and
-five model families. That is 240 configurations, each scored on the same chronological
+Executes the pre declared grid in `docs/audit.md` Part 2, as widened by Revision 2: five
+horizons of one, five, ten, fifteen and twenty trading sessions, six information sets
+(the original three by source, plus real_time and ex_post by availability and the
+normal plus residual set), three feature capacities and
+five model families. That is 465 configurations, each scored on the same chronological
 folds and the same test events, each purged against its own horizon, so the twenty session
 horizon carries a twenty session embargo.
 
