@@ -47,8 +47,12 @@ hyperparameters while the tree models were tuned, which T8 identified as an inva
 comparison; once every model is selected on the same purged inner splits, the advantage
 shrinks and no longer survives correction. Second, the target is observed for only 34 of
 74 events, and the missingness is structured rather than random: market wide volume is
-unavailable for the 2000 archive year and for events after 2023, which is the first and
-the last of the four folds, so the estimate rests on the middle of the sample period.
+unavailable for the 2000 archive year and for events after 2023. The early gap falls
+inside the first training block rather than inside a test fold and so costs no held-out
+points, but the late gap removes six of the ten held-out points in the fourth fold. The
+fold-wise breakdown in `docs/results.md` section 5.3 shows the result is not stable across
+folds either, running from an R squared of -0.449 on the earliest test fold to +0.436 on
+the third around a pooled 0.334.
 
 Safe sentence for the thesis:
 

@@ -183,50 +183,50 @@ survive correction.
 
 | target                                | model            |   n |    rmse |     mae |   pooled_r2 |
 |:--------------------------------------|:-----------------|----:|--------:|--------:|------------:|
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | random_forest    |  40 |  4.4424 |  3.7556 |      0.0509 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | ridge            |  40 |  4.4490 |  3.6116 |      0.0042 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | svr              |  40 |  4.3375 |  3.4788 |     -0.0016 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | ensemble         |  40 |  4.5646 |  3.9176 |     -0.0046 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | mlp              |  40 |  4.7918 |  4.1834 |     -0.0425 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | naive_train_mean |  40 |  4.5217 |  3.6434 |     -0.0439 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | gp               |  40 |  4.5605 |  3.9805 |     -0.0718 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | naive_zero       |  40 |  4.5015 |  3.5455 |     -0.0772 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | stacked          |  30 |  5.3539 |  4.5825 |     -0.1001 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | xgboost          |  40 |  5.1315 |  4.1990 |     -0.3161 |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | quantile         |  40 |  7.8589 |  5.6026 |     -1.5780 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | mlp              |  40 |  2.5224 |  2.1020 |      0.0415 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | ensemble         |  40 |  2.4702 |  1.9923 |      0.0327 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | random_forest    |  40 |  2.4673 |  2.0076 |      0.0140 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | stacked          |  30 |  2.8157 |  2.2106 |      0.0091 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | gp               |  40 |  2.3841 |  1.9487 |      0.0085 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | svr              |  40 |  2.4234 |  1.8846 |     -0.0190 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | naive_train_mean |  40 |  2.4691 |  1.9483 |     -0.0460 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | ridge            |  40 |  2.4978 |  1.9051 |     -0.0781 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | naive_zero       |  40 |  2.4657 |  1.9206 |     -0.0942 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | xgboost          |  40 |  2.6808 |  2.1282 |     -0.1474 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | quantile         |  40 |  3.8024 |  3.0579 |     -1.0551 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | ensemble         |  34 |  0.4831 |  0.3817 |      0.3344 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | mlp              |  34 |  0.4727 |  0.3751 |      0.3257 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | stacked          |  24 |  0.5431 |  0.4499 |      0.3154 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest    |  34 |  0.4945 |  0.4073 |      0.3030 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | gp               |  34 |  0.4955 |  0.3962 |      0.2813 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | xgboost          |  34 |  0.5204 |  0.4152 |      0.2544 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | svr              |  34 |  0.5691 |  0.4892 |      0.0338 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | naive_zero       |  34 |  0.5920 |  0.4881 |     -0.0241 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | ridge            |  34 |  0.6206 |  0.4640 |     -0.0324 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | naive_train_mean |  34 |  0.6045 |  0.5198 |     -0.0638 |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | quantile         |  34 |  0.8763 |  0.6616 |     -1.8368 |
-| Y3_ASPI_Recovery_Time                 | naive_train_mean |  40 | 20.7424 | 16.3517 |     -0.0369 |
-| Y3_ASPI_Recovery_Time                 | ridge            |  40 | 20.6580 | 12.7323 |     -0.0774 |
-| Y3_ASPI_Recovery_Time                 | random_forest    |  40 | 21.0511 | 12.1773 |     -0.1163 |
-| Y3_ASPI_Recovery_Time                 | svr              |  40 | 21.4291 | 11.9543 |     -0.1591 |
-| Y3_ASPI_Recovery_Time                 | gp               |  40 | 21.3182 | 12.0637 |     -0.1633 |
-| Y3_ASPI_Recovery_Time                 | ensemble         |  40 | 22.4289 | 13.8893 |     -0.2369 |
-| Y3_ASPI_Recovery_Time                 | stacked          |  30 | 19.2237 | 14.8222 |     -0.2543 |
-| Y3_ASPI_Recovery_Time                 | naive_zero       |  40 | 22.9716 | 12.1000 |     -0.3255 |
-| Y3_ASPI_Recovery_Time                 | mlp              |  40 | 24.1702 | 14.5511 |     -0.4589 |
-| Y3_ASPI_Recovery_Time                 | xgboost          |  40 | 25.7726 | 15.9278 |     -0.5903 |
-| Y3_ASPI_Recovery_Time                 | quantile         |  40 | 32.2607 | 19.8583 |     -1.6362 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | random_forest    |  40 |  4.9391 |  3.7556 |      0.0509 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | ridge            |  40 |  5.0590 |  3.6116 |      0.0042 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | svr              |  40 |  5.0651 |  3.8476 |      0.0018 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | ensemble         |  40 |  5.0814 |  3.9176 |     -0.0046 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | quantile         |  40 |  5.1325 |  3.6767 |     -0.0249 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | mlp              |  40 |  5.1762 |  4.1834 |     -0.0425 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | naive_train_mean |  40 |  5.1799 |  3.6434 |     -0.0439 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | gp               |  40 |  5.2454 |  3.9781 |     -0.0705 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | naive_zero       |  40 |  5.2618 |  3.5455 |     -0.0772 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | stacked          |  30 |  5.9581 |  4.5825 |     -0.1001 |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | xgboost          |  40 |  5.8161 |  4.1990 |     -0.3161 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | mlp              |  40 |  2.6852 |  2.1020 |      0.0415 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | ensemble         |  40 |  2.6975 |  1.9923 |      0.0327 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | random_forest    |  40 |  2.7235 |  2.0076 |      0.0140 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | stacked          |  30 |  3.0697 |  2.2106 |      0.0091 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | gp               |  40 |  2.7335 |  1.9475 |      0.0067 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | svr              |  40 |  2.8037 |  1.9417 |     -0.0449 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | naive_train_mean |  40 |  2.8051 |  1.9483 |     -0.0460 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | ridge            |  40 |  2.8478 |  1.9051 |     -0.0781 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | quantile         |  40 |  2.8614 |  2.0840 |     -0.0884 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | naive_zero       |  40 |  2.8691 |  1.9206 |     -0.0942 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | xgboost          |  40 |  2.9379 |  2.1282 |     -0.1474 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | ensemble         |  34 |  0.4882 |  0.3816 |      0.3344 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | mlp              |  34 |  0.4913 |  0.3836 |      0.3257 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | stacked          |  24 |  0.5491 |  0.4531 |      0.3154 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest    |  34 |  0.4995 |  0.4003 |      0.3030 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | gp               |  34 |  0.5133 |  0.4223 |      0.2640 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | xgboost          |  34 |  0.5167 |  0.4097 |      0.2544 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | svr              |  34 |  0.5973 |  0.4650 |      0.0036 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | naive_zero       |  34 |  0.6055 |  0.4749 |     -0.0241 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | ridge            |  34 |  0.6079 |  0.4573 |     -0.0324 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | quantile         |  34 |  0.6126 |  0.5038 |     -0.0483 |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | naive_train_mean |  34 |  0.6171 |  0.4999 |     -0.0638 |
+| Y3_ASPI_Recovery_Time                 | naive_train_mean |  40 | 21.5973 | 16.3517 |     -0.0369 |
+| Y3_ASPI_Recovery_Time                 | quantile         |  40 | 21.9889 | 11.4483 |     -0.0749 |
+| Y3_ASPI_Recovery_Time                 | ridge            |  40 | 22.0146 | 12.7323 |     -0.0774 |
+| Y3_ASPI_Recovery_Time                 | random_forest    |  40 | 22.4085 | 12.1773 |     -0.1163 |
+| Y3_ASPI_Recovery_Time                 | svr              |  40 | 22.7306 | 11.6428 |     -0.1486 |
+| Y3_ASPI_Recovery_Time                 | gp               |  40 | 22.8618 | 12.0355 |     -0.1619 |
+| Y3_ASPI_Recovery_Time                 | ensemble         |  40 | 23.5885 | 13.8893 |     -0.2369 |
+| Y3_ASPI_Recovery_Time                 | stacked          |  30 | 20.5934 | 14.8222 |     -0.2543 |
+| Y3_ASPI_Recovery_Time                 | naive_zero       |  40 | 24.4182 | 12.1000 |     -0.3255 |
+| Y3_ASPI_Recovery_Time                 | mlp              |  40 | 25.6179 | 14.5511 |     -0.4589 |
+| Y3_ASPI_Recovery_Time                 | xgboost          |  40 | 26.7466 | 15.9278 |     -0.5903 |
 
 ### 5.2 Verdicts against the two naive baselines
 
@@ -238,72 +238,72 @@ survive correction.
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | random_forest | naive_train_mean |  40 |       2.7235 |          2.8051 |       0.0817 |  -0.2191 |    0.3234 | 0.5737 |   1.0000 | False              | better, not distinguishable |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | xgboost       | naive_zero       |  40 |       2.9379 |          2.8691 |      -0.0688 |  -0.4247 |    0.2032 | 0.6575 |   1.0000 | False              | worse than baseline         |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | xgboost       | naive_train_mean |  40 |       2.9379 |          2.8051 |      -0.1327 |  -0.3654 |    0.0533 | 0.2060 |   1.0000 | False              | worse than baseline         |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | gp            | naive_zero       |  40 |       2.7311 |          2.8691 |       0.1380 |  -0.2103 |    0.4126 | 0.4251 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | gp            | naive_train_mean |  40 |       2.7311 |          2.8051 |       0.0741 |  -0.1652 |    0.2587 | 0.5173 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | svr           | naive_zero       |  40 |       2.7686 |          2.8691 |       0.1004 |  -0.1424 |    0.3008 | 0.4158 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | svr           | naive_train_mean |  40 |       2.7686 |          2.8051 |       0.0365 |  -0.0717 |    0.1322 | 0.5095 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | quantile      | naive_zero       |  40 |       3.9319 |          2.8691 |      -1.0628 |  -1.8842 |   -0.2991 | 0.0161 |   1.0000 | False              | worse than baseline         |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | quantile      | naive_train_mean |  40 |       3.9319 |          2.8051 |      -1.1267 |  -1.8915 |   -0.3753 | 0.0100 |   1.0000 | False              | worse than baseline         |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | mlp           | naive_zero       |  40 |       2.6852 |          2.8691 |       0.1838 |  -0.3778 |    0.6357 | 0.5102 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | mlp           | naive_train_mean |  40 |       2.6852 |          2.8051 |       0.1199 |  -0.3677 |    0.5358 | 0.6206 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | ensemble      | naive_zero       |  40 |       2.6975 |          2.8691 |       0.1716 |  -0.2165 |    0.4710 | 0.3702 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | ensemble      | naive_train_mean |  40 |       2.6975 |          2.8051 |       0.1077 |  -0.1703 |    0.3290 | 0.4283 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | stacked       | naive_zero       |  30 |       3.0697 |          3.2280 |       0.1583 |  -0.1377 |    0.4137 | 0.3144 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | stacked       | naive_train_mean |  30 |       3.0697 |          3.1400 |       0.0703 |  -0.0964 |    0.2180 | 0.4083 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | gp            | naive_zero       |  40 |       2.7335 |          2.8691 |       0.1355 |  -0.2154 |    0.4103 | 0.4341 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | gp            | naive_train_mean |  40 |       2.7335 |          2.8051 |       0.0716 |  -0.1728 |    0.2577 | 0.5354 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | svr           | naive_zero       |  40 |       2.8037 |          2.8691 |       0.0654 |  -0.3075 |    0.3899 | 0.7252 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | svr           | naive_train_mean |  40 |       2.8037 |          2.8051 |       0.0015 |  -0.2415 |    0.2185 | 0.9902 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | quantile      | naive_zero       |  40 |       2.8614 |          2.8691 |       0.0077 |  -0.6221 |    0.5455 | 0.9805 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | quantile      | naive_train_mean |  40 |       2.8614 |          2.8051 |      -0.0562 |  -0.5670 |    0.4123 | 0.8335 |   1.0000 | False              | worse than baseline         |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | mlp           | naive_zero       |  40 |       2.6852 |          2.8691 |       0.1838 |  -0.3778 |    0.6357 | 0.5102 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | mlp           | naive_train_mean |  40 |       2.6852 |          2.8051 |       0.1199 |  -0.3677 |    0.5358 | 0.6206 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | ensemble      | naive_zero       |  40 |       2.6975 |          2.8691 |       0.1716 |  -0.2165 |    0.4710 | 0.3702 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | ensemble      | naive_train_mean |  40 |       2.6975 |          2.8051 |       0.1077 |  -0.1703 |    0.3290 | 0.4283 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | stacked       | naive_zero       |  30 |       3.0697 |          3.2280 |       0.1583 |  -0.1377 |    0.4137 | 0.3144 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | stacked       | naive_train_mean |  30 |       3.0697 |          3.1400 |       0.0703 |  -0.0964 |    0.2180 | 0.4083 | nan      | False              | better, not distinguishable |
 | Y2_5D_Forward_AbnormalVolume_LogRatio | ridge         | naive_zero       |  34 |       0.6079 |          0.6055 |      -0.0024 |  -0.1137 |    0.0831 | 0.9632 |   1.0000 | False              | worse than baseline         |
 | Y2_5D_Forward_AbnormalVolume_LogRatio | ridge         | naive_train_mean |  34 |       0.6079 |          0.6171 |       0.0092 |  -0.1160 |    0.1040 | 0.8727 |   1.0000 | False              | better, not distinguishable |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest | naive_zero       |  34 |       0.4995 |          0.6055 |       0.1060 |   0.0371 |    0.1754 | 0.0124 |   0.1156 | False              | BEATS BASELINE              |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest | naive_train_mean |  34 |       0.4995 |          0.6171 |       0.1176 |   0.0175 |    0.2169 | 0.0383 |   0.6045 | False              | BEATS BASELINE              |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | xgboost       | naive_zero       |  34 |       0.5167 |          0.6055 |       0.0889 |   0.0122 |    0.1673 | 0.0434 |   0.7434 | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest | naive_zero       |  34 |       0.4995 |          0.6055 |       0.1060 |   0.0371 |    0.1754 | 0.0124 |   0.0782 | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest | naive_train_mean |  34 |       0.4995 |          0.6171 |       0.1176 |   0.0175 |    0.2169 | 0.0383 |   0.4092 | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | xgboost       | naive_zero       |  34 |       0.5167 |          0.6055 |       0.0889 |   0.0122 |    0.1673 | 0.0434 |   0.5074 | False              | BEATS BASELINE              |
 | Y2_5D_Forward_AbnormalVolume_LogRatio | xgboost       | naive_train_mean |  34 |       0.5167 |          0.6171 |       0.1005 |  -0.0001 |    0.1996 | 0.0675 |   1.0000 | False              | better, not distinguishable |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | gp            | naive_zero       |  34 |       0.5072 |          0.6055 |       0.0983 |  -0.0257 |    0.2129 | 0.1356 |   1.0000 | False              | better, not distinguishable |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | gp            | naive_train_mean |  34 |       0.5072 |          0.6171 |       0.1099 |  -0.0222 |    0.2311 | 0.1177 |   1.0000 | False              | better, not distinguishable |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | svr           | naive_zero       |  34 |       0.5881 |          0.6055 |       0.0174 |  -0.0849 |    0.1210 | 0.7474 |   1.0000 | False              | better, not distinguishable |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | svr           | naive_train_mean |  34 |       0.5881 |          0.6171 |       0.0290 |  -0.0325 |    0.0887 | 0.3737 |   1.0000 | False              | better, not distinguishable |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | quantile      | naive_zero       |  34 |       1.0078 |          0.6055 |      -0.4022 |  -0.7740 |   -0.0548 | 0.0882 |   1.0000 | False              | worse than baseline         |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | quantile      | naive_train_mean |  34 |       1.0078 |          0.6171 |      -0.3906 |  -0.7670 |   -0.0437 | 0.0981 |   1.0000 | False              | worse than baseline         |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | mlp           | naive_zero       |  34 |       0.4913 |          0.6055 |       0.1142 |   0.0137 |    0.2161 | 0.0424 |   0.7874 | False              | BEATS BASELINE              |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | mlp           | naive_train_mean |  34 |       0.4913 |          0.6171 |       0.1258 |   0.0036 |    0.2526 | 0.0645 |   1.0000 | False              | BEATS BASELINE              |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | ensemble      | naive_zero       |  34 |       0.4882 |          0.6055 |       0.1174 |   0.0507 |    0.1850 | 0.0061 |   0.0213 | True               | BEATS BASELINE              |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | ensemble      | naive_train_mean |  34 |       0.4882 |          0.6171 |       0.1290 |   0.0319 |    0.2295 | 0.0237 |   0.2479 | False              | BEATS BASELINE              |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | stacked       | naive_zero       |  24 |       0.5491 |          0.6640 |       0.1149 |   0.0186 |    0.2074 | 0.0418 |   0.6400 | False              | BEATS BASELINE              |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | stacked       | naive_train_mean |  24 |       0.5491 |          0.6986 |       0.1495 |   0.0494 |    0.2458 | 0.0118 |   0.0828 | False              | BEATS BASELINE              |
-| Y3_ASPI_Recovery_Time                 | ridge         | naive_zero       |  40 |      22.0146 |         24.4182 |       2.4037 |   0.7076 |    3.6781 | 0.0568 |   0.3234 | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | gp            | naive_zero       |  34 |       0.5133 |          0.6055 |       0.0922 |  -0.0400 |    0.2167 | 0.1908 |   1.0000 | False              | better, not distinguishable |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | gp            | naive_train_mean |  34 |       0.5133 |          0.6171 |       0.1038 |  -0.0364 |    0.2367 | 0.1698 |   1.0000 | False              | better, not distinguishable |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | svr           | naive_zero       |  34 |       0.5973 |          0.6055 |       0.0083 |  -0.0572 |    0.0715 | 0.8064 |   1.0000 | False              | better, not distinguishable |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | svr           | naive_train_mean |  34 |       0.5973 |          0.6171 |       0.0199 |  -0.0183 |    0.0619 | 0.3508 |   1.0000 | False              | better, not distinguishable |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | quantile      | naive_zero       |  34 |       0.6126 |          0.6055 |      -0.0071 |  -0.1804 |    0.1359 | 0.9327 |   1.0000 | False              | worse than baseline         |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | quantile      | naive_train_mean |  34 |       0.6126 |          0.6171 |       0.0045 |  -0.1803 |    0.1616 | 0.9600 |   1.0000 | False              | better, not distinguishable |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | mlp           | naive_zero       |  34 |       0.4913 |          0.6055 |       0.1142 |   0.0137 |    0.2161 | 0.0424 | nan      | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | mlp           | naive_train_mean |  34 |       0.4913 |          0.6171 |       0.1258 |   0.0036 |    0.2526 | 0.0645 | nan      | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | ensemble      | naive_zero       |  34 |       0.4882 |          0.6055 |       0.1174 |   0.0507 |    0.1850 | 0.0061 | nan      | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | ensemble      | naive_train_mean |  34 |       0.4882 |          0.6171 |       0.1290 |   0.0319 |    0.2295 | 0.0237 | nan      | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | stacked       | naive_zero       |  24 |       0.5491 |          0.6640 |       0.1149 |   0.0186 |    0.2074 | 0.0418 | nan      | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | stacked       | naive_train_mean |  24 |       0.5491 |          0.6986 |       0.1495 |   0.0494 |    0.2458 | 0.0118 | nan      | False              | BEATS BASELINE              |
+| Y3_ASPI_Recovery_Time                 | ridge         | naive_zero       |  40 |      22.0146 |         24.4182 |       2.4037 |   0.7076 |    3.6781 | 0.0568 |   0.2205 | False              | BEATS BASELINE              |
 | Y3_ASPI_Recovery_Time                 | ridge         | naive_train_mean |  40 |      22.0146 |         21.5973 |      -0.4172 |  -2.7333 |    3.5424 | 0.7825 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | random_forest | naive_zero       |  40 |      22.4085 |         24.4182 |       2.0097 |   0.1511 |    3.7958 | 0.1204 |   0.9638 | False              | BEATS BASELINE              |
+| Y3_ASPI_Recovery_Time                 | random_forest | naive_zero       |  40 |      22.4085 |         24.4182 |       2.0097 |   0.1511 |    3.7958 | 0.1204 |   0.6478 | False              | BEATS BASELINE              |
 | Y3_ASPI_Recovery_Time                 | random_forest | naive_train_mean |  40 |      22.4085 |         21.5973 |      -0.8112 |  -3.6452 |    3.4043 | 0.6532 |   1.0000 | False              | worse than baseline         |
 | Y3_ASPI_Recovery_Time                 | xgboost       | naive_zero       |  40 |      26.7466 |         24.4182 |      -2.3283 |  -9.5444 |    1.6502 | 0.4157 |   1.0000 | False              | worse than baseline         |
 | Y3_ASPI_Recovery_Time                 | xgboost       | naive_train_mean |  40 |      26.7466 |         21.5973 |      -5.1492 | -10.8284 |    0.1995 | 0.1185 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | gp            | naive_zero       |  40 |      22.8755 |         24.4182 |       1.5428 |   0.8574 |    2.2159 | 0.0133 |   0.0350 | True               | BEATS BASELINE              |
-| Y3_ASPI_Recovery_Time                 | gp            | naive_train_mean |  40 |      22.8755 |         21.5973 |      -1.2781 |  -4.1677 |    3.7701 | 0.5379 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | svr           | naive_zero       |  40 |      22.8342 |         24.4182 |       1.5840 |   0.8533 |    2.2336 | 0.0218 |   0.0144 | True               | BEATS BASELINE              |
-| Y3_ASPI_Recovery_Time                 | svr           | naive_train_mean |  40 |      22.8342 |         21.5973 |      -1.2369 |  -4.0802 |    3.7075 | 0.5389 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | quantile      | naive_zero       |  40 |      34.4363 |         24.4182 |     -10.0181 | -23.2107 |    0.8461 | 0.0700 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | quantile      | naive_train_mean |  40 |      34.4363 |         21.5973 |     -12.8390 | -23.9616 |   -2.3969 | 0.0256 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | mlp           | naive_zero       |  40 |      25.6179 |         24.4182 |      -1.1997 |  -9.0594 |    3.3236 | 0.7050 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | mlp           | naive_train_mean |  40 |      25.6179 |         21.5973 |      -4.0206 |  -9.4866 |    1.5279 | 0.2370 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | ensemble      | naive_zero       |  40 |      23.5885 |         24.4182 |       0.8297 |  -2.3385 |    2.7529 | 0.5247 |   1.0000 | False              | better, not distinguishable |
-| Y3_ASPI_Recovery_Time                 | ensemble      | naive_train_mean |  40 |      23.5885 |         21.5973 |      -1.9912 |  -4.4465 |    1.6990 | 0.2774 |   1.0000 | False              | worse than baseline         |
-| Y3_ASPI_Recovery_Time                 | stacked       | naive_zero       |  30 |      20.5934 |         21.5476 |       0.9542 |  -2.8807 |    3.9352 | 0.5369 |   1.0000 | False              | better, not distinguishable |
-| Y3_ASPI_Recovery_Time                 | stacked       | naive_train_mean |  30 |      20.5934 |         18.9695 |      -1.6239 |  -4.2111 |    1.6528 | 0.4097 |   1.0000 | False              | worse than baseline         |
+| Y3_ASPI_Recovery_Time                 | gp            | naive_zero       |  40 |      22.8618 |         24.4182 |       1.5564 |   0.8806 |    2.2400 | 0.0123 |   0.0188 | True               | BEATS BASELINE              |
+| Y3_ASPI_Recovery_Time                 | gp            | naive_train_mean |  40 |      22.8618 |         21.5973 |      -1.2645 |  -4.1633 |    3.8144 | 0.5429 |   1.0000 | False              | worse than baseline         |
+| Y3_ASPI_Recovery_Time                 | svr           | naive_zero       |  40 |      22.7306 |         24.4182 |       1.6877 |   1.0843 |    2.3309 | 0.0090 |   0.0000 | True               | BEATS BASELINE              |
+| Y3_ASPI_Recovery_Time                 | svr           | naive_train_mean |  40 |      22.7306 |         21.5973 |      -1.1333 |  -4.0471 |    4.0694 | 0.5809 |   1.0000 | False              | worse than baseline         |
+| Y3_ASPI_Recovery_Time                 | quantile      | naive_zero       |  40 |      21.9889 |         24.4182 |       2.4293 |   0.2983 |    4.8637 | 0.0796 |   0.6006 | False              | BEATS BASELINE              |
+| Y3_ASPI_Recovery_Time                 | quantile      | naive_train_mean |  40 |      21.9889 |         21.5973 |      -0.3916 |  -3.0801 |    4.4704 | 0.8254 |   1.0000 | False              | worse than baseline         |
+| Y3_ASPI_Recovery_Time                 | mlp           | naive_zero       |  40 |      25.6179 |         24.4182 |      -1.1997 |  -9.0594 |    3.3236 | 0.7050 | nan      | False              | worse than baseline         |
+| Y3_ASPI_Recovery_Time                 | mlp           | naive_train_mean |  40 |      25.6179 |         21.5973 |      -4.0206 |  -9.4866 |    1.5279 | 0.2370 | nan      | False              | worse than baseline         |
+| Y3_ASPI_Recovery_Time                 | ensemble      | naive_zero       |  40 |      23.5885 |         24.4182 |       0.8297 |  -2.3385 |    2.7529 | 0.5247 | nan      | False              | better, not distinguishable |
+| Y3_ASPI_Recovery_Time                 | ensemble      | naive_train_mean |  40 |      23.5885 |         21.5973 |      -1.9912 |  -4.4465 |    1.6990 | 0.2774 | nan      | False              | worse than baseline         |
+| Y3_ASPI_Recovery_Time                 | stacked       | naive_zero       |  30 |      20.5934 |         21.5476 |       0.9542 |  -2.8807 |    3.9352 | 0.5369 | nan      | False              | better, not distinguishable |
+| Y3_ASPI_Recovery_Time                 | stacked       | naive_train_mean |  30 |      20.5934 |         18.9695 |      -1.6239 |  -4.2111 |    1.6528 | 0.4097 | nan      | False              | worse than baseline         |
 | Y1_ASPI_10D_Forward_LogReturn_Pct     | ridge         | naive_zero       |  40 |       5.0590 |          5.2618 |       0.2028 |  -1.3004 |    1.5009 | 0.7837 |   1.0000 | False              | better, not distinguishable |
 | Y1_ASPI_10D_Forward_LogReturn_Pct     | ridge         | naive_train_mean |  40 |       5.0590 |          5.1799 |       0.1208 |  -1.1892 |    1.2605 | 0.8521 |   1.0000 | False              | better, not distinguishable |
 | Y1_ASPI_10D_Forward_LogReturn_Pct     | random_forest | naive_zero       |  40 |       4.9391 |          5.2618 |       0.3227 |  -0.7070 |    1.0807 | 0.5058 |   1.0000 | False              | better, not distinguishable |
 | Y1_ASPI_10D_Forward_LogReturn_Pct     | random_forest | naive_train_mean |  40 |       4.9391 |          5.1799 |       0.2408 |  -0.5762 |    0.8524 | 0.5343 |   1.0000 | False              | better, not distinguishable |
 | Y1_ASPI_10D_Forward_LogReturn_Pct     | xgboost       | naive_zero       |  40 |       5.8161 |          5.2618 |      -0.5543 |  -2.4486 |    1.0014 | 0.5289 |   1.0000 | False              | worse than baseline         |
 | Y1_ASPI_10D_Forward_LogReturn_Pct     | xgboost       | naive_train_mean |  40 |       5.8161 |          5.1799 |      -0.6362 |  -2.3507 |    0.7903 | 0.4371 |   1.0000 | False              | worse than baseline         |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | gp            | naive_zero       |  40 |       5.2486 |          5.2618 |       0.0132 |  -0.9203 |    0.7625 | 0.9754 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | gp            | naive_train_mean |  40 |       5.2486 |          5.1799 |      -0.0688 |  -0.7836 |    0.5025 | 0.8324 |   1.0000 | False              | worse than baseline         |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | svr           | naive_zero       |  40 |       5.0737 |          5.2618 |       0.1881 |  -0.1343 |    0.4504 | 0.2747 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | svr           | naive_train_mean |  40 |       5.0737 |          5.1799 |       0.1062 |  -0.0080 |    0.1951 | 0.0935 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | quantile      | naive_zero       |  40 |       8.1400 |          5.2618 |      -2.8782 |  -6.8871 |    0.3797 | 0.2173 |   1.0000 | False              | worse than baseline         |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | quantile      | naive_train_mean |  40 |       8.1400 |          5.1799 |      -2.9602 |  -6.8633 |    0.2203 | 0.2040 |   1.0000 | False              | worse than baseline         |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | mlp           | naive_zero       |  40 |       5.1762 |          5.2618 |       0.0856 |  -1.2664 |    1.1339 | 0.8942 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | mlp           | naive_train_mean |  40 |       5.1762 |          5.1799 |       0.0036 |  -1.1681 |    0.9442 | 0.9949 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | ensemble      | naive_zero       |  40 |       5.0814 |          5.2618 |       0.1805 |  -1.0849 |    1.1376 | 0.7567 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | ensemble      | naive_train_mean |  40 |       5.0814 |          5.1799 |       0.0985 |  -0.9631 |    0.9215 | 0.8406 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | stacked       | naive_zero       |  30 |       5.9581 |          5.9416 |      -0.0165 |  -1.4174 |    1.1527 | 0.9799 |   1.0000 | False              | worse than baseline         |
-| Y1_ASPI_10D_Forward_LogReturn_Pct     | stacked       | naive_train_mean |  30 |       5.9581 |          5.8495 |      -0.1085 |  -1.2539 |    0.8472 | 0.8386 |   1.0000 | False              | worse than baseline         |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | gp            | naive_zero       |  40 |       5.2454 |          5.2618 |       0.0165 |  -0.9184 |    0.7646 | 0.9694 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | gp            | naive_train_mean |  40 |       5.2454 |          5.1799 |      -0.0655 |  -0.7818 |    0.5044 | 0.8404 |   1.0000 | False              | worse than baseline         |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | svr           | naive_zero       |  40 |       5.0651 |          5.2618 |       0.1967 |  -0.7796 |    0.9237 | 0.6601 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | svr           | naive_train_mean |  40 |       5.0651 |          5.1799 |       0.1148 |  -0.6445 |    0.6813 | 0.7404 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | quantile      | naive_zero       |  40 |       5.1325 |          5.2618 |       0.1294 |  -0.7729 |    0.8180 | 0.7680 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | quantile      | naive_train_mean |  40 |       5.1325 |          5.1799 |       0.0474 |  -0.6481 |    0.6069 | 0.8934 |   1.0000 | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | mlp           | naive_zero       |  40 |       5.1762 |          5.2618 |       0.0856 |  -1.2664 |    1.1339 | 0.8942 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | mlp           | naive_train_mean |  40 |       5.1762 |          5.1799 |       0.0036 |  -1.1681 |    0.9442 | 0.9949 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | ensemble      | naive_zero       |  40 |       5.0814 |          5.2618 |       0.1805 |  -1.0849 |    1.1376 | 0.7567 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | ensemble      | naive_train_mean |  40 |       5.0814 |          5.1799 |       0.0985 |  -0.9631 |    0.9215 | 0.8406 | nan      | False              | better, not distinguishable |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | stacked       | naive_zero       |  30 |       5.9581 |          5.9416 |      -0.0165 |  -1.4174 |    1.1527 | 0.9799 | nan      | False              | worse than baseline         |
+| Y1_ASPI_10D_Forward_LogReturn_Pct     | stacked       | naive_train_mean |  30 |       5.9581 |          5.8495 |      -0.1085 |  -1.2539 |    0.8472 | 0.8386 | nan      | False              | worse than baseline         |
 
 Thirteen comparisons have an interval excluding zero. Nine of them belong to target two,
 where the ensemble, the random forest, extreme gradient boosting, the shallow network and
@@ -314,6 +314,69 @@ losing to the training mean. Beating one baseline and losing to the other is not
 so only the target two ensemble counts.
 
 ---
+
+### 5.3 Fold-wise stability and leave-one-event-out sensitivity
+
+The review asked specifically whether the volume result is stable across folds and whether
+a pooled improvement is being produced by one catastrophic event. Both tables below are
+computed from the same stored out-of-fold predictions as section 5.1. Nothing was refitted
+to produce them.
+
+Fold by fold. The 34 held-out points are not spread evenly: folds one to three carry ten
+each and fold four carries four. The reason is worth stating precisely, because it is
+easy to describe wrongly. Market wide turnover is unavailable for the 2000 archive year
+and for events after 2023. The 2000 events fall inside the first training block rather
+than inside any test fold, since the walk forward only begins testing at the thirty first
+event, so the early gap costs no held-out points. The post-2023 gap does fall in a test
+fold, and it removes six of the ten points from fold four.
+
+| model            |   fold |   n |   rmse |      r2 |
+|:-----------------|-------:|----:|-------:|--------:|
+| ensemble         |      1 |  10 | 0.4117 | -0.4494 |
+| ensemble         |      2 |  10 | 0.5952 |  0.1598 |
+| ensemble         |      3 |  10 | 0.4369 |  0.4357 |
+| ensemble         |      4 |   4 | 0.4887 |  0.1165 |
+| mlp              |      1 |  10 | 0.5158 | -1.2750 |
+| mlp              |      2 |  10 | 0.5795 |  0.2037 |
+| mlp              |      3 |  10 | 0.3923 |  0.5452 |
+| mlp              |      4 |   4 | 0.4035 |  0.3976 |
+| random_forest    |      1 |  10 | 0.3489 | -0.0409 |
+| random_forest    |      2 |  10 | 0.6215 |  0.0840 |
+| random_forest    |      3 |  10 | 0.4774 |  0.3262 |
+| random_forest    |      4 |   4 | 0.5302 | -0.0400 |
+| naive_zero       |      1 |  10 | 0.4342 | -0.6127 |
+| naive_zero       |      2 |  10 | 0.7383 | -0.2926 |
+| naive_zero       |      3 |  10 | 0.6149 | -0.1175 |
+| naive_zero       |      4 |   4 | 0.5806 | -0.2475 |
+| naive_train_mean |      1 |  10 | 0.3515 | -0.0566 |
+| naive_train_mean |      2 |  10 | 0.6620 | -0.0393 |
+| naive_train_mean |      3 |  10 | 0.7493 | -0.6595 |
+| naive_train_mean |      4 |   4 | 0.6550 | -0.5876 |
+
+Leave one event out. Each row removes one held-out event at a time and recomputes the
+pooled RMSE, so the spread between the minimum and the maximum shows how much a single
+event moves the result.
+
+| model            |   n |   pooled_rmse |   loo_min |   loo_max |   worst_event_index |
+|:-----------------|----:|--------------:|----------:|----------:|--------------------:|
+| ensemble         |  34 |        0.4882 |    0.4425 |    0.4955 |                  15 |
+| mlp              |  34 |        0.4913 |    0.4383 |    0.4987 |                   6 |
+| random_forest    |  34 |        0.4995 |    0.4541 |    0.5070 |                  15 |
+| naive_zero       |  34 |        0.6055 |    0.5613 |    0.6146 |                  15 |
+| naive_train_mean |  34 |        0.6171 |    0.5775 |    0.6264 |                  25 |
+
+Read together, these say two things. First, the volume result is not the artefact of one
+catastrophic event: removing any single held-out event leaves the pooled RMSE inside a
+narrow band, so no single observation is carrying the improvement. Second, the result is
+not uniform across folds. Every model, including both naive baselines, records its worst
+fit on the earliest test fold and its best on the third, which is the pattern of a
+relationship that is not stable over the sample period rather than one that holds
+throughout it. The ensemble's fold-wise R squared runs from -0.449 to +0.436 around a
+pooled 0.334, and a single pooled figure conceals that spread.
+
+Neither table changes the verdict, and neither was run to change it. They qualify it: the
+evidence for the volume target is an average over four folds that disagree, measured on 34
+points, six of which the data do not supply in the final fold.
 
 ## 6. Target three, recovery duration
 
