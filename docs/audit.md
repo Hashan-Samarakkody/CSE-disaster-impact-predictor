@@ -33,6 +33,7 @@ definitions. The current numbers are in `docs/results.md`.
 5. Part 5. Method comparison, before and against after
 6. Part 6. Thesis amendments
 7. Part 7. Full dated change log
+8. Part 8. Revision 2 pre-declaration
 
 
 ---
@@ -3490,3 +3491,169 @@ no importer anywhere in the Y2 path.
 The pre-declared grid is complete and the pipeline is frozen again. No further horizon,
 algorithm, threshold, target, feature-count increase, observation removal or variant search
 follows from these results.
+
+---
+
+# Part 8. Revision 2 pre-declaration
+
+**Dated:** 2026-09-22
+**Baseline commit:** `fbe2699` (`refactor-4`)
+**Status:** frozen before any result under these revisions was produced.
+
+This section responds to the supervisor review recorded in
+`CSE_Repo_Change_Specification.pdf`. It is written before any of the code changes it
+describes were made, so that every decision below is a pre-declaration rather than a
+report. Nothing in Parts 1 to 7 is edited; this Part is additive, and Part 7's change log
+carries one dated entry per task.
+
+## 8.1 What stays fixed
+
+The three target definitions frozen on 2026-09-19 at commit `928a255`
+(`docs/TARGET_DEFINITION_PROTOCOL.md`) are unchanged. The seed stays at 42. Validation
+stays a chronological walk forward over events, thirty training events, ten test events,
+step ten, four folds, forty pooled held out predictions per target. No shuffled cross
+validation is introduced anywhere. No new machine learning model is added to the primary
+analysis.
+
+## 8.2 Horizons
+
+**Primary horizon: five trading sessions.** Secondary, reported as sensitivity analyses
+and never promoted: one, ten, fifteen and twenty sessions. The one session horizon is
+added by this revision (T4) as a robustness test only.
+
+## 8.3 The information set partition, by availability
+
+The existing partition by data source (market only, disaster only, combined) is kept and a
+second, orthogonal partition by availability at the prediction origin is added (T1):
+
+**Real time**, demonstrably knowable at the prediction origin: lagged returns, moving
+average ratios, rolling volatility, GARCH conditional volatility, volume ratios, exchange
+rate returns and volatility, the S&P 500 return, election proximity, the disaster type one
+hots, days since the last disaster, disasters in the trailing 365 days, and the event date
+precision flag.
+
+**Ex post**, finalised after the prediction origin: every EM-DAT severity and magnitude
+column, every DesInventar `di_*` column, every NASA POWER `hz_*` column, and the annual
+World Bank macro columns including `macro_available`. NASA POWER reanalysis is published
+with a lag of several days and is therefore classed ex post; it will not be reclassified
+without documented same origin availability.
+
+Every feature column belongs to exactly one of the two. A column absent from either
+partition raises, exactly as an unassigned column already raises for the source partition.
+
+## 8.4 The confirmatory comparison family
+
+The return grid may still run in full, at 240 configurations and 720 comparisons, but the
+family wise correction no longer spans all of it. A configuration is **confirmatory** when
+all four of the following hold:
+
+1. the horizon is five sessions;
+2. the information set is `real_time` or `ex_post`;
+3. the feature capacity is **k = 10**;
+4. the model is one of the reduced set below.
+
+**The capacity is pre-declared here at k = 10** on two grounds that do not reference any
+result: with thirty training events it is the conventional floor of three observations per
+retained feature, and it is the capacity the existing direction analysis was already
+declared at. The other declared capacities, five and twenty, remain in the grid as
+exploratory.
+
+**Reduced model set**, four entries:
+
+| Slot | Model |
+|---|---|
+| Benchmark | `naive_zero` and `naive_train_mean` |
+| Parsimonious linear | Ridge |
+| Tree ensemble | Random Forest |
+| Nonlinear | the shallow MLP |
+
+`elastic_net` and `xgboost` are explicitly **not** confirmatory and are reported as
+exploratory. The MLP is retained in the confirmatory set specifically because it is the
+current best performer on the volume target, and under T8 it must be re-derived with the
+same purged inner cross validation search as Ridge and Random Forest before that result
+may be reported. Whatever the parity run produces is the finding.
+
+Holm correction is applied to the confirmatory family only, its size is printed, and every
+non confirmatory comparison is written to a separate exploratory artifact and is never
+corrected jointly with the primary family.
+
+## 8.5 The recovery target
+
+**The survival analysis is primary for Y3.** The ordinary regression treatment is retained
+for comparability with the existing literature but is demoted to a **disclosed
+diagnostic**: squared error is not defined for a right censored duration, and sixteen of
+the fifty two drawdown events are censored. No Y3 RMSE, MAE or R squared value will appear
+in an exported table without an explicit diagnostic label (T3).
+
+Censoring by a subsequent qualifying disaster is **informative**, not independent: an event
+that has not recovered is more likely to be overtaken. A competing risks estimator is
+therefore added (T2), together with a sensitivity run that excludes the events censored
+that way, so the two treatments can be compared.
+
+## 8.6 The realised response is a separate question from forecastability
+
+A new event study inference module (T11) estimates and tests the realised market response
+using the published statistics: a cross sectional t test, the Boehmer, Musumeci and Poulsen
+standardised residual test, the Corrado rank test, and the Kolari and Pynnonen adjustment
+for cross sectional correlation. It is kept structurally separate from the forecast
+evaluation in `src/evaluation/verification.py`, and neither imports the other's decision
+rules. The distinction between a measurable realised effect and out of sample
+forecastability is the study's central contribution and must remain visible in the code.
+
+## 8.7 The robustness suite, pre-declared and closed
+
+One runner (T15) executes exactly the following list, once, into one consolidated table.
+Each check reports its held out sample size, its error metric, its comparison against the
+designated benchmark, and an uncertainty interval.
+
+1. Restrict the sample to disasters with exact event dates.
+2. Compare the five, ten and twenty session return horizons.
+3. Compare raw ASPI returns against the market adjusted abnormal returns from T6.
+4. Compare the real time and ex post information sets from T1.
+5. Exclude, and separately analyse, the 2004 tsunami, the COVID-19 period and the 2022
+   Sri Lankan economic crisis.
+6. Run under both the sliding and the expanding training window from T9.
+7. Leave one event out sensitivity, and a variant excluding the most influential
+   disasters.
+8. Compare across disaster types where the subgroup supports it. Subgroup sizes are flood
+   51, storm 15, drought 5, other 3. Every subgroup result carries its size, and drought
+   and other are never reported as standalone findings.
+9. Examine the consequences of overlapping event windows and clustered disasters.
+10. Repeat the principal analysis without SMOGN.
+11. Repeat the principal analysis without the highest missingness variables.
+
+**This list is closed.** No check is added after a result is seen, no check is dropped
+because its result is unfavourable, and the suite is not run more than once. In the primary
+folds SMOGN generates zero synthetic rows for Y1 and five each for Y2 and Y3 against thirty
+real training rows, so check 10 is expected to change very little; that outcome will be
+reported as it stands. Any check that cannot be run appears in the table with its reason
+rather than being omitted.
+
+## 8.8 The remaining tasks in this revision
+
+| Task | What it declares |
+|---|---|
+| T1 | the availability partition in 8.3 |
+| T2 | competing risks estimator plus the exclusion sensitivity run, 8.5 |
+| T3 | Y3 regression demoted to a disclosed diagnostic, 8.5 |
+| T4 | the one session return horizon, 8.2, registered as a non feature |
+| T5 | Y2 at one, five, ten and twenty session windows, a percentage form, and a winsorised variant. Five sessions stays primary. Missing volume stays missing and is never zero filled |
+| T6 | a market adjusted abnormal return target at every horizon, estimated only on sessions settling strictly before the prediction origin. The raw return stays primary |
+| T7 | the confirmatory family in 8.4 |
+| T8 | parity of hyperparameter search across every confirmatory model, 8.4 |
+| T9 | an expanding window validation mode, defaulting to sliding so existing behaviour is unchanged |
+| T10 | `STUDY_END` of 2025-12-31 bounding event eligibility, and a market data bound ninety sessions after the last qualifying event. The event count and the fold spans must be unchanged by the truncation, and the comparison will be reported |
+| T11 | the event study module in 8.6 |
+| T12 | a sample selection flow accounting reconciling 110 raw records to 94 qualifying to 74 modelled |
+| T13 | the leakage check promoted from a notebook cell into the test suite |
+| T14 | an exact dependency lock file beside the existing loose requirements |
+| T15 | the closed robustness list in 8.7 |
+| D1 to D6 | documentation and metadata corrections, including withdrawing the "pre-registered" claim for the study as a whole in favour of the narrower, verifiable statement that the target definitions and evaluation rules were frozen on 2026-09-19 at commit `928a255` before any performance under them was observed |
+
+## 8.9 Stop condition for this revision
+
+The list above is complete and closed. A negative result is an acceptable outcome, and the
+study's contribution stands either way: a measurable realised market reaction to a natural
+disaster does not imply that reaction can be forecast out of sample. No further target,
+horizon, algorithm, threshold, feature count or observation removal follows from whatever
+these revisions produce.
