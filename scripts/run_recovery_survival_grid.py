@@ -26,7 +26,7 @@ from src.evaluation.verification import build_episode_ids
 from src.models.survival_recovery import aalen_johansen_recovery, competing_risk_codes
 from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
                                        median_impute_from_train, purge_horizon_overlap)
-from src.utils.artifact_store import artifact_file
+from src.utils.artifact_store import artifact_file, save_frame
 
 ART = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -210,7 +210,8 @@ def main(exclude_competing: bool = False):
 
     oof = pd.DataFrame(rows)
     surv_mat = np.vstack(oof.pop("_surv").to_numpy())
-    oof.to_parquet(artifact_file(f"recovery_grid_predictions{suffix}.parquet"), index=False)
+    save_frame(oof, f"recovery_grid_predictions{suffix}",
+               "Out-of-fold survival predictions." + (" Sensitivity run excluding events censored by a subsequent disaster." if suffix else ""))
     print(f"\nwrote recovery_grid_predictions.parquet ({len(oof)} rows, {oof.model.nunique()} models)")
 
     # metrics
@@ -255,14 +256,17 @@ def main(exclude_competing: bool = False):
     mt["verdict"] = np.where(mt["c_index_beats_chance"], "A - statistically supported",
                              np.where(mt["c_index"] > 0.5, "B - suggestive but uncertain",
                                       "C - unsupported"))
-    mt.to_parquet(artifact_file(f"recovery_grid_metrics{suffix}.parquet"), index=False)
-    pd.concat(calib, ignore_index=True).to_parquet(artifact_file(f"recovery_probability_calibration{suffix}.parquet"),
-                                                    index=False)
+    save_frame(mt, f"recovery_grid_metrics{suffix}",
+               "Concordance, integrated Brier and calibration per survival model." + (" Sensitivity run excluding events censored by a subsequent disaster." if suffix else ""))
+    save_frame(pd.concat(calib, ignore_index=True),
+               f"recovery_probability_calibration{suffix}",
+               "Predicted against observed recovery probabilities." + (" Sensitivity run excluding events censored by a subsequent disaster." if suffix else ""))
     print(f"wrote recovery_grid_metrics.parquet ({len(mt)} models), recovery_probability_calibration.parquet")
 
     # recovery categories
     cat = recovery_categories(oof, episodes_all)
-    cat.to_parquet(artifact_file(f"recovery_category_metrics{suffix}.parquet"), index=False)
+    save_frame(cat, f"recovery_category_metrics{suffix}",
+               "Metrics for the pre-specified recovery category." + (" Sensitivity run excluding events censored by a subsequent disaster." if suffix else ""))
     print(f"wrote recovery_category_metrics.parquet ({len(cat)} rows)")
 
 

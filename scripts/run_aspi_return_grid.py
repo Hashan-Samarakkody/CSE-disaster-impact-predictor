@@ -31,7 +31,7 @@ from src.targets.return_horizons import (HORIZONS, horizon_col, horizon_end_col,
                                         information_sets)
 from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
                                        median_impute_from_train, purge_horizon_overlap)
-from src.utils.artifact_store import artifact_file
+from src.utils.artifact_store import artifact_file, save_frame
 
 ART = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -289,7 +289,7 @@ def main():
                   f"inner_splits={len(cv_splits) if cv_splits else 'defaults'}")
 
     oof = pd.DataFrame(oof_rows)
-    oof.to_parquet(artifact_file("aspi_grid_predictions.parquet"), index=False)
+    save_frame(oof, "aspi_grid_predictions", "Out-of-fold predictions for every return grid configuration.")
     print(f"\nwrote aspi_grid_predictions.parquet ({len(oof)} rows)")
 
     # metrics + verdicts
@@ -329,7 +329,7 @@ def main():
             })
 
     mt = pd.DataFrame(metrics)
-    mt.to_parquet(artifact_file("aspi_grid_metrics.parquet"), index=False)
+    save_frame(mt, "aspi_grid_metrics", "Pooled metrics per return grid configuration, with the confirmatory flag.")
 
     vt = pd.DataFrame(verdicts)
     if len(vt):
@@ -352,8 +352,8 @@ def main():
 
     primary = vt[vt["confirmatory"]] if len(vt) else vt
     exploratory = vt[~vt["confirmatory"]] if len(vt) else vt
-    primary.to_parquet(artifact_file("aspi_grid_verdicts.parquet"), index=False)
-    exploratory.to_parquet(artifact_file("aspi_grid_verdicts_exploratory.parquet"), index=False)
+    save_frame(primary, "aspi_grid_verdicts", "Confirmatory comparisons only; Holm applied to this family alone.")
+    save_frame(exploratory, "aspi_grid_verdicts_exploratory", "Non-confirmatory comparisons, never Holm corrected with the primary family.")
     print(f"wrote aspi_grid_metrics.parquet ({len(mt)} configs)")
     print(f"wrote aspi_grid_verdicts.parquet: CONFIRMATORY family of {len(primary)} "
           f"comparisons (h={CONFIRMATORY_HORIZON}, {CONFIRMATORY_INFO_SETS}, "
@@ -373,12 +373,12 @@ def main():
     stab["selection_frequency"] = stab["selection_count"] / stab["n_folds"]
     stab.sort_values(["horizon", "info_set", "k", "selection_frequency", "mean_rank"],
                      ascending=[True, True, True, False, True], inplace=True)
-    stab.to_parquet(artifact_file("aspi_grid_feature_stability.parquet"), index=False)
+    save_frame(stab, "aspi_grid_feature_stability", "How often each feature was selected across folds.")
     print(f"wrote aspi_grid_feature_stability.parquet ({len(stab)} rows)")
 
     # direction (secondary)
     direction = run_direction_analysis(data, event_dates, splits, sets["combined"])
-    direction.to_parquet(artifact_file("aspi_direction_metrics.parquet"), index=False)
+    save_frame(direction, "aspi_direction_metrics", "Return direction classification metrics by horizon.")
     print(f"wrote aspi_direction_metrics.parquet ({len(direction)} rows)")
 
 
