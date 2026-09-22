@@ -25,8 +25,16 @@ import pandas as pd
 
 BASELINE_SESSIONS = 30
 ASPI_FORWARD_SESSIONS = 5
-ASPI_SENSITIVITY_HORIZONS = (10, 15, 20)
+# 1 session is a robustness test (Revision 2, T4); 10/15/20 are the original
+# pre-declared sensitivities. None is ever promoted to primary.
+ASPI_SENSITIVITY_HORIZONS = (1, 10, 15, 20)
 VOLUME_RESPONSE_SESSIONS = 5
+# Response-window sensitivities for Y2 (Revision 2, T5), against the same 30-session
+# baseline. The 5-session window stays primary; none of these is ever promoted.
+VOLUME_SENSITIVITY_WINDOWS = (1, 10, 20)
+# A priori winsorisation limits for the Y2 outlier-sensitivity column. Fixed before any
+# result was seen, never tuned.
+VOLUME_WINSOR_QUANTILES = (0.05, 0.95)
 DRAWDOWN_WINDOW = 5
 MAX_RECOVERY_SESSIONS = 90
 
@@ -164,6 +172,40 @@ def calculate_recovery_time(market, position, b, t_next=None,
     return float(min(nxt, cap)), 0, ("next_disaster" if nxt <= cap else "90_day_cap"), True
 
 
+def volume_window_col(window: int) -> str:
+    """Dataset column holding Y2 over a `window`-session response window."""
+    return f"Y2_{window}D_Forward_AbnormalVolume_LogRatio"
+
+
+def volume_window_end_col(window: int) -> str:
+    """Dataset column holding the session on which the `window`-session Y2 closes."""
+    if window == VOLUME_RESPONSE_SESSIONS:
+        return "Y2_horizon_end_date"
+    return f"Y2_{window}D_horizon_end_date"
+
+
+def abnormal_volume_percent(log_ratio):
+    """Y2 as a percentage deviation from baseline turnover: 100 * (exp(Y2) - 1).
+
+    The reader-facing form. A log ratio of 0.4055 is +50 percent.
+    """
+    return 100.0 * (np.expm1(np.asarray(log_ratio, dtype=float)))
+
+
+def winsorise(values, quantiles=VOLUME_WINSOR_QUANTILES):
+    """Clip to the given quantiles of the OBSERVED values, leaving NaN untouched.
+
+    The quantiles are full-sample, so the result is a descriptive sensitivity column.
+    A model would need in-fold quantiles instead.
+    """
+    arr = np.asarray(values, dtype=float)
+    observed = arr[np.isfinite(arr)]
+    if len(observed) == 0:
+        return arr
+    low, high = np.quantile(observed, quantiles)
+    return np.where(np.isfinite(arr), np.clip(arr, low, high), arr)
+
+
 def build_event_targets(market_df, disaster_df, date_col="date", price_col="aspi_close",
                         volume_col="trading_volume", disaster_date_col="event_date",
                         max_recovery_days=MAX_RECOVERY_SESSIONS) -> pd.DataFrame:
@@ -224,9 +266,21 @@ def build_event_targets(market_df, disaster_df, date_col="date", price_col="aspi
                 market, position, p0, h, date_col, price_col)
             row[f"Y1_ASPI_{h}D_Forward_LogReturn_Pct"] = value
             row[f"Y1_{h}D_horizon_end_date"] = end
+        for w in VOLUME_SENSITIVITY_WINDOWS:
+            value, end, _, _ = calculate_forward_abnormal_volume(
+                market, position, volume_col, response_sessions=w, date_col=date_col)
+            row[volume_window_col(w)] = value
+            row[volume_window_end_col(w)] = end
         rows.append(row)
 
-    return pd.DataFrame(rows)
+    frame = pd.DataFrame(rows)
+    if len(frame):
+        # Reader-facing and outlier-robust views of the primary Y2. Both derived, so a
+        # missing volume label stays missing rather than becoming a zero.
+        primary = frame[volume_window_col(VOLUME_RESPONSE_SESSIONS)]
+        frame["Y2_5D_Forward_AbnormalVolume_Pct"] = abnormal_volume_percent(primary)
+        frame["Y2_5D_Forward_AbnormalVolume_LogRatio_Winsorised"] = winsorise(primary)
+    return frame
 
 
 if __name__ == "__main__":
@@ -308,5 +362,33 @@ if __name__ == "__main__":
     # A horizon running off the end of the series is missing, never truncated.
     late = build_event_targets(market, pd.DataFrame({"event_date": [market["date"].iloc[-2]]}))
     assert np.isnan(late["Y1_ASPI_5D_Forward_LogReturn_Pct"].iloc[0])
+
+    # Y2 response-window sensitivities (T5). Volume is 2000 for the 5 sessions after the
+    # origin and 1000 before it, so the 1 and 5 session windows both read ln(2).
+    assert abs(row[volume_window_col(1)] - np.log(2.0)) < 1e-12
+    assert abs(row[volume_window_col(5)] - np.log(2.0)) < 1e-12
+    assert row[volume_window_end_col(1)] == sessions[30]
+    assert row[volume_window_end_col(5)] == sessions[34]
+    # The 10 and 20 session windows span the return to normal volume, so they sit lower.
+    assert row[volume_window_col(10)] < row[volume_window_col(5)]
+
+    # The percentage form is the protocol's own worked example: ln(1.5) reads as +50%.
+    assert abs(abnormal_volume_percent(np.log(1.5)) - 50.0) < 1e-9
+    assert abs(abnormal_volume_percent(0.4055) - 50.0) < 1e-2
+
+    # Winsorising clips the tails and leaves missing values missing.
+    raw = np.array([np.nan, -10.0, -0.1, 0.0, 0.1, 10.0])
+    clipped = winsorise(raw)
+    assert np.isnan(clipped[0])
+    assert clipped[1] > -10.0 and clipped[-1] < 10.0
+    assert clipped[2] == -0.1 and clipped[4] == 0.1
+
+    # A frame with no volume column at all must carry missing Y2 everywhere, never zero.
+    no_volume = pd.DataFrame({"date": sessions[:140], "aspi_close": [100.0] * 140})
+    nv = build_event_targets(no_volume, pd.DataFrame({"event_date": [sessions[40]]}))
+    for _w in (1, 5, 10, 20):
+        assert nv[volume_window_col(_w)].isna().all(), _w
+    assert nv["Y2_5D_Forward_AbnormalVolume_Pct"].isna().all()
+    assert nv["Y2_5D_Forward_AbnormalVolume_LogRatio_Winsorised"].isna().all()
 
     print("event_targets.py self-check passed (TARGET_DEFINITION_PROTOCOL worked examples)")

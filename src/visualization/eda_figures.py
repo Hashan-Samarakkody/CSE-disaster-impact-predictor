@@ -427,6 +427,33 @@ def plot_sector_coverage(sector_long, date_col="date", sector_col="sector",
     return fig, g.reset_index()
 
 
+def plot_sample_flow(sample_flow, name="eda_11_sample_flow"):
+    """Waterfall of the sample selection, raw records down to modelled events."""
+    import matplotlib.pyplot as plt
+
+    frame = sample_flow.reset_index(drop=True)
+    fig, ax = plt.subplots(figsize=(WIDTH_FULL, max(H_MED, 0.45 * len(frame))))
+    y = range(len(frame))
+    ax.barh(list(y), frame.n_remaining, color=PALETTE["blue"], label="remaining")
+    ax.barh(list(y), frame.n_removed, left=frame.n_remaining,
+            color=PALETTE["vermil"], label="removed at this stage")
+    for i, r in frame.iterrows():
+        ax.text(r.n_remaining + r.n_removed + 1, i,
+                f"{int(r.n_remaining)}" + (f"  (-{int(r.n_removed)})" if r.n_removed else ""),
+                va="center", fontsize=6)
+    ax.set_yticks(list(y))
+    ax.set_yticklabels(frame.stage, fontsize=6.5)
+    ax.invert_yaxis()
+    ax.set_xlabel("EM-DAT records")
+    ax.set_xlim(0, frame.n_remaining.max() * 1.2)
+    ax.set_title("Sample selection flow, every exclusion accounted for")
+    ax.legend(fontsize=6.5, loc="lower right")
+    stamp(fig, f"{int(frame.n_remaining.iloc[0])} raw records to "
+               f"{int(frame.n_remaining.iloc[-1])} modelled events")
+    save_figure(fig, name)
+    return fig
+
+
 def eda_manifest(figure_dir=None) -> pd.DataFrame:
     """Every EDA figure on disk, with size, for the thesis figure list."""
     from .result_figures import FIGURE_DIR

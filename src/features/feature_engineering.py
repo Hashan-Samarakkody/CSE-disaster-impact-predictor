@@ -9,6 +9,7 @@ from typing import Iterable, Optional
 import numpy as np
 import pandas as pd
 
+from src.config.settings import ASPI_PERCENTAGE_CHANGE, MARKET_RECOVERY_DAYS
 from src.targets.event_targets import build_event_targets
 
 
@@ -60,6 +61,65 @@ def _garch_conditional_volatility(dates: pd.Series, log_returns: pd.Series) -> p
         out[this_year_mask] = cond_vol / 100.0  # back to log-return scale
 
     return pd.Series(out, index=log_returns.index)
+
+
+def build_sample_flow(raw_disasters: pd.DataFrame, market_df: pd.DataFrame,
+                      config: "FeatureEngineeringConfig" = None) -> pd.DataFrame:
+    """One row per exclusion criterion, from the raw EM-DAT export to the modelled events.
+
+    Applies the same predicates and the same constants the pipeline uses, in the pipeline's
+    order, so the accounting cannot drift from what actually ran. Columns: stage, criterion,
+    n_removed, n_remaining.
+    """
+    c = config or FeatureEngineeringConfig()
+    rows, frame = [], raw_disasters.copy()
+    frame[c.disaster_date_col] = pd.to_datetime(frame[c.disaster_date_col])
+
+    def record(stage, criterion, kept):
+        nonlocal frame
+        rows.append({"stage": stage, "criterion": criterion,
+                     "n_removed": int(len(frame) - len(kept)),
+                     "n_remaining": int(len(kept))})
+        frame = kept
+
+    rows.append({"stage": "raw EM-DAT records", "criterion": "none, as exported",
+                 "n_removed": 0, "n_remaining": int(len(frame))})
+
+    clean_type = frame[c.disaster_type_col].astype(str).str.strip().str.lower()
+    record("disaster type excluded",
+           f"disaster_type in {sorted(EXCLUDED_DISASTER_TYPES)}",
+           frame[~clean_type.isin(EXCLUDED_DISASTER_TYPES)])
+
+    record("below the affected threshold",
+           f"population_affected < {c.min_affected}",
+           frame[frame[c.affected_col] >= c.min_affected])
+
+    market = market_df.copy().sort_values(c.date_col).reset_index(drop=True)
+    market[c.date_col] = pd.to_datetime(market[c.date_col])
+    session_dates = market[c.date_col].to_numpy()
+    has_session, has_baseline = [], []
+    for event_date in frame[c.disaster_date_col]:
+        matching = np.flatnonzero(session_dates >= np.datetime64(event_date))
+        has_session.append(len(matching) > 0)
+        has_baseline.append(len(matching) > 0 and int(matching[0]) > 0)
+
+    record("prediction origin unalignable",
+           "no trading session on or after the event date",
+           frame[pd.Series(has_session, index=frame.index)])
+    record("no pre-event close",
+           "the aligned session is the first in the market series, so P0 does not exist",
+           frame[pd.Series(has_baseline, index=frame.index).reindex(frame.index).fillna(False)])
+
+    targets = build_event_targets(
+        market, frame, date_col=c.date_col, price_col=c.price_col,
+        volume_col=c.volume_col, disaster_date_col=c.disaster_date_col,
+        max_recovery_days=c.max_recovery_days)
+    complete = targets[[ASPI_PERCENTAGE_CHANGE, MARKET_RECOVERY_DAYS]].notna().any(axis=1)
+    rows.append({"stage": "incomplete target vector",
+                 "criterion": "neither the return nor the recovery target could be built",
+                 "n_removed": int((~complete).sum()),
+                 "n_remaining": int(complete.sum())})
+    return pd.DataFrame(rows)
 
 
 @dataclass

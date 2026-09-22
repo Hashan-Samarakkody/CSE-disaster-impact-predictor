@@ -222,12 +222,28 @@ def fetch_cse_gap_fill(start: str, end: str) -> GapFillResult:
 # (date, aspi_close, trading_volume) frame the pipeline expects.
 
 
+def truncate_market_series(market: pd.DataFrame, bound, date_col: str = "date") -> pd.DataFrame:
+    """Drop sessions after `bound`, the last session the study's windows can reach.
+
+    Nothing upstream of `bound` is touched, so the event sample and the folds cannot
+    change; see docs/audit.md Part 8 T10. A `bound` of None returns the frame unchanged.
+    """
+    if bound is None:
+        return market
+    keep = pd.to_datetime(market[date_col]) <= pd.Timestamp(bound)
+    return market.loc[keep].reset_index(drop=True)
+
+
 def build_market_dataframe(
     data_dir: Path,
     market_indices_filename: str = "cse_market_indices_daily.xls",
     min_date: str = "2000-01-01",
+    max_date=None,
 ) -> pd.DataFrame:
-    """Build the `date, aspi_close, trading_volume` series from the local archive only."""
+    """Build the `date, aspi_close, trading_volume` series from the local archive only.
+
+    `max_date` bounds the series at the last session the study needs (T10).
+    """
     aspi_local = load_aspi_index(data_dir / market_indices_filename, min_date=min_date)
     volume_local = load_all_yearly_security_files(data_dir)
 
@@ -238,7 +254,8 @@ def build_market_dataframe(
     market["volume_source"] = market["volume_source"].fillna("missing")
     market["trading_volume"] = market["trading_volume"].where(market["volume_source"] != "missing")
 
-    return market.sort_values("date").reset_index(drop=True)
+    market = market.sort_values("date").reset_index(drop=True)
+    return truncate_market_series(market, max_date)
 
 
 # Stored NORMALISED, because the membership test below applies `_normalize` (strips

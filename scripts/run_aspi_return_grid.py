@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.evaluation.collinearity import CollinearityRFTopK
 from src.evaluation.verification import build_episode_ids, paired_bootstrap_delta
+from src.targets.abnormal_returns import stage_a_expected_returns
 from src.targets.return_horizons import (HORIZONS, horizon_col, horizon_end_col,
                                         information_sets)
 from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
@@ -142,43 +143,6 @@ def build_search(name, k, cv_splits):
 
 
 # Stage A
-
-def stage_a_expected_returns(market_feats, event_positions, horizons):
-    """Normal-market expected h-session return for every event, estimated ONLY from
-    daily rows whose own label was fully settled strictly before that event's reference
-    session (protocol 1.2 Stage A).
-    """
-    mf = market_feats.sort_values("date").reset_index(drop=True)
-    price = mf["aspi_close"].to_numpy(float)
-    feat_cols = [c for c in mf.columns
-                 if c not in {"date", "aspi_close", "trading_volume", "price_source",
-                              "volume_source"}
-                 and not c.startswith(("sma_", "ema_"))]  # raw price levels: non-stationary
-    F = mf[feat_cols].shift(1)                            # features known at p-1
-    out = {}
-    for h in horizons:
-        # Same alignment as the target: Ph = price[p + h - 1], P0 = price[p - 1].
-        fwd = np.full(len(mf), np.nan)
-        valid = np.arange(1, len(mf) - h + 1)
-        fwd[valid] = 100.0 * np.log(price[valid + h - 1] / price[valid - 1])
-        preds = []
-        for pos in event_positions:
-            if pos is None:
-                preds.append(np.nan)
-                continue
-            # A training row at p settles at session p + h - 1; require that before pos.
-            usable = np.arange(1, max(1, pos - h + 1))
-            rows = usable[np.isfinite(fwd[usable]) & F.iloc[usable].notna().all(axis=1).to_numpy()]
-            if len(rows) < 250:
-                preds.append(np.nan)
-                continue
-            model = Pipeline([("scale", StandardScaler()),
-                              ("model", Ridge(alpha=10.0))]).fit(F.iloc[rows], fwd[rows])
-            x = F.iloc[[pos]]
-            preds.append(float(model.predict(x.fillna(F.iloc[rows].median()))[0]))
-        out[h] = np.asarray(preds, dtype=float)
-    return out
-
 
 # main grid
 
