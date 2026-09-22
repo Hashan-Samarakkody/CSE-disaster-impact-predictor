@@ -1,0 +1,37 @@
+{
+  "written_utc": "2026-09-22T06:06:51+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "event_study_caar",
+  "rows": 40,
+  "columns": [
+    "series",
+    "event_time",
+    "n_events",
+    "caar",
+    "ci_low",
+    "ci_high",
+    "t_cross_sectional",
+    "p_cross_sectional",
+    "t_bmp",
+    "p_bmp",
+    "t_corrado",
+    "p_corrado",
+    "t_kolari_pynnonen",
+    "p_kolari_pynnonen",
+    "mean_cross_correlation"
+  ],
+  "note": "Cumulative average abnormal return and volume by event-time session, with the cross-sectional, BMP, Corrado and Kolari-Pynnonen statistics."
+}
