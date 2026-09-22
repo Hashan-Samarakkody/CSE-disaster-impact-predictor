@@ -117,6 +117,12 @@ citation of CRED and the Université catholique de Louvain. NASA POWER, the Worl
 FRED, DesInventar and Wikidata each publish their own terms. The exchange archive is the
 property of the Colombo Stock Exchange.
 
-The `LICENSE` file in this repository covers only the original work of the author. It
-grants no rights over any third party data and does not override any source's own terms.
-Anyone wishing to use this repository must request permission first, as that file explains.
+The `LICENSE` file covers only the original work of the author, the code, the notebooks
+and the documentation, and since 2026-09-22 it does so under the MIT licence, so the
+method and the workflow can be verified by anyone.
+
+It grants no rights over any third party data and overrides no source's own terms. The two
+directories that hold third party material are `data/`, which carries the raw EM-DAT export
+and the Colombo Stock Exchange archive, and `artifacts/external/`, which carries the cached
+downloads. Anyone redistributing or reusing anything in either must satisfy the originating
+source directly, whatever the code licence permits.

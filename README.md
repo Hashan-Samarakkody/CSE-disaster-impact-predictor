@@ -90,7 +90,7 @@ record, including the experiments that failed.
 
 ```
 README.md                  this file
-LICENSE                    all rights reserved, permission required before any use
+LICENSE                    MIT for the code; third party data keeps its own terms
 config/requirements.txt    pinned dependency list
 data/raw/                  CSE workbooks and the EM-DAT export
 data/external/             reference workbooks used by the thesis text
@@ -222,6 +222,7 @@ improvement work began. It cannot be rebuilt from a later state, and
 | [docs/testing.md](docs/testing.md) | what the test suite checks and why |
 | [docs/data_sources.md](docs/data_sources.md) | every input, its provenance and its terms |
 | [docs/refactor_validation.md](docs/refactor_validation.md) | what was actually executed and verified |
+| [docs/repository_metadata.md](docs/repository_metadata.md) | the GitHub About text, the one correction that cannot be made by a commit |
 | [docs/improvements_to_thesis/](docs/improvements_to_thesis/) | where the written thesis and the implementation disagree |
 
 ## Demo application
@@ -246,18 +247,20 @@ covariates and is the main reason that target returns no result.
 
 ## License
 
-All rights reserved. This repository is published for examination and reference only. It is
-not open source. Written permission is required before any use, including academic and
-educational use. See [LICENSE](LICENSE) and contact hashansamarakkody@gmail.com.
+**The code is MIT licensed.** That covers `src/`, `scripts/`, `tests/`, `apps/`,
+`notebooks/` and `docs/`, so the method, the seeds, the pinned environment and the
+workflow can be inspected, re run and verified by anyone. This replaced the earlier all
+rights reserved terms on 2026-09-22, at the owner's instruction, because the review asks
+that the workflow be verifiable and the previous terms did not allow it.
 
-Third party data carries its own terms, which this licence does not override.
+**Third party data is not covered by it.** EM-DAT, the Colombo Stock Exchange archive, the
+World Bank, NASA POWER, DesInventar, FRED and Wikidata each carry their own terms and
+their own citation and redistribution requirements. The MIT licence grants no rights over
+any of them and overrides none of them. Anyone reusing anything under `data/` or
+`artifacts/external/` must satisfy the originating source directly. See
+[LICENSE](LICENSE) for the scope and [docs/data_sources.md](docs/data_sources.md) for each
+source and its terms.
 
-**Open question raised by the Revision 2 review (D5), awaiting the owner's decision.** The
-review asks that the code, seeds, versions and workflow be provided for verification,
-which the current all rights reserved terms do not permit. The recommended resolution is
-to license the CODE under an open licence, for example MIT or BSD 3-Clause, while keeping
-separate and explicit terms for the third party data, which cannot be redistributed under
-any of them. This has deliberately NOT been changed: a licence is a legal instrument and
-only the repository owner can alter it.
+The models and results are a student research exercise. They are not investment advice.
 
 The models here are a student research exercise. They are not investment advice.

@@ -3648,9 +3648,25 @@ rather than being omitted.
 | T13 | the leakage check promoted from a notebook cell into the test suite |
 | T14 | an exact dependency lock file beside the existing loose requirements |
 | T15 | the closed robustness list in 8.7 |
-| D1 to D6 | documentation and metadata corrections, including withdrawing the "pre-registered" claim for the study as a whole in favour of the narrower, verifiable statement that the target definitions and evaluation rules were frozen on 2026-09-19 at commit `928a255` before any performance under them was observed |
+| D1 | the repository description, corrected in `docs/repository_metadata.md`; the GitHub About field itself is a site setting and must be applied by the owner |
+| D2 to D6 | documentation and metadata corrections, including withdrawing the "pre-registered" claim for the study as a whole in favour of the narrower, verifiable statement that the target definitions and evaluation rules were frozen on 2026-09-19 at commit `928a255` before any performance under them was observed |
 
-## 8.9 Stop condition for this revision
+## 8.9 Licence change, on the owner's instruction
+
+**2026-09-22.** The repository licence changed from all rights reserved to the **MIT
+licence for the code**, on the owner's explicit instruction, in response to D5 of the
+review. The review asks that the code, seeds, versions and workflow be provided so the
+results can be verified, and the previous terms did not permit that.
+
+The change is deliberately narrow. MIT covers `src/`, `scripts/`, `tests/`, `apps/`,
+`notebooks/` and `docs/`. It covers **no** third party data: EM-DAT, the Colombo Stock
+Exchange archive, the World Bank, NASA POWER, DesInventar, FRED and Wikidata each keep
+their own terms, and the `LICENSE` file says so explicitly rather than leaving it implied.
+
+Anyone who relied on the previous terms is affected, and the earlier entry in
+`docs/refactor_validation.md` recording the move to all rights reserved is now historical.
+
+## 8.10 Stop condition for this revision
 
 The list above is complete and closed. A negative result is an acceptable outcome, and the
 study's contribution stands either way: a measurable realised market reaction to a natural

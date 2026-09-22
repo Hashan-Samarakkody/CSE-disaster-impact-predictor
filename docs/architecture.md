@@ -156,7 +156,7 @@ These are described in `docs/experiments.md`.
 
 ```
 README.md                  what the project is and how to run it
-LICENSE                    all rights reserved, permission required
+LICENSE                    MIT for the code; third party data keeps its own terms
 config/requirements.txt    pinned dependency list
 data/raw/                  CSE workbooks and the EM-DAT export
 data/external/             market capitalisation and the ADB reference workbook
