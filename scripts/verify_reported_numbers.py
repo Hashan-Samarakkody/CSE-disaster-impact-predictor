@@ -1,7 +1,6 @@
 """Cross-check every headline number quoted in the docs against the artifacts."""
 from pathlib import Path
 import pickle
-import re
 
 import numpy as np
 import pandas as pd
