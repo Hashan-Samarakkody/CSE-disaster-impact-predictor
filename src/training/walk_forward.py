@@ -20,11 +20,21 @@ def generate_walk_forward_splits(
     train_window: int,
     test_window: int,
     step: int,
+    mode: str = "sliding",
 ) -> Iterator[WalkForwardSplit]:
-    """Yield rolling train/test windows for time-series cross-validation."""
+    """Yield chronological train/test windows for time-series cross-validation.
+
+    `mode` is "sliding", where the training block is a fixed width and the earliest events
+    leave it, or "expanding", where it starts at the first event and grows. The test block
+    and the step behave identically either way. Sliding is the default, so every existing
+    caller is unchanged (Revision 2, T9).
+    """
+    if mode not in {"sliding", "expanding"}:
+        raise ValueError(f"mode must be 'sliding' or 'expanding', got {mode!r}")
     start = 0
     while start + train_window + test_window <= n_samples:
-        train_idx = np.arange(start, start + train_window)
+        train_start = 0 if mode == "expanding" else start
+        train_idx = np.arange(train_start, start + train_window)
         test_idx = np.arange(start + train_window, start + train_window + test_window)
         yield WalkForwardSplit(train_idx, test_idx)
         start += step

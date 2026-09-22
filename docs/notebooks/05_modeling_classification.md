@@ -14,7 +14,7 @@ separately rather than presenting it as a regression success.
 
 ## Main processing stages
 
-Section 5.2 runs the walk forward classification loop over the five pre registered labels.
+Section 5.2 runs the walk forward classification loop over the six pre registered labels.
 Section 5.3 summarises the results and states a verdict per label. Section 5.4 fits the two
 stage hurdle model for recovery duration and compares it against the naive baselines.
 Section 5.5 states what was produced.
@@ -23,7 +23,7 @@ Section 5.5 states what was produced.
 
 | Function | Module | What it does |
 |---|---|---|
-| `LABELS` | `src/models/classifiers.py` | the five label definitions, derived from the three targets |
+| `LABELS` | `src/models/classifiers.py` | the six label definitions, derived from the three targets |
 | `build_classifiers` | `src/models/classifiers.py` | the candidate families and the per label selection |
 | `classification_metrics` | `src/models/classifiers.py` | balanced accuracy, precision, recall, F1, Matthews correlation, precision recall AUC, ROC AUC with a bootstrap interval |
 | `HurdleRecoveryModel` | `src/models/hurdle.py` | classify recovery within the window, then regress duration on the recovered rows only |
@@ -51,11 +51,15 @@ things `tests/test_volume_target_frozen.py` holds fixed.
 3. **Competing risk rows are excluded from the recovery labels, not guessed.** An event
    whose recovery was interrupted by a later disaster has a genuinely unknowable recovery
    status, so it is dropped from those two labels rather than labelled either way.
-4. **The hurdle model exists because the target has a point mass.** About one event in ten
-   sits exactly on the ninety session cap, and a single regressor smears that mass across
-   the range. Stage one classifies recovery within the window and stage two regresses the
-   log duration on the recovered rows only.
-5. **The hurdle model is reported even though it loses.** It scores worse than doing nothing
+4. **The hurdle model exists because the target has a point mass.** Some events sit
+   exactly on the ninety session cap and a single regressor smears that mass across the
+   range. Stage one classifies recovery within the window and stage two regresses the log
+   duration on the recovered rows only.
+5. **The hurdle is fitted and scored on drawdown events only.** Under the frozen target
+   protocol an event with no drawdown carries duration zero as a recorded state rather
+   than as an instant recovery, so including it would ask the model a question that event
+   does not pose and would force a ninety session prediction against a true zero.
+6. **The hurdle model is reported even though it loses.** It scores worse than doing nothing
    on this sample. That result is kept, and it is part of the reason the recovery target was
    later re founded on a censored survival likelihood rather than a point regression.
 

@@ -105,11 +105,18 @@ def test_y3_predicted_medians_are_inside_the_design_window(y3_oof):
     assert y3_oof["pred_median"].between(0.0, 90.0).all()
 
 
-def test_y3_censoring_aware_models_beat_the_kaplan_meier_baseline():
-    """The primary Y3 claim in the final results: censoring-aware modelling ranks better
-    than the marginal training-fold survival curve. Failing this means the result
-    reported in docs/results.md no longer holds."""
-    m = pd.read_parquet(artifact_file("recovery_grid_metrics.parquet")).set_index("model")
-    baseline = m.loc["km_train_baseline", "c_index"]
-    assert m.loc["two_stage_weibull_k20", "c_index"] > baseline
-    assert m.loc["two_stage_weibull_k20", "c_index_ci_low"] > 0.5
+def test_y3_concordance_verdicts_match_their_own_intervals():
+    """The recovery grid's claim column must follow from its own numbers. Under the
+    frozen target protocol no configuration clears chance, so this guards against a
+    verdict string drifting away from the interval that produced it rather than pinning
+    a particular finding."""
+    m = pd.read_parquet(artifact_file("recovery_grid_metrics.parquet"))
+    # 15 original configurations plus the Aalen-Johansen competing-risks arm (T2).
+    assert len(m) == 16
+    assert "aalen_johansen_competing_risks" in set(m["model"])
+    assert m["c_index"].between(0.0, 1.0).all()
+    assert (m["c_index_ci_low"] <= m["c_index"]).all()
+    assert (m["c_index"] <= m["c_index_ci_high"]).all()
+    beats = m["c_index_ci_low"] > 0.5
+    assert (m["c_index_beats_chance"].astype(bool) == beats).all()
+    assert (m.loc[~m["c_index_beats_chance"].astype(bool), "holm_significant"] == False).all()

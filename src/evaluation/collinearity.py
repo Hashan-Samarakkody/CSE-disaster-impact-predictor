@@ -159,7 +159,7 @@ def condition_indices(X: pd.DataFrame) -> pd.Series:
     return pd.Series(np.sqrt(eig.max() / eig), name="condition_index")
 
 
-# --------------------------------------------------------------- the drop rule
+# the drop rule
 
 REDUNDANCY_THRESHOLD = 0.95
 
@@ -203,7 +203,7 @@ def redundant_drop_set(X: pd.DataFrame, threshold: float = REDUNDANCY_THRESHOLD,
     return keep, sorted(drop), pd.DataFrame(detail)
 
 
-# --------------------------------------------------------------- nested-CV transformers
+# nested-CV transformers
 
 class CollinearityDropper:
     """sklearn-compatible transformer wrapping `redundant_drop_set`."""

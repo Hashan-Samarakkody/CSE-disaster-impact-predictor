@@ -1,54 +1,51 @@
-All Rights Reserved
+MIT License
 
-Copyright (c) 2026 Hashan Samarakkody. All rights reserved.
+Copyright (c) 2026 Hashan Samarakkody
 
-This repository contains the code, data preparation pipeline, documentation and
-research outputs of an undergraduate BSc (Hons) thesis. It is published for
-examination and reference only. It is not open source software.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-PERMISSION IS REQUIRED BEFORE ANY USE
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-No permission is granted to any person to use, copy, modify, merge, publish,
-distribute, sublicense, sell, train a model on, or create derivative works from
-any part of this repository, for any purpose, whether commercial, academic,
-educational or personal, unless written permission has first been obtained from
-the copyright holder.
-
-To request permission, contact:
-
-    Hashan Samarakkody
-    hashansamarakkody@gmail.com
-
-State clearly what you intend to use, how you intend to use it, and for what
-purpose. Permission, if granted, applies only to the use described in that
-request and may be withdrawn.
-
-WHAT IS PERMITTED WITHOUT A REQUEST
-
-1. Viewing this repository.
-2. Quoting short excerpts for the purpose of academic review, examination,
-   criticism or comment, with attribution to the author and a link to this
-   repository.
-
-Nothing else is permitted without written permission.
-
-THIRD PARTY DATA
-
-This repository includes or retrieves data from third parties, including EM-DAT,
-the Colombo Stock Exchange, the World Bank, NASA POWER, DesInventar, FRED and
-Wikidata. Those sources carry their own terms of use. This license covers only
-the original work of the copyright holder. It grants no rights over third party
-data, and it does not override the licensing terms of any third party source.
-
-NO WARRANTY
-
-THE SOFTWARE AND MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
-EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR MATERIALS OR THE USE OR OTHER
-DEALINGS IN THEM.
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+SCOPE: WHAT THE MIT LICENSE ABOVE COVERS
+
+The MIT License above covers the original work of the copyright holder: the
+source code in src/, scripts/, tests/ and apps/, the notebooks in notebooks/,
+and the documentation in docs/. It is granted so that the method, the seeds,
+the pinned environment and the workflow can be inspected, re-run and verified
+by anyone, which is what a reproducible research repository requires.
+
+THIRD PARTY DATA IS NOT COVERED
+
+This repository includes or retrieves data from third parties, including EM-DAT
+(CRED, UCLouvain), the Colombo Stock Exchange, the World Bank, NASA POWER,
+DesInventar, FRED and Wikidata. Those sources carry their own terms of use and
+their own citation and redistribution requirements.
+
+The MIT License above grants NO rights over any third party data, and it does
+not override, replace or relax the terms of any third party source. Anyone
+redistributing or reusing the contents of data/ or artifacts/external/ must
+satisfy the originating source's terms directly. Each source, its provenance
+and its terms are documented in docs/data_sources.md.
+
+In particular, the raw EM-DAT export and the Colombo Stock Exchange archive
+under data/raw/ are third party material retained here for verification of the
+published results. They are not licensed for redistribution by this file.
 
 NOT INVESTMENT ADVICE
 

@@ -55,7 +55,7 @@ def _get(url: str, timeout: int = 120) -> bytes:
     return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
 
 
-# --------------------------------------------------------------- NASA POWER
+# NASA POWER
 
 
 def fetch_nasa_power(cache_dir: Path, start: str = "19990101", end: str = "20260901",
@@ -117,7 +117,7 @@ def build_hazard_features(event_dates, power: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# --------------------------------------------------------------- DesInventar
+# DesInventar
 
 
 DI_FIELDS = ["serial", "level0", "level1", "name0", "name1", "evento",
@@ -190,7 +190,7 @@ def build_desinventar_features(event_dates, desinventar: pd.DataFrame) -> pd.Dat
     return pd.DataFrame(rows)
 
 
-# --------------------------------------------------------------- FRED daily FX
+# FRED daily FX
 
 
 def fetch_fred_fx(cache_dir: Path, refresh: bool = False) -> pd.DataFrame:
@@ -240,7 +240,7 @@ def build_fx_features(event_dates, fx: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# --------------------------------------------------------------- ASPI extension
+# ASPI extension
 
 
 def fetch_countryeconomy_aspi(cache_dir: Path, months: list[str],
@@ -293,7 +293,7 @@ def extend_market_series(market: pd.DataFrame, extension: pd.DataFrame,
             .sort_values(date_col).reset_index(drop=True))
 
 
-# --------------------------------------------------------------- elections
+# elections
 
 
 def fetch_elections(cache_dir: Path, refresh: bool = False) -> pd.DataFrame:
@@ -331,7 +331,7 @@ def build_election_features(event_dates, elections: pd.DataFrame) -> pd.DataFram
     return pd.DataFrame(rows)
 
 
-# --------------------------------------------------------------- assembly
+# assembly
 
 
 def build_all_external_features(event_dates, cache_dir: Path,

@@ -136,8 +136,18 @@ def pooled(results: dict, model: str, target: str):
 
 
 def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_train_mean"),
-                  event_dates=None, episode_gap_days: int = 14):
-    """Full per-(model, target, baseline) verdict table."""
+                  event_dates=None, episode_gap_days: int = 14,
+                  confirmatory_models=None):
+    """Full per-(model, target, baseline) verdict table.
+
+    `confirmatory_models` names the models selected by the same purged inner cross
+    validation as each other (Revision 2, T7 and T8). When given, every row carries a
+    `confirmatory` flag and the Holm correction spans the confirmatory family ONLY;
+    models fitted at fixed hyperparameters are reported as exploratory and are never
+    corrected jointly with it, because ranking a tuned model against an untuned one is not
+    a comparison. When omitted the correction spans the whole table, the original
+    behaviour.
+    """
     from statsmodels.stats.multitest import multipletests
 
     rows = []
@@ -186,6 +196,8 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
                     "verdict": ("BEATS BASELINE" if boot["significant"]
                                 else "better, not distinguishable" if boot["delta"] > 0
                                 else "worse than baseline"),
+                    "confirmatory": (True if confirmatory_models is None
+                                     else model in confirmatory_models),
                     "note": " ".join(filter(None, [aligned, boot["note"], dm["note"]])),
                 })
 
@@ -193,10 +205,14 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
     if len(table):
         # NaN p-values (n too small to bootstrap) can't be corrected, treated as
         # non-significant rather than dropped, so the row count here matches `table`.
-        pvals = table["p_model_worse"].fillna(1.0).to_numpy()
-        _, p_holm, _, _ = multipletests(pvals, alpha=0.05, method="holm")
-        table["p_holm"] = p_holm
-        table["holm_significant"] = (p_holm < 0.05) & table["boot_beats"]
+        family = table["confirmatory"].to_numpy(bool)
+        table["p_holm"] = np.nan
+        if family.any():
+            pvals = table.loc[family, "p_model_worse"].fillna(1.0).to_numpy()
+            _, p_holm, _, _ = multipletests(pvals, alpha=0.05, method="holm")
+            table.loc[family, "p_holm"] = p_holm
+        table["holm_significant"] = (table["p_holm"] < 0.05) & table["boot_beats"] & family
+        table.attrs["holm_family_size"] = int(family.sum())
     return table
 
 

@@ -26,19 +26,37 @@ sys.path.insert(0, str(ROOT))
 
 from src.evaluation.collinearity import CollinearityRFTopK
 from src.evaluation.verification import build_episode_ids, paired_bootstrap_delta
-from src.targets.return_horizons import (HORIZONS, build_horizon_targets, horizon_col,
-                                        horizon_end_col, information_sets)
+from src.targets.abnormal_returns import stage_a_expected_returns
+from src.targets.return_horizons import (HORIZONS, horizon_col, horizon_end_col,
+                                        information_sets)
 from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
                                        median_impute_from_train, purge_horizon_overlap)
-from src.utils.artifact_store import artifact_file
+from src.utils.artifact_store import artifact_file, save_frame
 
 ART = ROOT / "artifacts"
 RANDOM_STATE = 42
 TRAIN_WINDOW, TEST_WINDOW, STEP = 30, 10, 10
 CAPACITIES = (5, 10, 20)
-INFO_SETS = ("market_only", "disaster_only", "combined", "normal_plus_residual")
+INFO_SETS = ("market_only", "disaster_only", "combined", "normal_plus_residual",
+             "real_time", "ex_post")
 MODELS = ("ridge", "elastic_net", "random_forest", "xgboost", "mlp")
 BASELINES = ("naive_zero", "naive_train_mean", "market_only_expected")
+
+# The confirmatory family, pre-declared in docs/audit.md Part 8.4 before this grid was
+# re-run (T7). Everything outside it is exploratory and is written to its own artifact.
+# The grid still runs in full; only what the family-wise correction spans has changed.
+CONFIRMATORY_HORIZON = 5
+CONFIRMATORY_INFO_SETS = ("real_time", "ex_post")
+CONFIRMATORY_CAPACITY = 10
+CONFIRMATORY_MODELS = ("ridge", "random_forest", "mlp")
+
+
+def is_confirmatory(horizon, info_set, k, model) -> bool:
+    """A comparison counts as confirmatory only if all four conditions hold."""
+    return (horizon == CONFIRMATORY_HORIZON
+            and info_set in CONFIRMATORY_INFO_SETS
+            and k == CONFIRMATORY_CAPACITY
+            and model in CONFIRMATORY_MODELS)
 
 RIDGE_ALPHAS = np.logspace(-3, 3, 13)
 ENET_GRID = {"model__alpha": [0.01, 0.1, 1.0], "model__l1_ratio": [0.2, 0.5, 0.8]}
@@ -46,17 +64,19 @@ RF_GRID = {"model__n_estimators": [200], "model__max_depth": [3, None],
            "model__min_samples_leaf": [1, 4]}
 XGB_GRID = {"model__n_estimators": [100, 200], "model__max_depth": [2, 3],
             "model__learning_rate": [0.05]}
+# Deliberately small: parity with the other confirmatory models, not a wider search.
+MLP_GRID = {"model__hidden_layer_sizes": [(8,), (16,)], "model__alpha": [1.0, 10.0]}
 # Pre-specified defaults, used when purging leaves too few rows for ANY inner split --
 # protocol section 1.7: reduce splits first, fall back to these second, NEVER unpurge.
 DEFAULTS = {"ridge": 1.0, "elastic_net": (0.1, 0.5), "random_forest": (200, None, 1),
-            "xgboost": (100, 3, 0.05)}
+            "xgboost": (100, 3, 0.05), "mlp": ((16,), 1.0)}
 
 warnings.filterwarnings("ignore")
 
 _SELECTOR_CACHE = Path(tempfile.mkdtemp(prefix="y1_selector_cache_"))
 
 
-# ------------------------------------------------------------------ inner CV
+# inner CV
 
 def purged_inner_splits(dates, label_end, n_splits=3):
     """Purged temporal inner CV (`notebooks/_shared.purged_inner_cv`'s rule), but
@@ -84,7 +104,7 @@ def purged_inner_splits(dates, label_end, n_splits=3):
     return []
 
 
-# ------------------------------------------------------------------ estimators
+# estimators
 
 def _pipeline(steps):
     from joblib import Memory
@@ -113,13 +133,15 @@ def build_search(name, k, cv_splits):
                           ("model", XGBRegressor(random_state=RANDOM_STATE, verbosity=0))])
         grid = XGB_GRID
     elif name == "mlp":
-        # One neural comparison, fixed architecture (no grid, nothing to search, so no
-        # inner CV loop to nest a selector inside; the selector still fits on train rows
-        # only). Shallow and heavily early-stopped: 30 training rows.
+        # T8: the MLP is in the confirmatory family, so it is selected by the SAME purged
+        # inner cross-validation as Ridge and Random Forest. Ranking a tuned model against
+        # an untuned one is not a comparison, and this model currently carries the study's
+        # only positive continuous result, so it must earn it under the same discipline.
+        # The grid is the smallest one that gives parity: two widths by two penalties.
         pipe = _pipeline([("sel", sel), ("scale", StandardScaler()),
-                          ("model", MLPRegressor(hidden_layer_sizes=(16,), alpha=1.0,
-                                                 max_iter=4000, random_state=RANDOM_STATE))])
-        return pipe, None
+                          ("model", MLPRegressor(max_iter=4000, early_stopping=False,
+                                                 random_state=RANDOM_STATE))])
+        grid = MLP_GRID
     else:
         raise ValueError(name)
 
@@ -133,53 +155,20 @@ def build_search(name, k, cv_splits):
         elif name == "random_forest":
             n, d, leaf = DEFAULTS["random_forest"]
             pipe.set_params(model__n_estimators=n, model__max_depth=d, model__min_samples_leaf=leaf)
-        else:
+        elif name == "xgboost":
             n, d, lr = DEFAULTS["xgboost"]
             pipe.set_params(model__n_estimators=n, model__max_depth=d, model__learning_rate=lr)
+        else:
+            hidden, alpha = DEFAULTS["mlp"]
+            pipe.set_params(model__hidden_layer_sizes=hidden, model__alpha=alpha)
         return pipe, None
     return GridSearchCV(pipe, grid, cv=cv_splits, scoring="neg_root_mean_squared_error",
                         n_jobs=1, refit=True), grid
 
 
-# ------------------------------------------------------------------ Stage A
+# Stage A
 
-def stage_a_expected_returns(market_feats, event_positions, horizons):
-    """Normal-market expected h-session return for every event, estimated ONLY from
-    daily rows whose own label was fully settled strictly before that event's reference
-    session (protocol 1.2 Stage A).
-    """
-    mf = market_feats.sort_values("date").reset_index(drop=True)
-    price = mf["aspi_close"].to_numpy(float)
-    feat_cols = [c for c in mf.columns
-                 if c not in {"date", "aspi_close", "trading_volume", "price_source",
-                              "volume_source"}
-                 and not c.startswith(("sma_", "ema_"))]  # raw price levels: non-stationary
-    F = mf[feat_cols].shift(1)                            # features known at p-1
-    out = {}
-    for h in horizons:
-        fwd = np.full(len(mf), np.nan)
-        valid = np.arange(1, len(mf) - h)
-        fwd[valid] = 100.0 * np.log(price[valid + h] / price[valid - 1])
-        preds = []
-        for pos in event_positions:
-            if pos is None:
-                preds.append(np.nan)
-                continue
-            # Label of a training row at p settles at session p+h; require p+h < pos.
-            usable = np.arange(1, max(1, pos - h))
-            rows = usable[np.isfinite(fwd[usable]) & F.iloc[usable].notna().all(axis=1).to_numpy()]
-            if len(rows) < 250:
-                preds.append(np.nan)
-                continue
-            model = Pipeline([("scale", StandardScaler()),
-                              ("model", Ridge(alpha=10.0))]).fit(F.iloc[rows], fwd[rows])
-            x = F.iloc[[pos]]
-            preds.append(float(model.predict(x.fillna(F.iloc[rows].median()))[0]))
-        out[h] = np.asarray(preds, dtype=float)
-    return out
-
-
-# ------------------------------------------------------------------ main grid
+# main grid
 
 def main():
     dataset = pd.read_parquet(artifact_file("dataset.parquet"))
@@ -188,8 +177,9 @@ def main():
     feature_cols = json.loads((artifact_file("feature_spec.json")).read_text())["FEATURE_COLS"]
     event_dates = pd.to_datetime(dataset["event_date"]).reset_index(drop=True)
 
-    targets = build_horizon_targets(market, event_dates)
-    data = pd.concat([dataset.reset_index(drop=True), targets], axis=1)
+    # Horizon targets come straight from dataset.parquet, which event_targets.py built
+    # under the frozen protocol. Rebuilding them here would be a second definition.
+    data = dataset.reset_index(drop=True)
     sets = information_sets(feature_cols)
 
     md = market.sort_values("date").reset_index(drop=True)
@@ -200,11 +190,15 @@ def main():
         positions.append(int(cand[0]) if len(cand) and cand[0] > 0 else None)
 
     cache = artifact_file("aspi_expected_return_market_only.parquet")
-    if cache.exists():
-        cached = pd.read_parquet(cache)
+    cached = pd.read_parquet(cache) if cache.exists() else None
+    # A cache written under a different HORIZONS is stale, not reusable (T4 added h=1).
+    if cached is not None and all(str(h) in cached.columns for h in HORIZONS):
         expected = {h: cached[str(h)].to_numpy(float) for h in HORIZONS}
         print(f"Stage A: reusing {cache.name}")
     else:
+        if cached is not None:
+            missing = [h for h in HORIZONS if str(h) not in cached.columns]
+            print(f"Stage A: {cache.name} lacks horizons {missing}; refitting")
         print("Stage A: fitting per-event normal-market expected-return models ...")
         expected = stage_a_expected_returns(market_feats, positions, HORIZONS)
         pd.DataFrame({str(h): expected[h] for h in HORIZONS}).to_parquet(cache, index=False)
@@ -295,10 +289,10 @@ def main():
                   f"inner_splits={len(cv_splits) if cv_splits else 'defaults'}")
 
     oof = pd.DataFrame(oof_rows)
-    oof.to_parquet(artifact_file("aspi_grid_predictions.parquet"), index=False)
+    save_frame(oof, "aspi_grid_predictions", "Out-of-fold predictions for every return grid configuration.")
     print(f"\nwrote aspi_grid_predictions.parquet ({len(oof)} rows)")
 
-    # ----------------------------------------------------------- metrics + verdicts
+    # metrics + verdicts
     metrics, verdicts = [], []
     episode_ids_all = build_episode_ids(event_dates)
 
@@ -309,6 +303,7 @@ def main():
         zero_rmse = float(np.sqrt(np.mean(yt ** 2)))
         metrics.append({
             "horizon": h, "info_set": info, "k": k, "model": model, "n": len(g),
+            "confirmatory": is_confirmatory(h, info, k, model),
             "rmse": rmse, "mae": float(np.mean(np.abs(yp - yt))),
             "pooled_r2": float(1 - np.sum((yp - yt) ** 2) / np.sum((yt - yt.mean()) ** 2)),
             "skill_vs_zero": float(1 - rmse / zero_rmse) if zero_rmse else np.nan,
@@ -326,6 +321,7 @@ def main():
                                           random_state=RANDOM_STATE)
             verdicts.append({
                 "horizon": h, "info_set": info, "k": k, "model": model, "baseline": bname,
+                "confirmatory": is_confirmatory(h, info, k, model),
                 "n": boot["n"], "rmse_model": rmse,
                 "rmse_baseline": float(np.sqrt(np.mean((bp - yt) ** 2))),
                 "delta_rmse": boot["delta"], "ci_low": boot["ci_low"], "ci_high": boot["ci_high"],
@@ -333,24 +329,41 @@ def main():
             })
 
     mt = pd.DataFrame(metrics)
-    mt.to_parquet(artifact_file("aspi_grid_metrics.parquet"), index=False)
+    save_frame(mt, "aspi_grid_metrics", "Pooled metrics per return grid configuration, with the confirmatory flag.")
 
     vt = pd.DataFrame(verdicts)
     if len(vt):
         from statsmodels.stats.multitest import multipletests
-        _, p_holm, _, _ = multipletests(vt["p_one_sided"].fillna(1.0).to_numpy(),
-                                        alpha=0.05, method="holm")
-        vt["p_holm"] = p_holm
-        vt["holm_significant"] = (p_holm < 0.05) & vt["boot_beats"]
+        # T7: the family-wise correction spans the CONFIRMATORY family only. Correcting
+        # across all 720 comparisons made the ranking indistinguishable from selection
+        # noise; correcting across a family nobody pre-declared would be worse.
+        vt["p_holm"] = np.nan
+        confirmatory = vt["confirmatory"].to_numpy(bool)
+        if confirmatory.any():
+            _, p_holm, _, _ = multipletests(
+                vt.loc[confirmatory, "p_one_sided"].fillna(1.0).to_numpy(),
+                alpha=0.05, method="holm")
+            vt.loc[confirmatory, "p_holm"] = p_holm
+        vt["holm_significant"] = (vt["p_holm"] < 0.05) & vt["boot_beats"] & confirmatory
         vt["verdict"] = np.where(vt["boot_beats"], "A - statistically supported",
                                  np.where(vt["delta_rmse"] > 0, "B - suggestive but uncertain",
                                           "C - unsupported"))
-    vt.to_parquet(artifact_file("aspi_grid_verdicts.parquet"), index=False)
-    print(f"wrote aspi_grid_metrics.parquet ({len(mt)} configs), "
-          f"aspi_grid_verdicts.parquet ({len(vt)} comparisons, "
-          f"{int(vt['boot_beats'].sum()) if len(vt) else 0} with a CI excluding zero)")
+        vt.loc[~confirmatory, "verdict"] = "exploratory, not corrected"
 
-    # ----------------------------------------------------------- feature stability
+    primary = vt[vt["confirmatory"]] if len(vt) else vt
+    exploratory = vt[~vt["confirmatory"]] if len(vt) else vt
+    save_frame(primary, "aspi_grid_verdicts", "Confirmatory comparisons only; Holm applied to this family alone.")
+    save_frame(exploratory, "aspi_grid_verdicts_exploratory", "Non-confirmatory comparisons, never Holm corrected with the primary family.")
+    print(f"wrote aspi_grid_metrics.parquet ({len(mt)} configs)")
+    print(f"wrote aspi_grid_verdicts.parquet: CONFIRMATORY family of {len(primary)} "
+          f"comparisons (h={CONFIRMATORY_HORIZON}, {CONFIRMATORY_INFO_SETS}, "
+          f"k={CONFIRMATORY_CAPACITY}, {CONFIRMATORY_MODELS}), "
+          f"{int(primary['boot_beats'].sum()) if len(primary) else 0} with a CI excluding zero, "
+          f"{int(primary['holm_significant'].sum()) if len(primary) else 0} surviving Holm")
+    print(f"wrote aspi_grid_verdicts_exploratory.parquet ({len(exploratory)} comparisons, "
+          f"never corrected jointly with the confirmatory family)")
+
+    # feature stability
     st = pd.DataFrame(stability_rows)
     n_folds = st.groupby(["horizon", "info_set", "k"])["fold"].nunique().rename("n_folds")
     stab = (st.groupby(["horizon", "info_set", "k", "feature"])
@@ -360,12 +373,12 @@ def main():
     stab["selection_frequency"] = stab["selection_count"] / stab["n_folds"]
     stab.sort_values(["horizon", "info_set", "k", "selection_frequency", "mean_rank"],
                      ascending=[True, True, True, False, True], inplace=True)
-    stab.to_parquet(artifact_file("aspi_grid_feature_stability.parquet"), index=False)
+    save_frame(stab, "aspi_grid_feature_stability", "How often each feature was selected across folds.")
     print(f"wrote aspi_grid_feature_stability.parquet ({len(stab)} rows)")
 
-    # ----------------------------------------------------------- direction (secondary)
+    # direction (secondary)
     direction = run_direction_analysis(data, event_dates, splits, sets["combined"])
-    direction.to_parquet(artifact_file("aspi_direction_metrics.parquet"), index=False)
+    save_frame(direction, "aspi_direction_metrics", "Return direction classification metrics by horizon.")
     print(f"wrote aspi_direction_metrics.parquet ({len(direction)} rows)")
 
 

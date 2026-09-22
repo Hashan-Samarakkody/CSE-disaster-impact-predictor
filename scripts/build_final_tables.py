@@ -9,6 +9,8 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from src.config.settings import (MARKET_RECOVERY_DAYS, Y3_DIAGNOSTIC_LABEL,
+                                 Y3_REGRESSION_IS_DIAGNOSTIC)
 from src.utils.artifact_store import artifact_file
 ART = ROOT / "artifacts"
 OUT = ROOT / "docs" / "thesis_materials"
@@ -57,13 +59,40 @@ def build_y3_table() -> pd.DataFrame:
     m = m.merge(worst_gap, left_on="model", right_index=True, how="left")
     m["C_index_CI"] = [f"[{lo:.3f}, {hi:.3f}]" for lo, hi
                        in zip(m["c_index_ci_low"], m["c_index_ci_high"])]
-    return m.rename(columns={
+    out = m.rename(columns={
         "c_index": "C_index", "integrated_brier_score": "Integrated_Brier_Score",
         "median_abs_error_uncensored": "Median_abs_error_uncensored",
-    })[["model", "n", "n_recovered", "n_censored", "C_index", "C_index_CI",
-        "Integrated_Brier_Score", "Median_abs_error_uncensored", "mae_uncensored",
-        "rmse_uncensored", "max_abs_calibration_gap", "p_holm", "holm_significant",
-        "verdict"]]
+        "mae_uncensored": "MAE_uncensored_diagnostic",
+        "rmse_uncensored": "RMSE_uncensored_diagnostic",
+    })
+    # The censoring-aware columns are the result; the point errors are kept only over the
+    # genuinely observed recoveries and are named so no reader can mistake them (T3).
+    out.insert(1, "result_class", "primary (censoring-aware survival)")
+    return out[["model", "result_class", "n", "n_recovered", "n_censored", "C_index",
+                "C_index_CI", "Integrated_Brier_Score", "Median_abs_error_uncensored",
+                "MAE_uncensored_diagnostic", "RMSE_uncensored_diagnostic",
+                "max_abs_calibration_gap", "p_holm", "holm_significant", "verdict"]]
+
+
+def build_y3_regression_diagnostic() -> pd.DataFrame:
+    """The ordinary-regression fit of the recovery target, every row labelled.
+
+    Squared error is not defined for a right-censored duration, so these numbers are a
+    disclosed diagnostic of the distortion that treating censored observations as exact
+    introduces. They are retained for comparability with the existing literature and are
+    never the result (T3, docs/audit.md Part 8.5).
+    """
+    verdicts = pd.read_parquet(artifact_file("verdict_table.parquet"))
+    rows = verdicts[verdicts["target"] == MARKET_RECOVERY_DAYS].copy()
+    rows.insert(1, "result_class", Y3_DIAGNOSTIC_LABEL)
+    rows.insert(2, "censoring_aware", False)
+    rows = rows.rename(columns={"rmse_model": "RMSE_model_diagnostic",
+                                "rmse_baseline": "RMSE_baseline_diagnostic",
+                                "delta_rmse": "delta_RMSE_diagnostic"})
+    return rows[["target", "result_class", "censoring_aware", "model", "baseline", "n",
+                 "RMSE_model_diagnostic", "RMSE_baseline_diagnostic",
+                 "delta_RMSE_diagnostic", "ci_low", "ci_high", "p_holm",
+                 "holm_significant", "verdict"]]
 
 
 def _md(df, floats=4):
@@ -83,6 +112,9 @@ def main():
     y1.to_csv(OUT / "final_table_aspi.csv", index=False)
     y3 = build_y3_table()
     y3.to_csv(OUT / "final_table_recovery.csv", index=False)
+    assert Y3_REGRESSION_IS_DIAGNOSTIC, "T3: the Y3 regression is a diagnostic, not a result"
+    y3_diagnostic = build_y3_regression_diagnostic()
+    y3_diagnostic.to_csv(OUT / "final_table_recovery_regression_diagnostic.csv", index=False)
 
     # Headline extract: the best configuration (lowest RMSE) per horizon x information set.
     best = (y1.sort_values("RMSE").groupby(["horizon", "info_set"], as_index=False).first()
@@ -97,8 +129,13 @@ def main():
         "\n\nFull 240-row grid: `docs/thesis_materials/final_table_aspi.csv`.\n",
         "\n## Y1 direction analysis (secondary, a different question)\n",
         _md(direction),
-        "\n\n## Y3 final table\n",
+        "\n\n## Y3 final table (PRIMARY: censoring-aware survival)\n",
         _md(y3),
+        f"\n\n## Y3 ordinary regression ({Y3_DIAGNOSTIC_LABEL.upper()}, NOT the result)\n",
+        "\nSquared error is not defined for a right-censored duration. These rows are\n"
+        "retained for comparability with the existing literature and are a diagnostic of\n"
+        "the distortion that treating a censored observation as exact introduces.\n\n",
+        _md(y3_diagnostic),
         "\n\n## Y3 recovery category `recovery <= 20 trading days`\n",
         _md(cats),
     ]
@@ -106,7 +143,9 @@ def main():
     # carries these tables inline, and a second copy on disk would drift from it.
     print(chr(10).join(text))
     print(f"wrote {OUT/'final_table_aspi.csv'} ({len(y1)} rows), "
-          f"{OUT/'final_table_recovery.csv'} ({len(y3)} rows)")
+          f"{OUT/'final_table_recovery.csv'} ({len(y3)} rows), "
+          f"{OUT/'final_table_recovery_regression_diagnostic.csv'} "
+          f"({len(y3_diagnostic)} rows, all labelled diagnostic)")
     print(f"Y1 configurations significant on a single test: "
           f"{int(y1['significant_single_test'].sum())} / {len(y1)}")
     print(f"Y3 models with a C-index CI excluding 0.5: "

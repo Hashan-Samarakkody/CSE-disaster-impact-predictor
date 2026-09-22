@@ -1,54 +1,39 @@
-"""Y1 multi-horizon event-window targets, and the market/disaster feature partition."""
+"""Y1 horizon column names, and the two feature partitions.
+
+The horizon values themselves are built once, by src/targets/event_targets.py, and
+stored in dataset.parquet. This module only names those columns, so the repository
+carries a single definition of Y1 and its declared horizon sensitivities.
+
+Two orthogonal partitions of the same feature list live here. The first splits by data
+source (market against disaster). The second splits by availability at the prediction
+origin (real time against ex post), which is the one that decides whether a result is a
+forecast or an ex post attribution. See docs/audit.md Part 8.3.
+"""
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
+from src.config.settings import (ASPI_PERCENTAGE_CHANGE, ASPI_SENSITIVITY_COLS,
+                                 NON_FEATURE_COLS, TARGET_LABEL_END_DATE_COL)
 
-HORIZONS = (5, 10, 15, 20)
+HORIZONS = (1, 5, 10, 15, 20)
 PRINCIPAL_HORIZON = 5
 
 
 def horizon_col(h: int) -> str:
-    return f"Y1_ASPI_EventWindow_0_{h}_LogReturn_Pct"
+    """Dataset column holding 100 * ln(Ph / P0) for horizon h."""
+    if h == PRINCIPAL_HORIZON:
+        return ASPI_PERCENTAGE_CHANGE
+    return f"Y1_ASPI_{h}D_Forward_LogReturn_Pct"
 
 
 def horizon_end_col(h: int) -> str:
-    return f"Y1_ASPI_EventWindow_0_{h}_horizon_end_date"
+    """Dataset column holding the session on which horizon h closes."""
+    if h == PRINCIPAL_HORIZON:
+        return TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE]
+    return f"Y1_{h}D_horizon_end_date"
 
 
-def build_horizon_targets(market: pd.DataFrame, event_dates, horizons=HORIZONS,
-                          date_col: str = "date", price_col: str = "aspi_close") -> pd.DataFrame:
-    """One row per event (in the order given), one column pair per horizon."""
-    market = market.sort_values(date_col).reset_index(drop=True)
-    dates = pd.to_datetime(market[date_col])
-    prices = market[price_col].to_numpy(dtype=float)
-
-    rows = []
-    for event_date in pd.to_datetime(pd.Series(event_dates)):
-        pos_candidates = np.flatnonzero(dates.to_numpy() >= np.datetime64(event_date))
-        row = {}
-        if len(pos_candidates) == 0 or pos_candidates[0] == 0:
-            for h in horizons:
-                row[horizon_col(h)] = np.nan
-                row[horizon_end_col(h)] = pd.NaT
-            rows.append(row)
-            continue
-        pos = int(pos_candidates[0])
-        price_tm1 = prices[pos - 1]
-        for h in horizons:
-            end = pos + h
-            if end < len(prices) and np.isfinite(prices[end]) and price_tm1 > 0:
-                row[horizon_col(h)] = float(100.0 * np.log(prices[end] / price_tm1))
-                row[horizon_end_col(h)] = dates.iloc[end]
-            else:
-                row[horizon_col(h)] = np.nan
-                row[horizon_end_col(h)] = pd.NaT
-        rows.append(row)
-    return pd.DataFrame(rows)
-
-
-# ---------------------------------------------------------------- information sets
+# information sets
 
 MARKET_FEATURES = [
     "log_return", "lag_return_t-1", "lag_return_t-2", "lag_return_t-3", "lag_return_t-5",
@@ -81,11 +66,60 @@ DISASTER_FEATURES = [
 ]
 
 
+# availability at the prediction origin
+
+# Demonstrably knowable at the prediction origin: market state, the disaster's own
+# identity and timing, and the electoral calendar. These are the only columns a
+# real-time forecaster could have had.
+REALTIME_FEATURES = [
+    "log_return", "lag_return_t-1", "lag_return_t-2", "lag_return_t-3", "lag_return_t-5",
+    "price_to_sma_5", "price_to_ema_5", "price_to_sma_10", "price_to_ema_10",
+    "price_to_sma_20", "price_to_ema_20",
+    "rolling_std_5", "rolling_std_10", "rolling_std_20", "rolling_std_30",
+    "squared_return", "garch_cond_vol", "garch_cond_vol_available",
+    "vol_ratio_1_30", "vol_ratio_5_30", "vol_ratio_10_30", "vol_cv_30", "log_vol_change_1",
+    "volume_features_available",
+    "sp500_log_return", "fx_logret_1", "fx_logret_5", "fx_vol_30",
+    "days_to_election", "election_within_5d",
+    "disaster_Drought", "disaster_Flood", "disaster_Other", "disaster_Storm",
+    "days_since_last_disaster", "disasters_trailing_365d",
+    "date_is_exact",
+]
+
+# Finalised after the prediction origin. EM-DAT settles damage and casualty figures over
+# days to months, DesInventar compiles local loss records afterwards, NASA POWER
+# reanalysis publishes with a lag of several days, and the World Bank series are annual.
+# Any result that depends on these is an ex post attribution, not a forecast.
+EXPOST_FEATURES = [
+    "financial_damage", "financial_damage_observed", "log_financial_damage",
+    "population_affected", "log_population_affected",
+    "total_deaths", "deaths_available", "no_homeless", "homeless_available",
+    "mag_area_km2", "mag_wind_kph", "mag_area_available", "mag_wind_available",
+    "damage_to_gdp", "log_damage_x_flood",
+    "hz_precip_max3d", "hz_precip_mean3d", "hz_precip_spread3d", "hz_districts_wet",
+    "hz_wind_max3d", "hz_precip_anom",
+    "di_districts_hit", "di_affected_log", "di_houses_destroyed_log",
+    "di_houses_damaged_log", "di_deaths_log", "di_records", "di_available",
+    "gdp_growth_pct", "inflation_cpi_pct", "macro_available",
+]
+
+
+def availability_class(column: str) -> str:
+    """Either "real_time" or "ex_post"; raises if the column belongs to neither."""
+    if column in REALTIME_FEATURES:
+        return "real_time"
+    if column in EXPOST_FEATURES:
+        return "ex_post"
+    raise ValueError(
+        f"feature column not assigned an availability class: {column!r} -- add it to "
+        "REALTIME_FEATURES or EXPOST_FEATURES in src/targets/return_horizons.py. A "
+        "silently unassigned column would change what real_time means between runs.")
+
+
 def information_sets(available_cols) -> dict[str, list[str]]:
-    """{"market_only": [...], "disaster_only": [...], "combined": [...]} restricted to
-    the columns actually present. Raises if the partition has drifted from
-    `feature_spec.json` -- a silently dropped column would quietly change what
-    "market-only" means between runs."""
+    """Five information sets over the columns actually present: the three source sets
+    ("market_only", "disaster_only", "combined") and the two availability sets
+    ("real_time", "ex_post"). Raises if a column is missing from either partition."""
     available = list(available_cols)
     market = [c for c in MARKET_FEATURES if c in available]
     disaster = [c for c in DISASTER_FEATURES if c in available]
@@ -95,37 +129,58 @@ def information_sets(available_cols) -> dict[str, list[str]]:
             "feature columns not assigned to an information set: "
             f"{sorted(unassigned)} -- assign each to MARKET_FEATURES or DISASTER_FEATURES "
             "in src/targets/return_horizons.py before running the Y1 grid.")
-    return {"market_only": market, "disaster_only": disaster, "combined": market + disaster}
+    unclassified = set(available) - set(REALTIME_FEATURES) - set(EXPOST_FEATURES)
+    if unclassified:
+        raise ValueError(
+            "feature columns not assigned an availability class: "
+            f"{sorted(unclassified)} -- assign each to REALTIME_FEATURES or "
+            "EXPOST_FEATURES in src/targets/return_horizons.py before running the Y1 grid.")
+    return {"market_only": market, "disaster_only": disaster, "combined": market + disaster,
+            "real_time": [c for c in REALTIME_FEATURES if c in available],
+            "ex_post": [c for c in EXPOST_FEATURES if c in available]}
 
 
 if __name__ == "__main__":
-    # Alignment self-check on a synthetic 40-session series with a known geometric path.
-    sessions = pd.date_range("2020-01-01", periods=40, freq="B")
-    prices = 100.0 * np.exp(np.arange(40) * 0.01)      # +1% log return per session
-    market = pd.DataFrame({"date": sessions, "aspi_close": prices})
-    # Event lands on a non-trading Saturday -> t must be the following Monday.
-    event = pd.Timestamp("2020-01-11")
-    out = build_horizon_targets(market, [event])
-    t = int(np.flatnonzero(sessions >= event)[0])
-    assert sessions[t].weekday() == 0, sessions[t]
-    for h in HORIZONS:
-        # 100 * ln(P_{t+h}/P_{t-1}) over a +1%/session log path spans h+1 sessions.
-        assert abs(out[horizon_col(h)].iloc[0] - (h + 1) * 1.0) < 1e-9, h
-        assert out[horizon_end_col(h)].iloc[0] == sessions[t + h]
-
-    # Not enough remaining sessions -> NaN, never a truncated window.
-    late = build_horizon_targets(market, [sessions[-3]])
-    assert np.isnan(late[horizon_col(20)].iloc[0])
-    assert not np.isnan(late[horizon_col(5)].iloc[0]) or True  # h=5 also short here
+    # The horizon columns must be the ones the protocol freezes, so the grid script and
+    # dataset.parquet cannot drift apart.
+    assert horizon_col(5) == ASPI_PERCENTAGE_CHANGE
+    assert PRINCIPAL_HORIZON == 5 and HORIZONS[0] == 1
+    assert [horizon_col(h) for h in HORIZONS if h != PRINCIPAL_HORIZON] == ASPI_SENSITIVITY_COLS
+    assert horizon_end_col(5) == "Y1_horizon_end_date"
+    assert horizon_end_col(1) == "Y1_1D_horizon_end_date"
+    assert horizon_end_col(10) == "Y1_10D_horizon_end_date"
+    # Every horizon column and its label-end date must be a declared non-feature: this is
+    # exactly how the 15 and 20 session returns leaked into the model once before.
+    for _h in HORIZONS:
+        assert horizon_col(_h) in NON_FEATURE_COLS, _h
+        assert horizon_end_col(_h) in NON_FEATURE_COLS, _h
 
     sets = information_sets(MARKET_FEATURES + DISASTER_FEATURES)
+    assert set(sets) == {"market_only", "disaster_only", "combined", "real_time", "ex_post"}
     assert set(sets["combined"]) == set(MARKET_FEATURES) | set(DISASTER_FEATURES)
     assert not (set(sets["market_only"]) & set(sets["disaster_only"]))
+
+    # The availability partition must cover the same columns, exactly once each.
+    assert not (set(REALTIME_FEATURES) & set(EXPOST_FEATURES))
+    assert (set(REALTIME_FEATURES) | set(EXPOST_FEATURES)
+            == set(MARKET_FEATURES) | set(DISASTER_FEATURES))
+    assert set(sets["real_time"]) | set(sets["ex_post"]) == set(sets["combined"])
+    assert availability_class("sp500_log_return") == "real_time"
+    assert availability_class("gdp_growth_pct") == "ex_post"
+    assert availability_class("hz_precip_max3d") == "ex_post"
+
+    for bad in (["a_column_nobody_declared"],):
+        try:
+            information_sets(bad)
+        except ValueError as exc:
+            assert "not assigned" in str(exc)
+        else:
+            raise AssertionError("unassigned column must raise")
     try:
-        information_sets(["a_column_nobody_declared"])
+        availability_class("a_column_nobody_declared")
     except ValueError as exc:
-        assert "not assigned" in str(exc)
+        assert "availability class" in str(exc)
     else:
-        raise AssertionError("unassigned column must raise")
+        raise AssertionError("unclassified column must raise")
 
     print("return_horizons.py self-check passed")

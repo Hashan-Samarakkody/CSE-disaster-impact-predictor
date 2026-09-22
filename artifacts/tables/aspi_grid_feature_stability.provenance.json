@@ -1,0 +1,31 @@
+{
+  "written_utc": "2026-09-22T12:18:33.804078+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "aspi_grid_feature_stability",
+  "rows": 1814,
+  "columns": [
+    "horizon",
+    "info_set",
+    "k",
+    "feature",
+    "selection_count",
+    "mean_rank",
+    "median_rank",
+    "n_folds",
+    "selection_frequency"
+  ],
+  "note": "How often each feature was selected across folds. Sidecar backfilled from the file's own modification time after the 2026-09-22 run; the artifact itself was not rewritten."
+}

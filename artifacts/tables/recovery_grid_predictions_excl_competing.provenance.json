@@ -1,0 +1,34 @@
+{
+  "written_utc": "2026-09-22T06:24:25.227722+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "recovery_grid_predictions_excl_competing",
+  "rows": 480,
+  "columns": [
+    "fold",
+    "row",
+    "model",
+    "duration",
+    "event_observed",
+    "drawdown_occurred",
+    "pred_median",
+    "P_T_le_10",
+    "P_T_le_20",
+    "P_T_le_30",
+    "P_T_le_60",
+    "P_T_le_90"
+  ],
+  "note": "Out-of-fold survival predictions. Sensitivity run excluding events censored by a subsequent disaster. Sidecar backfilled from the file's own modification time after the 2026-09-22 run; the artifact itself was not rewritten."
+}

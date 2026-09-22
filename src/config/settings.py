@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 # Windows plus torch plus the Intel OpenMP runtime shipped with numpy will abort
 # the process on a duplicate libiomp5md.dll unless this is set before torch loads.
@@ -40,33 +41,61 @@ MARKET_CAPITALIZATION_FILE = EXTERNAL_DATA_DIR / "cse_market_capitalization.csv"
 
 RANDOM_STATE = 42
 
-# The three research targets, per docs/TARGET_DEFINITION_PROTOCOL.md (frozen 2026-09-19
-# at commit 928a255, before any performance under these definitions was observed).
-#
-#   Y1 = 100 * ln(P5 / P0)                              percent, unbounded
-#   Y2 = ln( mean(V1..V5) / mean(V_-30..V_-1) )         log ratio, unbounded
-#   Y3 = sessions to recovery, right-censored           [0, 90], time-to-event
-#
-# P0 is the last close BEFORE the prediction origin; P1..P5 and V1..V5 are the first five
-# complete sessions after it.
+# Study period bound (Revision 2, T10). Events after this date are out of scope; the
+# market series is loaded only as far as the post-event windows of the last qualifying
+# event need, so no session beyond the study serves any purpose.
+STUDY_END = pd.Timestamp("2025-12-31")
+# Sessions of market history required after the last qualifying event, so a 90 session
+# recovery window can still close. Matches MAX_RECOVERY_SESSIONS in event_targets.
+MARKET_TAIL_SESSIONS = 90
+
+# The three research targets, defined in docs/TARGET_DEFINITION_PROTOCOL.md and frozen
+# there on 2026-09-19 at commit 928a255, before any performance under these definitions
+# was observed. P0 is the last close before the prediction origin.
 ASPI_PERCENTAGE_CHANGE = "Y1_ASPI_5D_Forward_LogReturn_Pct"
-VOLUME_CRASH_MAGNITUDE = "Y2_5D_Forward_AbnormalVolume_LogRatio"
+FORWARD_ABNORMAL_VOLUME = "Y2_5D_Forward_AbnormalVolume_LogRatio"
+# Deprecated alias (Revision 2, D6). The old name presupposed a negative sign, but 23 of
+# the 61 observed values are positive. The frozen COLUMN string is unchanged, because
+# cached artifacts and the frozen-baseline regression test depend on it; only the Python
+# identifier moved. Kept so existing imports keep working.
+VOLUME_CRASH_MAGNITUDE = FORWARD_ABNORMAL_VOLUME
 MARKET_RECOVERY_DAYS = "Y3_ASPI_Recovery_Time"
 
-# Pre registered horizon sensitivity analyses of target one. Never promoted to primary.
+# Declared horizon sensitivity analyses of target one. Never promoted to primary.
 ASPI_PERCENTAGE_CHANGE_10D = "Y1_ASPI_10D_Forward_LogReturn_Pct"
-ASPI_SENSITIVITY_COLS = [f"Y1_ASPI_{h}D_Forward_LogReturn_Pct" for h in (10, 15, 20)]
+ASPI_SENSITIVITY_COLS = [f"Y1_ASPI_{h}D_Forward_LogReturn_Pct" for h in (1, 10, 15, 20)]
 
-TARGET_COLS = [ASPI_PERCENTAGE_CHANGE, VOLUME_CRASH_MAGNITUDE, MARKET_RECOVERY_DAYS,
+# Response-window sensitivities and derived views of target two (Revision 2, T5). The
+# five session window in FORWARD_ABNORMAL_VOLUME stays primary.
+VOLUME_SENSITIVITY_COLS = [f"Y2_{w}D_Forward_AbnormalVolume_LogRatio" for w in (1, 10, 20)]
+VOLUME_DERIVED_COLS = ["Y2_5D_Forward_AbnormalVolume_Pct",
+                       "Y2_5D_Forward_AbnormalVolume_LogRatio_Winsorised"]
+
+# Market adjusted abnormal returns (Revision 2, T6), one per horizon. Reported alongside
+# the raw forward return, which stays primary.
+ABNORMAL_RETURN_HORIZONS = (1, 5, 10, 15, 20)
+ABNORMAL_RETURN_COLS = [f"Y1_ASPI_{h}D_Forward_AbnormalReturn_Pct"
+                        for h in ABNORMAL_RETURN_HORIZONS]
+MARKET_MODEL_AUDIT_COLS = ["market_model_alpha", "market_model_beta", "market_model_n"]
+
+TARGET_COLS = [ASPI_PERCENTAGE_CHANGE, FORWARD_ABNORMAL_VOLUME, MARKET_RECOVERY_DAYS,
                ASPI_PERCENTAGE_CHANGE_10D]
 
 # Columns kept so every target can be recomputed by hand. Never predictors.
 TARGET_AUDIT_COLS = ["prediction_origin_session", "P0", "Y2_V_base", "Y2_V_future5"]
 
-# Definitional support. Y2 is a LOG ratio now, so it is unbounded below.
+# Y3 is right-censored by construction: 38 of the 74 events carry no observed recovery.
+# Squared error is not defined for a censored duration, so the ordinary regression fit of
+# the recovery target is a DISCLOSED DIAGNOSTIC, kept for comparability with the existing
+# literature, and never the result. The survival analysis in
+# scripts/run_recovery_survival_grid.py is primary. See docs/audit.md Part 8.5 (T3).
+Y3_REGRESSION_IS_DIAGNOSTIC = True
+Y3_DIAGNOSTIC_LABEL = "censoring-blind diagnostic"
+
+# Definitional support. Y2 is a log ratio, so it is unbounded below as well as above.
 TARGET_BOUNDS = {
     ASPI_PERCENTAGE_CHANGE: (None, None),
-    VOLUME_CRASH_MAGNITUDE: (None, None),
+    FORWARD_ABNORMAL_VOLUME: (None, None),
     MARKET_RECOVERY_DAYS: (0.0, 90.0),
     ASPI_PERCENTAGE_CHANGE_10D: (None, None),
 }
@@ -76,7 +105,7 @@ TARGET_BOUNDS = {
 TARGET_LABEL_END_DATE_COL = {
     ASPI_PERCENTAGE_CHANGE: "Y1_horizon_end_date",
     ASPI_PERCENTAGE_CHANGE_10D: "Y1_10D_horizon_end_date",
-    VOLUME_CRASH_MAGNITUDE: "Y2_horizon_end_date",
+    FORWARD_ABNORMAL_VOLUME: "Y2_horizon_end_date",
     MARKET_RECOVERY_DAYS: "Y3_label_end_date",
 }
 
@@ -86,26 +115,56 @@ LABEL_END_DATE_COL = {
     "C0_drawdown_occurs": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
     "C1_negative_return": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
     "C1b_adverse_move": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
-    "C2_volume_spike": TARGET_LABEL_END_DATE_COL[VOLUME_CRASH_MAGNITUDE],
+    "C2_volume_spike": TARGET_LABEL_END_DATE_COL[FORWARD_ABNORMAL_VOLUME],
     "C3_recovers_in_90": TARGET_LABEL_END_DATE_COL[MARKET_RECOVERY_DAYS],
     "C3b_slow_recovery": TARGET_LABEL_END_DATE_COL[MARKET_RECOVERY_DAYS],
 }
 
 
-# Every column that is an outcome, a constituent of an outcome, or a bookkeeping date --
-# i.e. everything a predictor must never be built from. Feature construction is a
-# denylist, so a target-family column missing from this set is silently admitted as a
-# feature; that is exactly how Y2_V_future5 (the numerator of Y2) and the 15/20-session
-# forward returns reached the model on 2026-09-19. One set, so a new target column
-# cannot be added to the dataset without also landing here.
+# Every outcome column, every constituent of one, and every bookkeeping date: what a
+# predictor must never be built from. Feature construction is a denylist, so a
+# target-family column missing here is silently admitted as a feature.
 NON_FEATURE_COLS = (
     set(TARGET_COLS)
     | set(ASPI_SENSITIVITY_COLS)        # 10/15/20D forward returns share P0 with Y1
     | set(TARGET_AUDIT_COLS)            # P0, V_base, V_future5, prediction_origin_session
     | set(TARGET_LABEL_END_DATE_COL.values())
-    | {f"Y1_{h}D_horizon_end_date" for h in (10, 15, 20)}
+    | {f"Y1_{h}D_horizon_end_date" for h in (1, 10, 15, 20)}
+    | set(VOLUME_SENSITIVITY_COLS)      # alternative Y2 response windows
+    | set(VOLUME_DERIVED_COLS)          # percentage and winsorised views of Y2
+    | {f"Y2_{w}D_horizon_end_date" for w in (1, 10, 20)}
+    | set(ABNORMAL_RETURN_COLS)         # realised minus market model expected return
+    | set(MARKET_MODEL_AUDIT_COLS)      # the fitted market model behind those columns
+    | {f"Y1_{h}D_abnormal_horizon_end_date" for h in ABNORMAL_RETURN_HORIZONS}
     | {"Y3_event_observed", "Y3_censored", "Y3_censor_reason", "Y3_drawdown_occurred"}
 )
+
+
+def market_data_bound(event_dates, tail_sessions: int = MARKET_TAIL_SESSIONS,
+                      sessions=None):
+    """Last market session worth loading: `tail_sessions` after the last event.
+
+    With `sessions` (the full trading calendar) the bound is counted in real sessions.
+    Without it, the calendar is unknown and the bound is returned as None.
+    """
+    events = pd.to_datetime(pd.Series(list(event_dates))).dropna()
+    if events.empty or sessions is None:
+        return None
+    calendar = pd.to_datetime(pd.Series(list(sessions))).sort_values().reset_index(drop=True)
+    after = calendar.searchsorted(events.max(), side="left")
+    return calendar.iloc[min(int(after) + tail_sessions - 1, len(calendar) - 1)]
+
+
+def assert_events_within_study_period(event_dates, study_end=STUDY_END) -> None:
+    """Raise if any modelled event falls after the declared end of the study period."""
+    events = pd.to_datetime(pd.Series(list(event_dates))).dropna()
+    late = events[events > pd.Timestamp(study_end)]
+    if len(late):
+        raise AssertionError(
+            f"{len(late)} modelled event(s) fall after STUDY_END "
+            f"({pd.Timestamp(study_end).date()}): "
+            f"{sorted(d.date() for d in late)[:5]} -- widen STUDY_END deliberately or "
+            "exclude the events, but do not let the study period drift silently.")
 
 
 def assert_no_target_leakage(feature_cols) -> None:

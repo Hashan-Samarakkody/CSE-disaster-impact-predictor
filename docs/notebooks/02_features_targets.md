@@ -29,9 +29,9 @@ the oversampling. Section 2.8 caches everything. Section 2.9 states what was pro
 | `FeatureEngineer.engineer_market_features` | `src/features/feature_engineering.py` | lagged returns, price to moving average ratios, rolling volatility, conditional volatility, the pre event volume block |
 | `FeatureEngineer.engineer_disaster_features` | `src/features/feature_engineering.py` | severity transforms, the inclusion filter, rare type pooling, one hot encoding |
 | `build_event_targets` | `src/targets/event_targets.py` | the three targets and their label settlement dates |
-| `calculate_aspi_percentage_change` | `src/targets/event_targets.py` | target one, and the ten session sensitivity variant |
-| `calculate_volume_crash_magnitude` | `src/targets/event_targets.py` | target two |
-| `calculate_market_recovery_days` | `src/targets/event_targets.py` | target three, with the adverse response gate and censoring |
+| `calculate_aspi_forward_log_return` | `src/targets/event_targets.py` | target one, and the ten, fifteen and twenty session sensitivity variants |
+| `calculate_forward_abnormal_volume` | `src/targets/event_targets.py` | target two, the log volume ratio and its two constituent means |
+| `calculate_recovery_time` | `src/targets/event_targets.py` | target three, with the drawdown gate, the ninety session cap and competing event censoring |
 | `generate_walk_forward_splits` | `src/training/walk_forward.py` | the chronological folds |
 
 ## Important outputs
@@ -63,11 +63,13 @@ for the sector panel.
    session before the event, so a target measured from the event day close would have been
    inconsistent with what the model is given to predict from. Baselining on the previous
    close makes the day zero reaction part of what the target measures.
-5. **The recovery clock does not start blindly at the event.** If the index never falls
-   below its pre event level inside a five session window, the event is genuinely resilient
-   and the recovery duration is zero. If it does fall, the clock starts at that trough.
-   Before this gate existed, an event whose own close happened to sit above the baseline
-   scored zero immediately, even when the index fell a few sessions later.
+5. **The recovery clock is gated on a real drawdown, and the scan starts at the first
+   session.** If the index never falls below its pre event level inside the five session
+   gate window the event is genuinely resilient: duration zero, no recovery event
+   observed, censor reason `no_drawdown`. If it does fall, the scan runs forward from the
+   first session after the origin and stops at the first close that regains the baseline
+   after an earlier dip. Anchoring the scan on the trough instead would skip a genuine
+   recovery that precedes a later, deeper dip.
 6. **A later disaster censors an earlier recovery.** If another qualifying disaster arrives
    before recovery, the observation is right censored at that date with the reason recorded,
    rather than pretending recovery occurred then.

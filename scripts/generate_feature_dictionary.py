@@ -17,7 +17,7 @@ from src.utils.artifact_store import artifact_file  # noqa: E402
 
 # (feature, category, internal/external, why_used, how_it_helps, literature)
 ROWS = [
-    # ---------------------------------------------------------------- returns/momentum
+    # returns/momentum
     ("log_return", "Returns/Momentum", "Internal",
      "Raw day-over-day ASPI log return; base signal every lag/ratio below derives from.",
      "Captures the market's most recent directional move going into the event.",
@@ -38,7 +38,7 @@ ROWS = [
     ("price_to_sma_5", "Returns/Momentum", "Internal",
      "Price relative to 5-day simple moving average (stationary; raw SMA level is trending across the 2000-2026 sample and would break chronological folds).",
      "Momentum/deviation-from-trend signal without the non-stationarity of a raw price level.",
-     "Standard technical-momentum feature (price-to-MA ratio); no external citation, engineering fix for stationarity, documented in feature_eng.py."),
+     "Standard technical-momentum feature (price-to-MA ratio); no external citation, engineering fix for stationarity, documented in src/features/feature_engineering.py."),
     ("price_to_ema_5", "Returns/Momentum", "Internal", "Price relative to 5-day EMA (same stationarity fix, more weight on recent days).",
      "Momentum signal that reacts faster to the most recent few days than the SMA version.",
      "Same rationale as price_to_sma_5."),
@@ -51,7 +51,7 @@ ROWS = [
     ("price_to_ema_20", "Returns/Momentum", "Internal", "Price relative to 20-day EMA.",
      "Longer-horizon trend signal, EMA-weighted.", "Same rationale as price_to_sma_5."),
 
-    # ---------------------------------------------------------------- volatility
+    # volatility
     ("rolling_std_5", "Volatility", "Internal", "5-day realized (backward-looking) return volatility, shift(1)-guarded.",
      "Short-horizon market-calm/turbulence proxy going into the event.",
      "Standard realized-volatility feature; no specific external citation."),
@@ -69,7 +69,7 @@ ROWS = [
      "A genuinely different signal from realized rolling_std: a forward-looking forecast that weights recent shocks more and mean-reverts, rather than a backward-looking average.",
      "Davidescu et al. (2025), 'Evaluating Sectoral Vulnerability to Natural Disasters in the US Stock Market... DCC-GARCH Models'; 'GARCH-Informed Neural Networks for Volatility Prediction in Financial Markets' (ACM, 2024). MEASURED RESULT: null -- never selected by the per-fold feature selector in any fold/target this session (docs/audit.md)."),
 
-    # ---------------------------------------------------------------- volume
+    # volume
     ("vol_ratio_1_30", "Volume", "Internal", "Day-0 trading volume vs its own 30-day pre-event baseline.",
      "Direct 'is trading unusually heavy today' signal -- close cousin of the Y2 target's own construction, used as a feature only, never leaking the target's own value.",
      "Standard abnormal-volume convention in event-study literature; no specific external citation."),
@@ -83,7 +83,7 @@ ROWS = [
     ("log_vol_change_1", "Volume", "Internal", "Log change in trading volume, 1 day.",
      "Short-horizon volume-momentum signal.", "Standard log-difference convention; no specific external citation."),
 
-    # ---------------------------------------------------------------- macro/global
+    # macro/global
     ("gdp_growth_pct", "Macro/Global", "External (World Bank)", "Sri Lanka annual GDP growth.",
      "Captures whether the disaster hit during broad economic expansion or contraction -- a confound the event-study design must control for.",
      "Standard macro control in event-study/disaster-finance literature; no single specific citation, general practice."),
@@ -101,7 +101,7 @@ ROWS = [
     ("fx_vol_30", "Macro/Global", "External (FRED, DEXSLUS)", "30-day USD/LKR return volatility.",
      "Broader currency-instability regime indicator (vs a single day's move).", "Same pre-declaration as fx_logret_1."),
 
-    # ---------------------------------------------------------------- hazard (measured)
+    # hazard (measured)
     ("hz_precip_max3d", "Hazard (measured)", "External (NASA POWER)", "Max 3-day rainfall accumulation across 7 district points.",
      "Flood-generating window is standard meteorologically; max (not mean) because flooding is localised and an island average dilutes it.",
      "docs/audit.md Part 3 Block A: measured by instrument, not assessed by a reporter -- no missingness, no reporting bias, available same-day (admissible even in the strictest ex-ante specification, unlike financial_damage)."),
@@ -118,7 +118,7 @@ ROWS = [
      "Same functional form as the Y2 target (V/V_bar_30 - 1) applied to rainfall -- rain relative to that location's own recent normal, not an absolute threshold.",
      "Deliberate structural parallel to this thesis's own Y2 definition (docs/audit.md Part 3 Block A)."),
 
-    # ---------------------------------------------------------------- physical severity (DesInventar)
+    # physical severity (DesInventar)
     ("di_districts_hit", "Physical Severity", "External (DesInventar/UNDRR)", "Distinct districts with >=1 disaster record in a [-7,+14]-day window around the event.",
      "Geographic breadth of the shock -- an exposure dimension the missing-73%-of-the-time financial_damage figure cannot supply.",
      "docs/audit.md Part 3 Block B: added because financial_damage is missing (zero-filled) for 47 of 64 events, non-randomly (EM-DAT under-reports smaller/older events)."),
@@ -137,7 +137,7 @@ ROWS = [
      "Missingness indicator -- without it, a zero in the other di_* columns is indistinguishable between 'confirmed no damage' and 'outside DesInventar's date coverage'.",
      "docs/audit.md Part 3 Block B, audit item P2-7 (mandatory missingness flag)."),
 
-    # ---------------------------------------------------------------- disaster severity (EM-DAT)
+    # disaster severity (EM-DAT)
     ("financial_damage", "Disaster Severity", "External (EM-DAT)", "Reported USD economic damage.",
      "The thesis's headline severity variable, in money terms -- directly answers 'how big was the disaster financially'.",
      "EM-DAT is the standard disaster-impact database in this literature; CAVEAT (own audit): real for only 18/76 events, zero-filled elsewhere, and missingness is non-random (favours large/recent/international events) -- Category C, known only after post-event assessment, not real-time."),
@@ -155,7 +155,7 @@ ROWS = [
      "Tests whether the damage-return relationship is flood-specific rather than uniform across disaster types.",
      "Interaction-term convention from the thesis's own severity-by-type hypothesis; no external citation."),
 
-    # ---------------------------------------------------------------- disaster type
+    # disaster type
     ("disaster_Drought", "Disaster Type", "External (EM-DAT)", "One-hot: disaster type is Drought.",
      "Disaster-type fixed effect -- different hazard types plausibly have different market transmission mechanisms.", "Standard categorical control; no specific citation."),
     ("disaster_Flood", "Disaster Type", "External (EM-DAT)", "One-hot: disaster type is Flood.",
@@ -165,21 +165,21 @@ ROWS = [
     ("disaster_Storm", "Disaster Type", "External (EM-DAT)", "One-hot: disaster type is Storm.",
      "Disaster-type fixed effect; also the type hz_wind_max3d specifically targets.", "Same rationale as disaster_Drought."),
 
-    # ---------------------------------------------------------------- recency
+    # recency
     ("days_since_last_disaster", "Recency", "Internal (derived from EM-DAT dates)", "Days since the previous qualifying disaster event.",
      "Captures 'disaster fatigue' or compounding-shock effects -- a market that already absorbed a recent shock may react differently.",
      "General compounding-shock rationale in disaster literature; no specific citation."),
     ("disasters_trailing_365d", "Recency", "Internal (derived from EM-DAT dates)", "Count of qualifying disasters in the trailing 365 days.",
      "Captures a high-frequency-disaster regime vs an isolated single event.", "Same rationale as days_since_last_disaster."),
 
-    # ---------------------------------------------------------------- confounder
+    # confounder
     ("days_to_election", "Confounder", "External (Wikidata)", "Signed days to nearest national election.",
      "Controls for a specific known contamination: the 2005-11-17 election falls 4 days before the 2005-11-21 event, which carries the single largest observed Y1 drop.",
      "docs/audit.md Part 3 Block D, motivated by a named, pre-identified contamination case."),
     ("election_within_5d", "Confounder", "External (Wikidata)", "1 if |days_to_election| <= 5.",
      "+-5 days matches the event-window contamination screen already specified in the thesis audit.", "Same Block D rationale."),
 
-    # ---------------------------------------------------------------- other/metadata-derived
+    # other/metadata-derived
     ("date_is_exact", "Other/Metadata", "External (EM-DAT)", "Whether EM-DAT records an exact (not estimated) event date.",
      "Data-quality flag -- an imprecise event date weakens every date-aligned feature/target built from it.", "No external citation; internal data-quality control."),
     ("total_deaths", "Other/Metadata", "External (EM-DAT)", "Reported deaths (EM-DAT's own field, distinct from di_deaths_log's DesInventar count).",

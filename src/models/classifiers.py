@@ -52,12 +52,10 @@ def label_volume_spike(y, train_idx=None, dataset=None):
 
 
 def label_drawdown_occurs(y, train_idx=None, dataset=None):
-    """C0: D = 1 if min(P1..P5) < P0. STAGE 1 of the protocol's two-stage Y3 architecture
-    (docs/TARGET_DEFINITION_PROTOCOL.md 3.2).
+    """C0: D = 1 if min(P1..P5) < P0, stage 1 of the two-stage Y3 architecture.
 
-    "Will this disaster push the ASPI below the level it closed at before the event?"
-    Defined for every event, so this is the only Y3-family label with the full sample --
-    the duration questions below are conditional on D = 1 and lose the D = 0 events.
+    Defined for every event, unlike the conditional duration labels below.
+    See docs/TARGET_DEFINITION_PROTOCOL.md section 3.2.
     """
     v = dataset["Y3_drawdown_occurred"].reindex(y.index)
     return pd.Series(_binarise(v.fillna(False), v.notna()), index=y.index)
@@ -66,11 +64,9 @@ def label_drawdown_occurs(y, train_idx=None, dataset=None):
 def label_recovers_in_90(y, train_idx=None, dataset=None):
     """C3: recovery observed inside the 90-session window, conditional on a drawdown.
 
-    STAGE 2. Three exclusions, each for a different reason:
-      - D = 0: no recovery process exists. The protocol forbids treating these as
-        ordinary duration observations, so they are dropped rather than scored.
-      - censored by a competing disaster: the true status is unknowable.
-      - a cap-90 censoring IS informative (it did not recover in 90) and scores 0.
+    Stage 2, so D = 0 rows and rows censored by a competing disaster are dropped: the
+    first pose no recovery question, the second have an unknowable status. A cap-90
+    censoring is informative and scores 0.
     """
     v = y["Y3_ASPI_Recovery_Time"]
     reason = (dataset["Y3_censor_reason"].reindex(v.index)
@@ -81,23 +77,6 @@ def label_recovers_in_90(y, train_idx=None, dataset=None):
                 else (v < 90).astype(int))
     usable = v.notna() & ~reason.isin(["next_disaster", "no_drawdown"]).fillna(True)
     return pd.Series(_binarise(observed == 1, usable), index=v.index)
-
-
-def label_adverse_move_sigma(y, train_idx=None, dataset=None):
-    """Secondary sensitivity only: Y1 below one pre-event standard deviation.
-
-    Standardised-abnormal-return form from the event-study literature, but at this N it
-    leaves too few positives to support precision or recall. Never headline it.
-    """
-    v = y["Y1_ASPI_5D_Forward_LogReturn_Pct"]
-    # rolling_std_30 is computed on the daily log_return series (unchanged units), while
-    # Y1 is now a %-deviation-from-30d-mean (see feature_eng.build_targets), scale sigma
-    # to percent so the comparison stays meaningful.
-    sigma = (dataset["rolling_std_30"] * 100.0).replace(0, np.nan)
-    return pd.Series(_binarise(v < -sigma, v.notna() & sigma.notna()), index=v.index)
-
-
-# label_car5_negative (C4) REMOVED, methodology-audit finding #8 (2026-09-16): it asked
 
 
 def label_slow_recovery(y, train_idx, dataset=None):

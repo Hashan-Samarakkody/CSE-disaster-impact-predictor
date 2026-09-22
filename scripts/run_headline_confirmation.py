@@ -37,7 +37,7 @@ def mae_fn(a, b):
     return float(np.mean(np.abs(a - b)))
 
 
-# --------------------------------------------------------------- A. fold stability
+# A. fold stability
 
 def fold_stability_table(y_true_folds, y_pred_folds, fold_ids, label):
     rows = []
@@ -64,7 +64,7 @@ def fold_stability_table(y_true_folds, y_pred_folds, fold_ids, label):
     return table
 
 
-# --------------------------------------------------------------- B. variance/calibration
+# B. variance/calibration
 
 def variance_and_calibration(y_true, y_pred, label):
     yt, yp = np.asarray(y_true, dtype=float), np.asarray(y_pred, dtype=float)
@@ -99,7 +99,7 @@ def variance_and_calibration(y_true, y_pred, label):
     return {"actual": s_true, "predicted": s_pred, "pred_sd_over_actual_sd": ratio}
 
 
-# --------------------------------------------------------------- C. leave-one-out influence
+# C. leave-one-out influence
 # Array-only: recompute the metric with one observation dropped from the ALREADY-recorded
 # out-of-sample predictions. No model is refit here.
 

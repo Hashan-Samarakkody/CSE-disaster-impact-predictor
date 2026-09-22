@@ -11,26 +11,31 @@ why the frozen volume target holds by construction rather than by care.
 
 `scripts/freeze_baseline.py`
 
-Writes `artifacts/results/frozen_baseline.json`, a snapshot of the pipeline at commit
-`1fbf6275`: the commit hash, every event id and date, every target value, the fold
-definitions, every model's pooled out of fold predictions, the per fold and pooled metrics,
-the bootstrap verdict rows and the classification summary.
+Writes `artifacts/results/frozen_baseline.json`, a snapshot of the pipeline: the commit
+hash, every event id and date, every target value, the fold definitions, every model's
+pooled out of fold predictions, the per fold and pooled metrics, the bootstrap verdict
+rows and the classification summary.
 
-It exists because the improvement work on the return and recovery targets was allowed to
-touch shared infrastructure but not to move the volume target.
+It exists because work on the return and recovery targets is allowed to touch shared
+infrastructure but not to move the volume target.
 `tests/test_volume_target_frozen.py` reads this file back and fails if any volume number
 changes. That snapshot cannot be rebuilt from a later state, so it is the one file under
 `artifacts/` that is version controlled.
 
-Run it once. Re running it overwrites the reference and defeats its purpose.
+The current snapshot was taken on 2026-09-21 at commit `f076bd9`, replacing the one taken
+at commit `1fbf6275`, which pinned the pre protocol volume definition. Run this script
+once per deliberate, pre declared change to a target definition, and never otherwise:
+re running it overwrites the reference and defeats its purpose.
 
 ## 2. The return prediction grid
 
 `scripts/run_aspi_return_grid.py`, about seventy five minutes.
 
-Executes the pre declared grid in `docs/audit.md` Part 2: four horizons of five, ten,
-fifteen and twenty trading sessions, four information sets, three feature capacities and
-five model families. That is 240 configurations, each scored on the same chronological
+Executes the pre declared grid in `docs/audit.md` Part 2, as widened by Revision 2: five
+horizons of one, five, ten, fifteen and twenty trading sessions, six information sets
+(the original three by source, plus real_time and ex_post by availability and the
+normal plus residual set), three feature capacities and
+five model families. That is 465 configurations, each scored on the same chronological
 folds and the same test events, each purged against its own horizon, so the twenty session
 horizon carries a twenty session embargo.
 
@@ -57,7 +62,7 @@ sessions is predictable above chance.
 
 ## 3. The recovery survival grid
 
-`scripts/run_recovery_survival_grid.py`, about one minute.
+`scripts/run_recovery_survival_grid.py`, about two minutes, run twice in one invocation.
 
 Replaces point regression on recovery duration with censoring aware survival analysis, on
 genuine events only. Synthetic oversampled rows are excluded from every survival fit,
@@ -70,12 +75,21 @@ and then models duration for the drawdown cases, a penalised Cox model fitted on
 the event count supports it, and two baselines, a training fold Kaplan Meier curve and a
 training fold median.
 
-Writes `recovery_grid_predictions.parquet`, `recovery_grid_metrics.parquet`,
-`recovery_probability_calibration.parquet` and `recovery_category_metrics.parquet`.
+It also fits an Aalen-Johansen competing risks arm. A subsequent qualifying disaster is
+not independent censoring: an event that has not recovered is more likely to be overtaken
+by a new one, so treating it as ordinary censoring credits those events with a recovery
+they may never have had. The script then repeats the whole grid with those events dropped,
+so the two treatments can be compared, and writes that run to the `_excl_competing`
+artifacts.
 
-Supports: the finding that exact recovery duration cannot be predicted, that events can be
-ranked by recovery speed better than a Kaplan Meier baseline, and that the two stage model
-produces well calibrated recovery probabilities.
+Writes `recovery_grid_predictions.parquet`, `recovery_grid_metrics.parquet`,
+`recovery_probability_calibration.parquet` and `recovery_category_metrics.parquet`, each
+also in an `_excl_competing` variant.
+
+Supports: the finding that exact recovery duration cannot be predicted, and the ranking
+result, which under the frozen target protocol no longer clears chance. The best
+concordance interval still contains 0.5, so the recovery target is reported as not
+predictable rather than as suggestive.
 
 ## 4. Final tables
 
@@ -85,6 +99,43 @@ Assembles the two grids into the tables the thesis quotes, writing
 `docs/thesis_materials/final_table_aspi.csv`,
 `docs/thesis_materials/final_table_recovery.csv` and the markdown fragments in
 `docs/results.md`. It refits nothing and retypes no number by hand.
+
+## 4a. The event study, a different question
+
+`scripts/run_event_study.py`, seconds.
+
+Everything else in this repository asks whether a model can FORECAST the market response.
+This script asks whether there was a response at all. The two questions are kept apart in
+the code as well as in the prose: `src/evaluation/event_study.py` and
+`src/evaluation/verification.py` do not import each other, and a test asserts it.
+
+Abnormal returns come from the single factor market model, abnormal volume from the mean
+adjusted model, and the cumulative average abnormal value is tested with the cross
+sectional t test, the Boehmer, Musumeci and Poulsen standardised residual test, the Corrado
+rank test and the Kolari and Pynnonen correction for cross sectional correlation. Every
+statistic is validated in `tests/test_event_study.py` twice: it must fire on a planted
+effect and stay silent on a null.
+
+Writes `event_study_caar.parquet` and two event time figures.
+
+Supports: the claim that a measurable market reaction exists, or, as it turns out for the
+return series, that one does not.
+
+## 4b. The robustness suite
+
+`scripts/run_robustness_suite.py`, about ten minutes.
+
+Runs the closed pre declared list in `docs/audit.md` Part 8.7 once, and writes one
+consolidated table. Every check varies exactly one thing against the principal analysis and
+reports the same four quantities: the held out sample size, the error metric, the
+comparison against the zero return benchmark, and an episode clustered bootstrap interval.
+
+A check that cannot be run appears in the table with the reason rather than being omitted,
+which is why several disaster type subgroups and the single crisis period rows carry a
+sample size of zero and a note: the walk forward needs forty events and those subgroups do
+not have them.
+
+Writes `robustness_suite.parquet`.
 
 ## 5. Supporting scripts
 
@@ -110,8 +161,13 @@ comparison it is cited as.
 `scripts/run_garch_ablation.py` measures whether the conditional volatility feature earns
 its place.
 
-`scripts/run_aspi_return_experiments.py` is the earlier controlled return experiment series, run
-before the pre declared grid and reported as such.
+`scripts/run_aspi_return_experiments.py` is the earlier controlled return experiment
+series, run before the pre declared grid and reported as such. It takes about seven
+minutes and writes `artifacts/tables/y1_experiments_ranked.csv` and
+`artifacts/tables/y1_feature_stability.csv`. It opens by comparing the cached ensemble
+against `artifacts/results/frozen_baseline.json` and stops being quiet if the two have
+drifted; the reference is read from that snapshot rather than retyped in the script, so
+the check cannot go stale.
 
 `scripts/run_headline_confirmation.py` re confirms the return and volume headline numbers
 against the cached predictions.

@@ -31,9 +31,10 @@ rather than calendar days, that a window which runs off the end of the series yi
 missing value rather than a truncated one, and that the recovery clock respects both the
 adverse response gate and the competing event cap.
 
-`tests/test_return_horizons.py` does the same for the four pre declared return horizons and
-additionally asserts that the five session horizon reproduces the frozen pipeline's own
-column exactly. A drift between the two would mean one of them is wrong.
+`tests/test_return_horizons.py` covers the four pre declared return horizons. It asserts
+that the horizon column names are the ones the frozen protocol defines, that every one of
+them exists in the built dataset, and that their values follow the protocol alignment when
+recomputed directly from the raw market series rather than from the code that wrote them.
 
 It also asserts that the market and disaster information sets partition every feature
 column with no overlap, and that no severity or hazard column has leaked into the market
@@ -42,13 +43,12 @@ between runs.
 
 ### 2.2 The frozen volume target
 
-`tests/test_volume_target_frozen.py` is the most important file in the suite. The volume
-crash magnitude target is the study's one statistically supported continuous result, and
-the improvement work on the other two targets was required to leave it untouched.
+`tests/test_volume_target_frozen.py` is the most important file in the suite. Forward
+abnormal volume is the study's one statistically supported continuous result, and nothing
+done to the other two targets is allowed to move it.
 
 Twenty assertions compare the live artifacts against
-`artifacts/results/frozen_baseline.json`, a snapshot taken at commit `1fbf6275` before any
-improvement code existed:
+`artifacts/results/frozen_baseline.json`:
 
 1. all seventy four target values
 2. the event sample and its dates, in order
@@ -61,12 +61,21 @@ improvement code existed:
 8. the classification arm: AUC, balanced accuracy, the AUC interval, Matthews correlation
    and the precision recall AUC
 
-Tolerance is 1e-9 absolute on a target whose own scale is about 0.5. That is float noise,
+Tolerance is 1e-9 absolute on a target whose own scale is about 0.6. That is float noise,
 not a materiality threshold.
+
+The snapshot was re taken on 2026-09-21, at commit `f076bd9`, after the target definitions
+were re frozen in `docs/TARGET_DEFINITION_PROTOCOL.md` on 2026-09-19. The previous
+snapshot, taken at commit `1fbf6275`, pinned the earlier volume definition, a ratio minus
+one over the event day window, which the protocol replaced with a log ratio over the five
+sessions after the prediction origin. Those assertions could not pass and were not meant
+to: the definition they guarded no longer exists. The re freeze is recorded here and in
+`docs/refactor_validation.md` rather than done silently.
 
 A failure here is a stop and diagnose signal, not a number to re freeze. If one of these
 ever fails, find the cause, write it down in `docs/audit.md`, and only then consider
-regenerating the baseline.
+regenerating the baseline. Regenerating it is justified only by a deliberate, pre declared
+change to the target definition itself.
 
 ### 2.3 Leakage and chronology
 
@@ -83,8 +92,10 @@ differently from its censoring blind counterpart, which is the whole reason for 
 them. The sharpest test corrupts a censored row's prediction by a thousand days and asserts
 that the uncensored point error does not move.
 
-`tests/test_classifiers.py` covers the five label definitions, the metric calculations and
-the two stage hurdle model, including its degenerate fold fallback.
+`tests/test_classifiers.py` covers the six label definitions, the metric calculations and
+the two stage hurdle model, including its degenerate fold fallback. It also checks that the
+stage one drawdown label is defined for every event while the two duration labels drop the
+events that never fell, which is what the protocol requires of a conditional stage.
 
 ### 2.5 Experiment artifacts
 
@@ -110,6 +121,60 @@ the suite never depends on a live API.
 `tests/test_time_aware_smogn.py` asserts the augmentation constraints: synthetic rows are
 drawn only from training rows, only within the declared time window, and never exceed the
 pre registered share.
+
+### 2.7 Leakage, promoted out of the notebooks
+
+`tests/test_no_leakage.py` runs the guard that used to live only in a notebook cell, so it
+now fires under pytest without anyone opening a notebook. It asserts that the persisted
+feature specification shares no column with the declared non feature set, that every
+feature is dated at or before the prediction origin, and that the label end purge really
+does drop a training event whose horizon reaches into the test period.
+
+Two of its tests deliberately reintroduce the defect they guard against, confirm that the
+guard raises, and leave the correct state behind. A guard nobody has seen fail is not known
+to work.
+
+### 2.8 The realised response
+
+`tests/test_event_study.py` validates every event study statistic twice over: against a
+synthetic series with a known planted effect, where each must fire, and against a null
+series, where none may. It also pins the properties that make each statistic worth having,
+including that the Corrado statistic is invariant to a strictly increasing transform of the
+abnormal values while a mean based statistic is not, and that the Kolari and Pynnonen
+correction can only ever shrink a result.
+
+One test asserts the structural separation the design depends on: neither
+`src/evaluation/event_study.py` nor `src/evaluation/verification.py` imports the other.
+
+### 2.9 Informative censoring and the competing risks arm
+
+`tests/test_competing_risks.py` checks that the Aalen-Johansen estimator does what
+independent censoring cannot: when the competing event strikes early, its recovery
+incidence must be strictly lower than the Kaplan-Meier one, and when no competing event
+occurs at all the two must agree. It also holds the T3 demotion in place, asserting that no
+exported Y3 error column appears without a diagnostic label.
+
+### 2.10 The closed robustness list
+
+`tests/test_robustness_suite.py` compares what ran against the list pre declared in
+`docs/audit.md` Part 8.7, in both directions: nothing missing and nothing added. It also
+asserts that every unrunnable check carries a stated reason rather than being omitted, and
+that the small disaster type subgroups are never reported as standalone findings.
+
+### 2.11 The new targets
+
+`tests/test_volume_targets.py` holds the constraint that matters for target two: volume is
+unavailable for the 2000 archive year and for events after 2023, and a missing label must
+stay missing. Zero filling would assert that turnover sat exactly at its baseline when in
+fact it is unknown.
+
+`tests/test_abnormal_returns.py` holds the constraint that matters for the market adjusted
+return: the estimation window must close before the prediction origin. One test corrupts
+every session from the origin onward and asserts the fitted coefficients do not move.
+
+`tests/test_sample_flow.py` asserts that the sample accounting closes, and that recomputing
+it from the same inputs reproduces the cached table, so the figure quoted in the thesis can
+never drift from the pipeline.
 
 ## 3. What the suite does not check
 

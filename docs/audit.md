@@ -8,6 +8,22 @@ separate documents, in the order a reader should meet them.
 Read Part 1 first if you want to know what the pipeline does and why. Read Part 7 if you
 want to know how it got there, including what was tried and abandoned.
 
+**Naming note for entries written before 2026-09-19.** On that date the three target
+definitions were frozen in `docs/TARGET_DEFINITION_PROTOCOL.md`, which renamed two of the
+columns and changed their formulas. Entries below that predate the freeze use the earlier
+names and the earlier arithmetic, and they are kept verbatim because they are the record
+of what was actually run at the time. The mapping is:
+
+| Pre protocol column | Current column | What also changed |
+|---|---|---|
+| `Y1_ASPI_5D_Forward_LogReturn_Pct` | unchanged | the endpoint moved from `P[t0+5]` to `P5 = market[position + 4]` |
+| `Y2_abnormal_volume` | `Y2_5D_Forward_AbnormalVolume_LogRatio` | a ratio minus one became a log ratio |
+| `Y3_recovery_days` | `Y3_ASPI_Recovery_Time` | the drawdown gate narrowed to `P1..P5`, the scan starts at `k = 1` rather than the trough, and no drawdown became its own censor reason |
+| `Y1_EventWindow_0_10_LogReturn_Pct` | `Y1_ASPI_10D_Forward_LogReturn_Pct` | same alignment change as Y1 |
+
+Any number in this file that predates 2026-09-19 was produced under the earlier
+definitions. The current numbers are in `docs/results.md`.
+
 ## Contents
 
 1. Part 1. Frozen analysis protocol
@@ -17,6 +33,7 @@ want to know how it got there, including what was tried and abandoned.
 5. Part 5. Method comparison, before and against after
 6. Part 6. Thesis amendments
 7. Part 7. Full dated change log
+8. Part 8. Revision 2 pre-declaration
 
 
 ---
@@ -80,7 +97,7 @@ same short window,  that later drop was never seen because the search had alread
 
 ### 3. Features
 
-- 68 columns in `FEATURE_COLS` (`artifacts/feature_spec.json`).
+- 68 columns in `FEATURE_COLS` (`artifacts/results/feature_spec.json`).
 - Every engineered market-price column is ADF/KPSS-tested before admission
   (`notebooks/02_features_targets.ipynb` §2.2.1); a unit root (ADF fails to reject)
   excludes the column. This test runs on a **development-period-only** slice of the
@@ -163,7 +180,7 @@ same short window,  that later drop was never seen because the search had alread
 - Time-aware SMOGN, fit on the fold's real, post-purge training rows only, with the
   pre-registered 25% synthetic-share cap, applied per (fold, target) inside the target
   loop (never once per fold shared across targets).
-- SMOGN on/off was measured, not assumed (P2-6, `artifacts/smogn_ablation.parquet`):
+- SMOGN on/off was measured, not assumed (P2-6, `artifacts/tables/smogn_ablation.parquet`):
   helps Y1/Y2/Y3 on both RMSE and pooled R2; on `Y1_EventWindow_0_10` the two metrics
   move in opposite directions by ~1%, judged as fold-count noise (n=40 pooled points),
   not a real effect. **Decision: SMOGN stays ON for all 4 targets.**
@@ -284,7 +301,7 @@ claims rest on):
   `notebooks/06_evaluation.ipynb` §6.2.2 re-scores RF's pooled R2 restricted to the 69
   `exact_day` events, using the same cached out-of-fold predictions (no re-fit), as a
   check on whether the headline number depends on those 5 alignment-uncertain rows.
-  Reported in `artifacts/exact_date_sensitivity.parquet`.
+  Reported in `artifacts/tables/exact_date_sensitivity.parquet`.
 
 ### 9. What "one last clean run" means
 
@@ -311,7 +328,7 @@ Written on 2026-09-17 before any experiment in it was executed, so that the expe
 
 **Written 2026-09-17, BEFORE any experiment below was executed.**
 Baseline commit: `1fbf6275` (`git rev-parse HEAD` at freeze time).
-Frozen baseline artifact: `artifacts/frozen_baseline.json` (`scripts/freeze_baseline.py`).
+Frozen baseline artifact: `artifacts/results/frozen_baseline.json` (`scripts/freeze_baseline.py`).
 Test suite at freeze: **99 passed** (`pytest tests/ -q`), plus the 20 new Y2-freeze
 assertions in `tests/test_y2_frozen.py`.
 
@@ -400,7 +417,7 @@ held-constant factor, not a result-driven change: the grid's whole purpose is th
 paired A-vs-C and horizon comparisons, and an augmentation whose minority mask is
 defined from each fold's own target distribution would vary across the 4 horizons and
 3 information sets, confounding exactly the contrasts being measured. SMOGN's effect is
-already measured separately and reported (`artifacts/smogn_ablation.parquet`, ablation
+already measured separately and reported (`artifacts/tables/smogn_ablation.parquet`, ablation
 B6, protocol section 5), and the existing frozen Y1/Y2/Y3 pipeline keeps it ON and is
 untouched by this grid.
 
@@ -875,7 +892,7 @@ Evidence that the volume crash magnitude target did not move while the return an
 2026-09-17 Y1/Y3 improvement work was required to leave it untouched. This report is the
 before/after evidence, and `tests/test_y2_frozen.py` is the mechanical enforcement.
 
-* **Before** = commit `1fbf6275`, captured in `artifacts/frozen_baseline.json`
+* **Before** = commit `1fbf6275`, captured in `artifacts/results/frozen_baseline.json`
   (`scripts/freeze_baseline.py`), taken before a single line of improvement code existed.
 * **After** = the same artifacts re-read at the end of the improvement work.
 * **Tolerance** = `1e-9` absolute, on a target whose own scale is ~0.5. This is float
@@ -885,8 +902,8 @@ before/after evidence, and `tests/test_y2_frozen.py` is the mechanical enforceme
 
 The improvement work adds files; it changes no file the frozen pipeline reads.
 
-* The four Y1 horizon targets are built **in memory** from `artifacts/market.parquet`
-  (`src/targets/return_horizons.py`), not by regenerating `artifacts/dataset.parquet`.
+* The four Y1 horizon targets are built **in memory** from `artifacts/tables/market.parquet`
+  (`src/targets/return_horizons.py`), not by regenerating `artifacts/tables/dataset.parquet`.
   `dataset.parquet`,  which is where `Y2_abnormal_volume` lives,  is never rewritten, so
   Y2's target values cannot move.
 * `src/features/feature_engineering.py`, `src/training/walk_forward.py`,
@@ -955,7 +972,7 @@ one of them.
 ### Mechanical enforcement
 
 `tests/test_y2_frozen.py`,  20 tests, all passing,  asserts, against
-`artifacts/frozen_baseline.json`:
+`artifacts/results/frozen_baseline.json`:
 
 1. `test_y2_target_values_unchanged`,  all 74 Y2 values.
 2. `test_y2_event_sample_unchanged`,  the 74 event dates, in order.
@@ -986,7 +1003,7 @@ This is the before/after of *method*, not of numbers. The numbers are in
 and whether it was worth it. Several of these rows say "no measurable gain",  those are
 kept deliberately.
 
-Baseline = commit `1fbf6275`, frozen in `artifacts/frozen_baseline.json`.
+Baseline = commit `1fbf6275`, frozen in `artifacts/results/frozen_baseline.json`.
 
 ---
 
@@ -1061,7 +1078,7 @@ See `docs/Y2_FROZEN_VALIDATION_REPORT.md`.
 
 Roughly 75 minutes of compute for the Y1 grid (240 configurations x 4 folds with nested
 selection inside purged inner CV), ~1 minute for Y3. The Stage-A expected-return estimates
-are cached (`artifacts/aspi_expected_return_market_only.parquet`) because they depend only on frozen
+are cached (`artifacts/tables/aspi_expected_return_market_only.parquet`) because they depend only on frozen
 inputs.
 
 ### What was NOT done, and why
@@ -1930,7 +1947,7 @@ Given that the study exists to predict catastrophic impacts, a model with accept
 
 **Measured 2026-09-16 (E08/E09, RF, all 3 targets, same folds/purge/median-impute/
 selection/inner-CV, `use_smogn` the only difference, see
-`notebooks/04_modeling_regression.ipynb` §4.2b, `artifacts/smogn_ablation.parquet`):**
+`notebooks/04_modeling_regression.ipynb` §4.2b, `artifacts/tables/smogn_ablation.parquet`):**
 
 | target | RMSE no-SMOGN | RMSE with-SMOGN | pooled R2 no-SMOGN | pooled R2 with-SMOGN | verdict |
 |---|---|---|---|---|---|
@@ -2684,7 +2701,7 @@ A further feature/model pass was then run, cited and reasoned before implementat
   the test set) -> RF-importance top-k, on each fold's real training rows only. Standard
   filter-method combination for small-N tabular data (VIF/correlation pruning + importance
   ranking; a >0.75 correlation-pair diagnostic table is also generated and saved to
-  `artifacts/y1_feature_stability.csv`, but the ACTUAL drop threshold stays at the
+  `artifacts/tables/y1_feature_stability.csv`, but the ACTUAL drop threshold stays at the
   pre-registered 0.95, per author decision, not the harder 0.75 that would count as
   revising a pre-declared rule after seeing results).
 - **PCA**,  added as a reported ablation only (`notebooks/04_modeling_regression.ipynb`,
@@ -2818,7 +2835,7 @@ methodological win. 97/97 tests pass.
 ExtraTrees, single-task modeling, OOF ensemble weighting, shrinkage)
 
 See `scripts/run_aspi_return_experiments.py` for the full implementation and
-`artifacts/y1_experiments_ranked.csv` / `artifacts/y1_feature_stability.csv` for results.
+`artifacts/tables/y1_experiments_ranked.csv` / `artifacts/tables/y1_feature_stability.csv` for results.
 Numbers appended below once the run completes.
 
 #### 2026-09-16: methodology-audit freeze, target names, units, inclusion threshold
@@ -3251,7 +3268,7 @@ real index before recording.
 Added `notebooks/06_evaluation.ipynb` §6.2.2, which re-scores RF's pooled R2 restricted
 to the 69 `exact_day` events using the SAME cached out-of-fold predictions (no re-fit,
 just a filtered evaluation via the row-index tracking above). Result
-(`artifacts/exact_date_sensitivity.parquet`): all 4 targets move by a few hundredths of
+(`artifacts/tables/exact_date_sensitivity.parquet`): all 4 targets move by a few hundredths of
 R2 in either direction (e.g. Y1 0.058 -> 0.073, Y2 0.176 -> 0.156), no target's
 headline number depends on the 5 imprecise-date rows in a way that would change its
 qualitative conclusion.
@@ -3260,7 +3277,7 @@ qualitative conclusion.
 already implemented in `scripts/run_aspi_return_experiments.py` (a `feature_log` /
 `selection_frequency` table, written but the script had never been run, flagged as
 pending in this document since 2026-09-14). Running it as part of this pass produced
-`artifacts/y1_feature_stability.csv` for real, closing the gap for Y1 (the study's
+`artifacts/tables/y1_feature_stability.csv` for real, closing the gap for Y1 (the study's
 primary magnitude target); the other targets don't have an equivalent per-fold
 stability table, which is a real but smaller residual scope gap, not something silently
 claimed as done.
@@ -3474,3 +3491,281 @@ no importer anywhere in the Y2 path.
 The pre-declared grid is complete and the pipeline is frozen again. No further horizon,
 algorithm, threshold, target, feature-count increase, observation removal or variant search
 follows from these results.
+
+---
+
+# Part 8. Revision 2 pre-declaration
+
+**Dated:** 2026-09-22
+**Baseline commit:** `fbe2699` (`refactor-4`)
+**Status:** frozen before any result under these revisions was produced.
+
+This section responds to the supervisor review recorded in
+`CSE_Repo_Change_Specification.pdf`. It is written before any of the code changes it
+describes were made, so that every decision below is a pre-declaration rather than a
+report. Nothing in Parts 1 to 7 is edited; this Part is additive, and Part 7's change log
+carries one dated entry per task.
+
+## 8.1 What stays fixed
+
+The three target definitions frozen on 2026-09-19 at commit `928a255`
+(`docs/TARGET_DEFINITION_PROTOCOL.md`) are unchanged. The seed stays at 42. Validation
+stays a chronological walk forward over events, thirty training events, ten test events,
+step ten, four folds, forty pooled held out predictions per target. No shuffled cross
+validation is introduced anywhere. No new machine learning model is added to the primary
+analysis.
+
+## 8.2 Horizons
+
+**Primary horizon: five trading sessions.** Secondary, reported as sensitivity analyses
+and never promoted: one, ten, fifteen and twenty sessions. The one session horizon is
+added by this revision (T4) as a robustness test only.
+
+## 8.3 The information set partition, by availability
+
+The existing partition by data source (market only, disaster only, combined) is kept and a
+second, orthogonal partition by availability at the prediction origin is added (T1):
+
+**Real time**, demonstrably knowable at the prediction origin: lagged returns, moving
+average ratios, rolling volatility, GARCH conditional volatility, volume ratios, exchange
+rate returns and volatility, the S&P 500 return, election proximity, the disaster type one
+hots, days since the last disaster, disasters in the trailing 365 days, and the event date
+precision flag.
+
+**Ex post**, finalised after the prediction origin: every EM-DAT severity and magnitude
+column, every DesInventar `di_*` column, every NASA POWER `hz_*` column, and the annual
+World Bank macro columns including `macro_available`. NASA POWER reanalysis is published
+with a lag of several days and is therefore classed ex post; it will not be reclassified
+without documented same origin availability.
+
+Every feature column belongs to exactly one of the two. A column absent from either
+partition raises, exactly as an unassigned column already raises for the source partition.
+
+## 8.4 The confirmatory comparison family
+
+The return grid may still run in full, at 240 configurations and 720 comparisons, but the
+family wise correction no longer spans all of it. A configuration is **confirmatory** when
+all four of the following hold:
+
+1. the horizon is five sessions;
+2. the information set is `real_time` or `ex_post`;
+3. the feature capacity is **k = 10**;
+4. the model is one of the reduced set below.
+
+**The capacity is pre-declared here at k = 10** on two grounds that do not reference any
+result: with thirty training events it is the conventional floor of three observations per
+retained feature, and it is the capacity the existing direction analysis was already
+declared at. The other declared capacities, five and twenty, remain in the grid as
+exploratory.
+
+**Reduced model set**, four entries:
+
+| Slot | Model |
+|---|---|
+| Benchmark | `naive_zero` and `naive_train_mean` |
+| Parsimonious linear | Ridge |
+| Tree ensemble | Random Forest |
+| Nonlinear | the shallow MLP |
+
+`elastic_net` and `xgboost` are explicitly **not** confirmatory and are reported as
+exploratory. The MLP is retained in the confirmatory set specifically because it is the
+current best performer on the volume target, and under T8 it must be re-derived with the
+same purged inner cross validation search as Ridge and Random Forest before that result
+may be reported. Whatever the parity run produces is the finding.
+
+Holm correction is applied to the confirmatory family only, its size is printed, and every
+non confirmatory comparison is written to a separate exploratory artifact and is never
+corrected jointly with the primary family.
+
+## 8.5 The recovery target
+
+**The survival analysis is primary for Y3.** The ordinary regression treatment is retained
+for comparability with the existing literature but is demoted to a **disclosed
+diagnostic**: squared error is not defined for a right censored duration, and sixteen of
+the fifty two drawdown events are censored. No Y3 RMSE, MAE or R squared value will appear
+in an exported table without an explicit diagnostic label (T3).
+
+Censoring by a subsequent qualifying disaster is **informative**, not independent: an event
+that has not recovered is more likely to be overtaken. A competing risks estimator is
+therefore added (T2), together with a sensitivity run that excludes the events censored
+that way, so the two treatments can be compared.
+
+## 8.6 The realised response is a separate question from forecastability
+
+A new event study inference module (T11) estimates and tests the realised market response
+using the published statistics: a cross sectional t test, the Boehmer, Musumeci and Poulsen
+standardised residual test, the Corrado rank test, and the Kolari and Pynnonen adjustment
+for cross sectional correlation. It is kept structurally separate from the forecast
+evaluation in `src/evaluation/verification.py`, and neither imports the other's decision
+rules. The distinction between a measurable realised effect and out of sample
+forecastability is the study's central contribution and must remain visible in the code.
+
+## 8.7 The robustness suite, pre-declared and closed
+
+One runner (T15) executes exactly the following list, once, into one consolidated table.
+Each check reports its held out sample size, its error metric, its comparison against the
+designated benchmark, and an uncertainty interval.
+
+1. Restrict the sample to disasters with exact event dates.
+2. Compare the five, ten and twenty session return horizons.
+3. Compare raw ASPI returns against the market adjusted abnormal returns from T6.
+4. Compare the real time and ex post information sets from T1.
+5. Exclude, and separately analyse, the 2004 tsunami, the COVID-19 period and the 2022
+   Sri Lankan economic crisis.
+6. Run under both the sliding and the expanding training window from T9.
+7. Leave one event out sensitivity, and a variant excluding the most influential
+   disasters.
+8. Compare across disaster types where the subgroup supports it. Subgroup sizes are flood
+   51, storm 15, drought 5, other 3. Every subgroup result carries its size, and drought
+   and other are never reported as standalone findings.
+9. Examine the consequences of overlapping event windows and clustered disasters.
+10. Repeat the principal analysis without SMOGN.
+11. Repeat the principal analysis without the highest missingness variables.
+
+**This list is closed.** No check is added after a result is seen, no check is dropped
+because its result is unfavourable, and the suite is not run more than once. In the primary
+folds SMOGN generates zero synthetic rows for Y1 and five each for Y2 and Y3 against thirty
+real training rows, so check 10 is expected to change very little; that outcome will be
+reported as it stands. Any check that cannot be run appears in the table with its reason
+rather than being omitted.
+
+## 8.8 The remaining tasks in this revision
+
+| Task | What it declares |
+|---|---|
+| T1 | the availability partition in 8.3 |
+| T2 | competing risks estimator plus the exclusion sensitivity run, 8.5 |
+| T3 | Y3 regression demoted to a disclosed diagnostic, 8.5 |
+| T4 | the one session return horizon, 8.2, registered as a non feature |
+| T5 | Y2 at one, five, ten and twenty session windows, a percentage form, and a winsorised variant. Five sessions stays primary. Missing volume stays missing and is never zero filled |
+| T6 | a market adjusted abnormal return target at every horizon, estimated only on sessions settling strictly before the prediction origin. The raw return stays primary |
+| T7 | the confirmatory family in 8.4 |
+| T8 | parity of hyperparameter search across every confirmatory model, 8.4 |
+| T9 | an expanding window validation mode, defaulting to sliding so existing behaviour is unchanged |
+| T10 | `STUDY_END` of 2025-12-31 bounding event eligibility, and a market data bound ninety sessions after the last qualifying event. The event count and the fold spans must be unchanged by the truncation, and the comparison will be reported |
+| T11 | the event study module in 8.6 |
+| T12 | a sample selection flow accounting reconciling 110 raw records to 94 qualifying to 74 modelled |
+| T13 | the leakage check promoted from a notebook cell into the test suite |
+| T14 | an exact dependency lock file beside the existing loose requirements |
+| T15 | the closed robustness list in 8.7 |
+| D1 | the repository description, corrected in `docs/repository_metadata.md`; the GitHub About field itself is a site setting and must be applied by the owner |
+| D2 to D6 | documentation and metadata corrections, including withdrawing the "pre-registered" claim for the study as a whole in favour of the narrower, verifiable statement that the target definitions and evaluation rules were frozen on 2026-09-19 at commit `928a255` before any performance under them was observed |
+
+## 8.9 Licence change, on the owner's instruction
+
+**2026-09-22.** The repository licence changed from all rights reserved to the **MIT
+licence for the code**, on the owner's explicit instruction, in response to D5 of the
+review. The review asks that the code, seeds, versions and workflow be provided so the
+results can be verified, and the previous terms did not permit that.
+
+The change is deliberately narrow. MIT covers `src/`, `scripts/`, `tests/`, `apps/`,
+`notebooks/` and `docs/`. It covers **no** third party data: EM-DAT, the Colombo Stock
+Exchange archive, the World Bank, NASA POWER, DesInventar, FRED and Wikidata each keep
+their own terms, and the `LICENSE` file says so explicitly rather than leaving it implied.
+
+Anyone who relied on the previous terms is affected, and the earlier entry in
+`docs/refactor_validation.md` recording the move to all rights reserved is now historical.
+
+## 8.10 Stop condition for this revision
+
+The list above is complete and closed. A negative result is an acceptable outcome, and the
+study's contribution stands either way: a measurable realised market reaction to a natural
+disaster does not imply that reaction can be forecast out of sample. No further target,
+horizon, algorithm, threshold, feature count or observation removal follows from whatever
+these revisions produce.
+
+
+## 8.11 Change log for Revision 2, and the single final run
+
+Dated 2026-09-22. This section records what each task changed and where its result now
+lives. It is appended, as Part 8 has been throughout; nothing above it was edited.
+
+| Task | What changed | Files touched | Artifact produced |
+|---|---|---|---|
+| T0 | Revision 2 pre-declaration, written before any new result | `docs/audit.md` Part 8 | none, documentation |
+| T1 | Second, orthogonal partition of the features by availability at the prediction origin: `REALTIME_FEATURES` (37) and `EXPOST_FEATURES` (31). `information_sets()` returns five keys, and raises on a column missing from either partition | `src/targets/return_horizons.py`, `scripts/run_aspi_return_grid.py` | `artifacts/results/feature_spec.json` gains `AVAILABILITY_CLASS` |
+| T2 | Aalen-Johansen cumulative incidence, chosen over Fine-Gray because the arm is a marginal baseline carrying no covariates, plus a sensitivity run excluding the ten events censored by a subsequent disaster | `src/models/survival_recovery.py`, `scripts/run_recovery_survival_grid.py` | `recovery_grid_metrics.parquet` and `*_excl_competing.parquet` |
+| T3 | `Y3_REGRESSION_IS_DIAGNOSTIC = True`; every Y3 regression row is labelled a censoring-blind diagnostic, and the survival grid is the primary Y3 table | `src/config/settings.py`, `scripts/build_final_tables.py` | `final_table_recovery.csv`, `final_table_recovery_regression_diagnostic.csv` (18 rows, all labelled) |
+| T4 | `HORIZONS = (1, 5, 10, 15, 20)`, `PRINCIPAL_HORIZON` unchanged at 5. The new column is registered in `NON_FEATURE_COLS` | `src/targets/return_horizons.py`, `src/config/settings.py` | new horizon columns in `dataset.parquet` |
+| T5 | Y2 at 1, 5, 10 and 20 sessions against the same thirty-session baseline, the percentage form `100 * (exp(Y2) - 1)`, and a winsorised variant. Missing volume stays missing | `src/targets/event_targets.py` | new Y2 columns in `dataset.parquet` |
+| T6 | Market model moved out of the grid script into a target module; abnormal return per horizon, estimated strictly on pre-origin sessions. Factor alignment accumulates, forward-fills and differences, to survive the CSE/S&P calendar mismatch | `src/targets/abnormal_returns.py` (new) | abnormal return columns in `dataset.parquet` |
+| T7 | `confirmatory` flag on the metrics and verdict tables; Holm applied to that subset only; exploratory comparisons written separately | `scripts/run_aspi_return_grid.py`, `src/evaluation/verification.py` | `aspi_grid_verdicts.parquet` (18 confirmatory), `aspi_grid_verdicts_exploratory.parquet` (1332) |
+| T8 | Tuned-versus-untuned asymmetry removed. In the notebook arm the Gaussian process kernel, the SVR `C` and the quantile `alpha` are now selected on the same purged inner splits as ridge, random forest and XGBoost; the MLP is excluded from the notebook confirmatory set and reported as exploratory there, and is tuned inside the confirmatory family in the grid | `notebooks/04_modeling_regression.ipynb`, `scripts/run_aspi_return_grid.py` | `results_regression.pkl` |
+| T9 | `mode` parameter on the split generator, sliding by default so nothing existing moves, expanding starts the training block at index zero | `src/training/walk_forward.py` | used by T15 |
+| T10 | `STUDY_END` at 2025-12-31 and a market-data bound ninety sessions after the last qualifying event. Series truncated 6366 to 6266 sessions, ending 2026-04-16 | `src/config/settings.py`, `src/data/cse_market_data.py` | `market.parquet` |
+| T11 | Event-study inference, structurally separate from `verification.py` and asserted so by an AST import check in both directions | `src/evaluation/event_study.py` (new), `scripts/run_event_study.py` | `event_study_*.parquet`, event-time figures |
+| T12 | Sample-selection flow instrumented at every exclusion | `src/data/emdat_disasters.py`, `src/features/feature_engineering.py` | `sample_flow.parquet`, flow figure |
+| T13 | Leakage check promoted out of the notebook and into pytest | `tests/test_no_leakage.py` (new) | none, test only |
+| T14 | Exact lock file, the transitive closure of `requirements.txt` rather than a bare pip freeze | `config/requirements.lock.txt` (new), `README.md` | 141 packages, Python 3.12.10 |
+| T15 | One runner over the closed list, one consolidated table | `scripts/run_robustness_suite.py` (new) | `robustness_suite.parquet`, 26 checks |
+| D1 | Repository description corrected; the About field is a github.com setting and needs the owner | `docs/repository_metadata.md` (new) | none |
+| D2 | README states the log-ratio definition and the percentage companion | `README.md` | none |
+| D3 | Volume verdict restated under T8 parity as Qualified rather than Yes, with the 34 held-out points and the structured missingness beside it | `README.md` | none |
+| D4 | The pre-registration claim narrowed to the one that is verifiable | `README.md`, `docs/architecture.md` | none |
+| D5 | MIT on the code, separate explicit terms for the third-party data, on the owner's instruction | `LICENSE` | none |
+| D6 | `FORWARD_ABNORMAL_VOLUME`; `VOLUME_CRASH_MAGNITUDE` kept as a deprecated alias; the frozen column string is untouched | `src/config/settings.py` | none |
+
+### The frozen Y2 baseline was re-anchored, and why
+
+`tests/test_volume_target_frozen.py` failed on eight assertions after the re-run. The
+cause is T8 and nothing else: the Gaussian process, the SVR and the quantile regressor
+now select their hyperparameters on the purged inner splits instead of carrying fixed
+values, so their predictions moved. Exactly those three models failed, and every model
+that was already tuned passed unchanged.
+
+What did not move is what the freeze exists to protect: the Y2 target values, the event
+sample, the fold definitions and the classification results all passed untouched. The
+baseline had been frozen at commit `f076bd96`, which predates T8, and T8's own acceptance
+criterion requires the volume verdict to be recomputed under parity and reported as it
+comes out. The baseline was therefore re-anchored at commit `9043bbf7`, and the previous
+one is retained beside it as `artifacts/results/frozen_baseline_superseded_f076bd96.json`
+so that the move stays auditable rather than being erased.
+
+### One defect found and fixed during the run
+
+`scripts/run_aspi_return_grid.py` reused a cached stage-A expected-return table without
+checking that it covered the current `HORIZONS`. T4 added the one-session horizon, the
+cache had been written without it, and the grid died on a `KeyError`. The cache is now
+reused only when it carries every horizon in `HORIZONS`, and otherwise refits and says
+which were missing. Stage A was refit, giving an estimate for 69 of 74 events at every
+horizon.
+
+### A number in the pre-declaration that the run superseded
+
+Part 8.4 describes the return grid as 240 configurations and 720 comparisons, because that
+is what it was when the pre-declaration was written. T1 then added the real_time and
+ex_post information sets and T4 added the one-session horizon, which widened it to 465
+configurations and 1350 comparisons. The confirmatory family is unaffected: it was
+pre-declared as horizon 5, the two availability information sets, capacity 10 and three
+model families, and it ran at exactly that, 18 comparisons. Part 8.4 is left as written,
+because a pre-declaration that is edited after the fact is not a pre-declaration.
+
+### The single final run
+
+Executed 2026-09-22 in the order Section 2 mandates. Notebooks 01, 02 and 03 had already
+been re-run under Phase 1. Notebook 04 ran 11:50 to 14:53, notebook 05 to 15:07,
+notebook 06 to 15:10, the return grid 15:10 to 17:50, then `train_final_models.py`,
+`build_final_tables.py` and `audit_results.py`. Full suite: 226 passed.
+
+Fold geometry is unchanged by everything above: four outer folds, thirty training events,
+ten test events, three inner splits, forty pooled held-out points. The event count remains
+74 and the sample flow still reconciles 110 to 94 to 74.
+
+### Results, stated in the direction they landed
+
+- Y1 magnitude: 0 of 450 configurations significant on even a single uncorrected test;
+  0 of the 18 confirmatory comparisons had an interval excluding zero; smallest Holm
+  corrected p is 0.641.
+- Y1 direction at the pre-declared ten-session horizon: ROC AUC 0.817, interval
+  [0.657, 0.940], Holm corrected p below 0.001. This is the only comparison anywhere in
+  the study that survives a family-wise correction.
+- Y2: pooled R squared 0.334 for the ensemble, 0.303 for the random forest. The random
+  forest interval excludes zero against both baselines but does not survive Holm,
+  corrected p 0.078, on 34 held-out points with structured missingness.
+- Y3: every concordance interval contains 0.5; the Kaplan-Meier and Aalen-Johansen
+  baselines carry the best integrated Brier scores.
+- Realised response: no detectable return response, CAAR(1,5) = +0.0006 with all p above
+  0.85. Volume CAAR(1,5) = +0.63 log points, with only the Corrado rank test firing,
+  p = 0.024, against BMP p = 0.186 and Kolari-Pynnonen p = 0.298.
+- Real time against ex post on the principal analysis: +0.0930 against +0.0932. Finalised
+  severity information adds essentially nothing.

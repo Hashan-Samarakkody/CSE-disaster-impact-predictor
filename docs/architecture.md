@@ -23,34 +23,56 @@ severity, what was the market response.
 ## 2. The three prediction targets
 
 The repository has exactly three research targets. They are defined in
-`src/targets/event_targets.py` and every one of them is measured per event.
+`src/targets/event_targets.py`, frozen in `docs/TARGET_DEFINITION_PROTOCOL.md`, and every
+one of them is measured per event.
 
-1. **ASPI percentage change**, column `Y1_ASPI_5D_Forward_LogReturn_Pct`, computed by
-   `calculate_aspi_percentage_change`. The forward log return in percent from the last pre
-   event close over five trading sessions: 100 ln(P at t plus 5 divided by P at t minus 1),
-   where t is the first trading session on or after the disaster date.
-2. **Volume crash magnitude**, column `Y2_abnormal_volume`, computed by
-   `calculate_volume_crash_magnitude`. Mean traded volume over the five post event sessions
-   t0 to t0+4, with t0 counted as the first, relative to its own trailing thirty session
-   mean, minus one. Its label end date is the final session of that window, t0 plus four,
-   not t0: the walk forward purge reads it, and dating it at t0 would leave training rows
-   whose window overlaps the test period unpurged.
-3. **Market recovery days**, column `Y3_recovery_days`, computed by
-   `calculate_market_recovery_days`. The number of trading sessions until the index regains
-   its pre event level, right censored at ninety sessions or at the next qualifying
-   disaster, whichever comes first.
+Common notation. `tau` is the moment the disaster becomes known. `P0` is the last ASPI
+close fully observed before `tau`. `Pk` is the close of the kth complete session after
+`tau`, and `Vk` is that session's market wide traded volume. In code, the first complete
+session after `tau` is `position`, so `P0 = market[position - 1]` and
+`Pk = market[position + k - 1]`.
 
-Two things that look like extra targets are not. The column
-`Y1_EventWindow_0_10_LogReturn_Pct` is the same formula for target one over ten sessions,
-carried as a pre registered sensitivity analysis. The five classification labels in
-`src/models/classifiers.py` are binary views of the same three targets, for example
-"was the return negative" and "did recovery take longer than the median". Neither adds a
-fourth research question.
+1. **ASPI return magnitude**, column `Y1_ASPI_5D_Forward_LogReturn_Pct`, computed by
+   `calculate_aspi_forward_log_return`. The forward log return in percent over the first
+   five complete sessions, `100 ln(P5 / P0)`. Its label end date is the session of `P5`.
+   Support is unbounded.
+2. **Forward abnormal trading volume**, column
+   `Y2_5D_Forward_AbnormalVolume_LogRatio`, computed by
+   `calculate_forward_abnormal_volume`. The log ratio of mean volume over the five post
+   event sessions to the mean of the thirty sessions before `tau`,
+   `ln(mean(V1..V5) / mean(V_-30..V_-1))`. Its label end date is the session of `V5`, not
+   the prediction origin: the walk forward purge reads it, and dating it at the origin
+   would leave training rows whose response window overlaps the test period unpurged.
+   A reader converts it back with `100 (exp(Y2) - 1)` percent above or below normal.
+3. **Market recovery duration**, column `Y3_ASPI_Recovery_Time`, computed by
+   `calculate_recovery_time`. A time to event outcome, not ordinary regression. A
+   drawdown flag `D = 1` when `min(P1..P5) < P0`; conditional on that, the duration is the
+   first session `k` at which `Pk >= P0` after an earlier dip below it, right censored at
+   ninety sessions or at the next qualifying disaster, whichever comes first. Events with
+   `D = 0` carry duration zero with no event observed and the censor reason
+   `no_drawdown`, so a survival model cannot read them as instant recoveries. The
+   companion columns are `Y3_event_observed`, `Y3_censored`, `Y3_censor_reason` and
+   `Y3_drawdown_occurred`.
 
-Column names are frozen. They appear inside cached artifacts and inside the regression test
-that holds the volume target fixed, so renaming them would invalidate the research record.
-`src/config/settings.py` carries readable aliases, `ASPI_PERCENTAGE_CHANGE`,
-`VOLUME_CRASH_MAGNITUDE` and `MARKET_RECOVERY_DAYS`, which is what new code should import.
+Two things that look like extra targets are not. The columns
+`Y1_ASPI_{10,15,20}D_Forward_LogReturn_Pct` are target one over longer horizons, carried
+as pre registered sensitivity analyses and never promoted to primary. The six
+classification labels in `src/models/classifiers.py` are binary views of the same three
+targets: `C0_drawdown_occurs` is stage one of the target three architecture,
+`C1_negative_return` and `C1b_adverse_move` are directional views of target one,
+`C2_volume_spike` is the sign of target two, and `C3_recovers_in_90` and
+`C3b_slow_recovery` are stage two views of target three. Neither group adds a fourth
+research question.
+
+Column names are frozen. They appear inside cached artifacts and inside the regression
+tests that hold target construction fixed, so renaming them would invalidate the research
+record. `src/config/settings.py` carries readable aliases, `ASPI_PERCENTAGE_CHANGE`,
+`FORWARD_ABNORMAL_VOLUME` and `MARKET_RECOVERY_DAYS`, which is what new code should
+import. `VOLUME_CRASH_MAGNITUDE` remains as a deprecated alias of the second: the old name
+presupposed a fall, but 23 of the 61 observed values are positive, so the neutral name is
+the one to use.
+
+The target definitions and evaluation rules were frozen in this repository on 19 September 2026 at commit `928a255`, before any performance under them was observed. The feature set was not pre registered: GARCH volatility, NASA POWER hazard intensity, DesInventar severity and election proximity were all added after the proposal, and the study does not claim otherwise.
 
 ## 3. Major data sources
 
@@ -117,7 +139,7 @@ target hold by construction rather than by care.
 | Script | Purpose | Cost |
 |---|---|---|
 | `scripts/freeze_baseline.py` | snapshot every target value, fold, prediction and metric into `frozen_baseline.json` | instant |
-| `scripts/run_aspi_return_grid.py` | the 240 configuration return prediction grid | about 75 minutes |
+| `scripts/run_aspi_return_grid.py` | the 465 configuration return prediction grid | about 160 minutes |
 | `scripts/run_recovery_survival_grid.py` | the censoring aware recovery survival grid | about 1 minute |
 | `scripts/build_final_tables.py` | assemble the final result tables from the two grids | instant |
 
@@ -134,7 +156,7 @@ These are described in `docs/experiments.md`.
 
 ```
 README.md                  what the project is and how to run it
-LICENSE                    all rights reserved, permission required
+LICENSE                    MIT for the code; third party data keeps its own terms
 config/requirements.txt    pinned dependency list
 data/raw/                  CSE workbooks and the EM-DAT export
 data/external/             market capitalisation and the ADB reference workbook

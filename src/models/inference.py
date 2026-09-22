@@ -17,7 +17,7 @@ ARTIFACTS = ROOT / "artifacts"
 
 DISASTER_TYPES = ["Drought", "Flood", "Other", "Storm"]
 
-# Y1's description was stale twice over before this fix (methodology-audit findings #1
+# Reader-facing names for the three targets and the 10-session sensitivity variant.
 TARGET_LABELS = {
     "Y1_ASPI_5D_Forward_LogReturn_Pct": "5-day cumulative return from the pre-event close",
     "Y2_5D_Forward_AbnormalVolume_LogRatio": "Forward abnormal volume, ln(mean V1..V5 / V_base)",
@@ -25,8 +25,9 @@ TARGET_LABELS = {
     "Y1_ASPI_10D_Forward_LogReturn_Pct": "10-day cumulative return",
 }
 
-# C1/C1b's "day-0" descriptions were also stale (same fix, finding #8), there is no
+# Plain English statement of what each binary label asks.
 LABEL_DESCRIPTIONS = {
+    "C0_drawdown_occurs": "ASPI falls below its pre-event close within five sessions",
     "C1_negative_return": "5-day cumulative return is negative",
     "C1b_adverse_move": "5-day cumulative return below this fold's bottom tercile",
     "C2_volume_spike": "Volume exceeds its own 30-day baseline",
@@ -65,7 +66,7 @@ class ModelBundle:
             "Y1_ASPI_10D_Forward_LogReturn_Pct": (None, None),
         }
 
-    # ------------------------------------------------------------ events
+    # events
 
     def list_events(self) -> pd.DataFrame:
         cols = ["event_date", "disaster_type", "population_affected", "financial_damage",
@@ -79,7 +80,7 @@ class ModelBundle:
     def event_row(self, event_id: int) -> pd.Series:
         return self.dataset.loc[event_id]
 
-    # ------------------------------------------------------------ feature reconstruction
+    # feature reconstruction
 
     def build_feature_row(self, event_id: int, overrides: dict) -> pd.Series:
         """Real event's feature row, with severity overrides applied and every
@@ -132,7 +133,7 @@ class ModelBundle:
         # row is about to be scored by, not a blanket zero.
         return numeric.fillna(self.median_impute_values).fillna(0.0)
 
-    # ------------------------------------------------------------ prediction
+    # prediction
 
     def clip_to_bounds(self, target: str, value: float) -> float:
         lo, hi = self.target_bounds[target]

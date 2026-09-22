@@ -13,7 +13,7 @@ def evaluate_regression(y_true, y_pred):
     return {"rmse": rmse, "mae": mae, "r2": r2}
 
 
-# --------------------------------------------------------------- target bounds
+# target bounds
 
 # Thesis Sec. 3.2.2. Clipping to a target's definitional support is projection, not a
 # tuned post-process: every true value already lies inside, so absolute error cannot
@@ -31,7 +31,7 @@ def clip_to_bounds(target: str, values):
     return np.clip(np.asarray(values, dtype=float), lo, hi)
 
 
-# --------------------------------------------------------------- pooling
+# pooling
 
 
 def pooled_arrays(results: dict, model: str, target: str):
@@ -84,7 +84,7 @@ def pooled_frame(results, model, target, splits, dataset, y=None, date_col="even
     return frame
 
 
-# --------------------------------------------------------------- intervals and CIs
+# intervals and CIs
 
 
 def wilson_ci(k, n, z=1.96):

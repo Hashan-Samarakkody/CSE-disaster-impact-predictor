@@ -1,5 +1,5 @@
 {
-  "written_utc": "2026-09-19T09:17:34+00:00",
+  "written_utc": "2026-09-21T08:36:05+00:00",
   "python": "3.12.10",
   "platform": "Windows-11-10.0.26200-SP0",
   "versions": {
@@ -55,7 +55,7 @@
     "Y3_censor_reason",
     "Y3_drawdown_occurred",
     "Y3_label_end_date",
-    "Y1_sector_car_10",
+    "Y1_sector_log_return_10d",
     "Y1_10D_horizon_end_date",
     "Y1_ASPI_15D_Forward_LogReturn_Pct",
     "Y1_15D_horizon_end_date",

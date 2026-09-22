@@ -25,8 +25,16 @@ import pandas as pd
 
 BASELINE_SESSIONS = 30
 ASPI_FORWARD_SESSIONS = 5
-ASPI_SENSITIVITY_HORIZONS = (10, 15, 20)
+# 1 session is a robustness test (Revision 2, T4); 10/15/20 are the original
+# pre-declared sensitivities. None is ever promoted to primary.
+ASPI_SENSITIVITY_HORIZONS = (1, 10, 15, 20)
 VOLUME_RESPONSE_SESSIONS = 5
+# Response-window sensitivities for Y2 (Revision 2, T5), against the same 30-session
+# baseline. The 5-session window stays primary; none of these is ever promoted.
+VOLUME_SENSITIVITY_WINDOWS = (1, 10, 20)
+# A priori winsorisation limits for the Y2 outlier-sensitivity column. Fixed before any
+# result was seen, never tuned.
+VOLUME_WINSOR_QUANTILES = (0.05, 0.95)
 DRAWDOWN_WINDOW = 5
 MAX_RECOVERY_SESSIONS = 90
 
@@ -79,13 +87,9 @@ def calculate_forward_abnormal_volume(market, position, volume_col="trading_volu
                                       date_col="date"):
     """Y2 = ln( mean(V1..V5) / mean(V_{-30}..V_{-1}) ).
 
-    Returns (value, label_end_date, v_base, v_future). The label end date is the session
-    of V5 -- the purge reads it, and dating it at the origin would leave training rows
-    whose response window overlaps the test period unpurged.
-
-    NaN when the frame carries no volume column (the sector indices, where the exchange
-    publishes volume market wide only), when the baseline is short or non-positive, or
-    when the response window would run off the end of the series.
+    Returns (value, label_end_date, v_base, v_future); the label end date is V5's session,
+    which the purge reads. NaN when the frame carries no volume column, when the baseline
+    is short or non-positive, or when the response window runs off the end of the series.
     """
     if volume_col not in market.columns:
         return np.nan, pd.NaT, np.nan, np.nan
@@ -127,23 +131,14 @@ def find_competing_event_position(market, event_dates_sorted, row_index, date_co
 def calculate_recovery_time(market, position, b, t_next=None,
                             max_sessions=MAX_RECOVERY_SESSIONS,
                             drawdown_window=DRAWDOWN_WINDOW, price_col="aspi_close"):
-    """Y3 as a time-to-event outcome.
+    """Y3 as a time-to-event outcome, per TARGET_DEFINITION_PROTOCOL.md section 3.
 
     Returns (duration, event_observed, censor_reason, drawdown_occurred).
-
-        D          = 1 if min(P1..P5) < B
-        T_recovery = min{k >= 1 : Pk >= B and there exists j < k with Pj < B}
-        T_observed = min(T_recovery, T_next, 90)
-        event      = 1 only if T_recovery < T_next and T_recovery <= 90
-
-    The scan starts at k = 1, not at the trough: the specification requires the first
-    session that regains B after ANY prior dip, and anchoring on the trough would skip a
-    genuine recovery that precedes a later, deeper dip.
-
-    D = 0 is a distinct state, not a zero-length recovery. It carries duration 0 with
-    event_observed = 0 so that a survival model cannot mistake it for an instant
-    recovery; stage 1 predicts D, stage 2 is fitted on D = 1 only.
+    D = 0 is a distinct state, not a zero-length recovery: duration 0 with no event
+    observed, so a survival model cannot read it as an instant recovery.
     """
+    # The scan starts at k = 1, not at the trough. Anchoring on the trough would skip a
+    # genuine recovery that precedes a later, deeper dip.
     if not np.isfinite(b) or b <= 0:
         return np.nan, 0, "no_baseline", False
 
@@ -175,6 +170,40 @@ def calculate_recovery_time(market, position, b, t_next=None,
     if t_recovery < nxt and t_recovery <= max_sessions:
         return float(t_recovery), 1, "recovered", True
     return float(min(nxt, cap)), 0, ("next_disaster" if nxt <= cap else "90_day_cap"), True
+
+
+def volume_window_col(window: int) -> str:
+    """Dataset column holding Y2 over a `window`-session response window."""
+    return f"Y2_{window}D_Forward_AbnormalVolume_LogRatio"
+
+
+def volume_window_end_col(window: int) -> str:
+    """Dataset column holding the session on which the `window`-session Y2 closes."""
+    if window == VOLUME_RESPONSE_SESSIONS:
+        return "Y2_horizon_end_date"
+    return f"Y2_{window}D_horizon_end_date"
+
+
+def abnormal_volume_percent(log_ratio):
+    """Y2 as a percentage deviation from baseline turnover: 100 * (exp(Y2) - 1).
+
+    The reader-facing form. A log ratio of 0.4055 is +50 percent.
+    """
+    return 100.0 * (np.expm1(np.asarray(log_ratio, dtype=float)))
+
+
+def winsorise(values, quantiles=VOLUME_WINSOR_QUANTILES):
+    """Clip to the given quantiles of the OBSERVED values, leaving NaN untouched.
+
+    The quantiles are full-sample, so the result is a descriptive sensitivity column.
+    A model would need in-fold quantiles instead.
+    """
+    arr = np.asarray(values, dtype=float)
+    observed = arr[np.isfinite(arr)]
+    if len(observed) == 0:
+        return arr
+    low, high = np.quantile(observed, quantiles)
+    return np.where(np.isfinite(arr), np.clip(arr, low, high), arr)
 
 
 def build_event_targets(market_df, disaster_df, date_col="date", price_col="aspi_close",
@@ -237,9 +266,21 @@ def build_event_targets(market_df, disaster_df, date_col="date", price_col="aspi
                 market, position, p0, h, date_col, price_col)
             row[f"Y1_ASPI_{h}D_Forward_LogReturn_Pct"] = value
             row[f"Y1_{h}D_horizon_end_date"] = end
+        for w in VOLUME_SENSITIVITY_WINDOWS:
+            value, end, _, _ = calculate_forward_abnormal_volume(
+                market, position, volume_col, response_sessions=w, date_col=date_col)
+            row[volume_window_col(w)] = value
+            row[volume_window_end_col(w)] = end
         rows.append(row)
 
-    return pd.DataFrame(rows)
+    frame = pd.DataFrame(rows)
+    if len(frame):
+        # Reader-facing and outlier-robust views of the primary Y2. Both derived, so a
+        # missing volume label stays missing rather than becoming a zero.
+        primary = frame[volume_window_col(VOLUME_RESPONSE_SESSIONS)]
+        frame["Y2_5D_Forward_AbnormalVolume_Pct"] = abnormal_volume_percent(primary)
+        frame["Y2_5D_Forward_AbnormalVolume_LogRatio_Winsorised"] = winsorise(primary)
+    return frame
 
 
 if __name__ == "__main__":
@@ -254,7 +295,7 @@ if __name__ == "__main__":
             out["trading_volume"] = np.asarray(volumes, dtype=float)
         return pd.DataFrame(out)
 
-    # --- Y1: the protocol's own example. P0 = 10,000; P5 = 9,700 -> -3.0459 ---
+    # Y1: the protocol's own example. P0 = 10,000; P5 = 9,700 -> -3.0459
     prices = [10_000.0] * 30 + [9_900.0, 9_880.0, 9_860.0, 9_840.0, 9_700.0] + [9_700.0] * 100
     m = frame(prices)
     y1, end = calculate_aspi_forward_log_return(m, 30, 10_000.0, 5)
@@ -263,7 +304,7 @@ if __name__ == "__main__":
     # P5 is the FIFTH complete session after the origin, i.e. row position+4.
     assert end == sessions[34], end
 
-    # --- Y2: the protocol's own example. V_base = 20e6, V_future5 = 30e6 -> 0.4055 ---
+    # Y2: the protocol's own example. V_base = 20e6, V_future5 = 30e6 -> 0.4055
     vols = [20e6] * 30 + [30e6] * 5 + [20e6] * 100
     m = frame([100.0] * 135, vols)
     y2, end, vb, vf = calculate_forward_abnormal_volume(m, 30)
@@ -273,7 +314,7 @@ if __name__ == "__main__":
     assert abs(100 * (np.exp(y2) - 1) - 50.0) < 1e-9        # reads as +50%
     assert end == sessions[34], end                          # V5, not the origin
 
-    # --- Y3: the protocol's own example. B = 10,000, recovery at k = 12 ---
+    # Y3: the protocol's own example. B = 10,000, recovery at k = 12
     path = [9_850.0, 9_600.0, 9_500.0, 9_700.0, 9_850.0, 9_900.0,
             9_910.0, 9_920.0, 9_930.0, 9_940.0, 9_950.0, 10_020.0]
     m = frame([10_000.0] * 30 + path + [10_020.0] * 100)
@@ -303,7 +344,7 @@ if __name__ == "__main__":
     m = frame([100.0] * 30 + [95.0, 101.0, 90.0, 90.0, 90.0] + [90.0] * 100)
     assert calculate_recovery_time(m, 30, 100.0)[0] == 2.0
 
-    # --- end to end ---
+    # end to end
     prices = [100.0] * 30 + [99.0, 98.0, 97.0, 98.0, 99.0, 101.0] + [101.0] * 100
     vols = [1_000.0] * 30 + [2_000.0] * 5 + [1_000.0] * 101
     market = pd.DataFrame({"date": sessions[:len(prices)], "aspi_close": prices,
@@ -321,5 +362,33 @@ if __name__ == "__main__":
     # A horizon running off the end of the series is missing, never truncated.
     late = build_event_targets(market, pd.DataFrame({"event_date": [market["date"].iloc[-2]]}))
     assert np.isnan(late["Y1_ASPI_5D_Forward_LogReturn_Pct"].iloc[0])
+
+    # Y2 response-window sensitivities (T5). Volume is 2000 for the 5 sessions after the
+    # origin and 1000 before it, so the 1 and 5 session windows both read ln(2).
+    assert abs(row[volume_window_col(1)] - np.log(2.0)) < 1e-12
+    assert abs(row[volume_window_col(5)] - np.log(2.0)) < 1e-12
+    assert row[volume_window_end_col(1)] == sessions[30]
+    assert row[volume_window_end_col(5)] == sessions[34]
+    # The 10 and 20 session windows span the return to normal volume, so they sit lower.
+    assert row[volume_window_col(10)] < row[volume_window_col(5)]
+
+    # The percentage form is the protocol's own worked example: ln(1.5) reads as +50%.
+    assert abs(abnormal_volume_percent(np.log(1.5)) - 50.0) < 1e-9
+    assert abs(abnormal_volume_percent(0.4055) - 50.0) < 1e-2
+
+    # Winsorising clips the tails and leaves missing values missing.
+    raw = np.array([np.nan, -10.0, -0.1, 0.0, 0.1, 10.0])
+    clipped = winsorise(raw)
+    assert np.isnan(clipped[0])
+    assert clipped[1] > -10.0 and clipped[-1] < 10.0
+    assert clipped[2] == -0.1 and clipped[4] == 0.1
+
+    # A frame with no volume column at all must carry missing Y2 everywhere, never zero.
+    no_volume = pd.DataFrame({"date": sessions[:140], "aspi_close": [100.0] * 140})
+    nv = build_event_targets(no_volume, pd.DataFrame({"event_date": [sessions[40]]}))
+    for _w in (1, 5, 10, 20):
+        assert nv[volume_window_col(_w)].isna().all(), _w
+    assert nv["Y2_5D_Forward_AbnormalVolume_Pct"].isna().all()
+    assert nv["Y2_5D_Forward_AbnormalVolume_LogRatio_Winsorised"].isna().all()
 
     print("event_targets.py self-check passed (TARGET_DEFINITION_PROTOCOL worked examples)")

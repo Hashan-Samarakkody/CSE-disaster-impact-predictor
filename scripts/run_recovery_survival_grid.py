@@ -23,9 +23,10 @@ from src.evaluation.survival_metrics import (PROB_TIMES, cluster_bootstrap_ci,
                                              probability_calibration,
                                              uncensored_point_errors)
 from src.evaluation.verification import build_episode_ids
+from src.models.survival_recovery import aalen_johansen_recovery, competing_risk_codes
 from src.training.walk_forward import (MEDIAN_IMPUTE_COLS, generate_walk_forward_splits,
                                        median_impute_from_train, purge_horizon_overlap)
-from src.utils.artifact_store import artifact_file
+from src.utils.artifact_store import artifact_file, save_frame
 
 ART = ROOT / "artifacts"
 RANDOM_STATE = 42
@@ -41,7 +42,7 @@ COX_MAX_FEATURES = 5
 warnings.filterwarnings("ignore")
 
 
-# ------------------------------------------------------------------ curve helpers
+# curve helpers
 
 def _median_from_curve(surv_grid):
     """First grid time where S(t) <= 0.5, read numerically off the predicted curve.
@@ -106,16 +107,29 @@ def km_curve(durations, observed, n_rows):
     return np.tile(np.clip(s, 0.0, 1.0), (n_rows, 1))
 
 
-# ------------------------------------------------------------------ main
+# main
 
-def main():
+def main(exclude_competing: bool = False):
+    """Fit the recovery grid.
+
+    `exclude_competing` drops the events censored by a subsequent qualifying disaster, so
+    the competing-risks treatment and the drop-them treatment can be compared (T2). Its
+    artifacts carry the `_excl_competing` suffix and never overwrite the primary run.
+    """
+    suffix = "_excl_competing" if exclude_competing else ""
     data = pd.read_parquet(artifact_file("dataset.parquet")).reset_index(drop=True)
+    if exclude_competing:
+        keep = data["Y3_censor_reason"] != "next_disaster"
+        print(f"SENSITIVITY RUN: dropping {int((~keep).sum())} events censored by a "
+              f"subsequent qualifying disaster")
+        data = data[keep].reset_index(drop=True)
     feature_cols = json.loads((artifact_file("feature_spec.json")).read_text())["FEATURE_COLS"]
     event_dates = pd.to_datetime(data["event_date"])
     y = data["Y3_ASPI_Recovery_Time"].to_numpy(float)
     observed = ~data["Y3_censored"].to_numpy(bool)
     drawdown = data["Y3_drawdown_occurred"].to_numpy(bool)
     end_dates = data["Y3_label_end_date"]
+    event_codes = competing_risk_codes(observed, data["Y3_censor_reason"])
 
     print(f"{len(data)} events | {observed.sum()} observed recoveries | "
           f"{(~observed).sum()} censored | {drawdown.sum()} with a post-event drawdown")
@@ -139,6 +153,11 @@ def main():
 
         km_base = km_curve(y_tr, obs_tr, len(te))
         preds = {"km_train_baseline": km_base}
+        # Competing-risks arm (T2). The Kaplan-Meier baseline above treats a subsequent
+        # disaster as independent censoring; this one treats it as the competing event it
+        # is, so it never credits a recovery to an event that was overtaken first.
+        aj = aalen_johansen_recovery(y_tr, event_codes[tr], TIME_GRID)
+        preds["aalen_johansen_competing_risks"] = np.tile(aj, (len(te), 1))
         # Constant training-fold median recovery, as a flat step curve, the second
         # pre-declared baseline (protocol 3.3).
         med = float(_median_from_curve(km_base[:1])[0])
@@ -191,10 +210,11 @@ def main():
 
     oof = pd.DataFrame(rows)
     surv_mat = np.vstack(oof.pop("_surv").to_numpy())
-    oof.to_parquet(artifact_file("recovery_grid_predictions.parquet"), index=False)
+    save_frame(oof, f"recovery_grid_predictions{suffix}",
+               "Out-of-fold survival predictions." + (" Sensitivity run excluding events censored by a subsequent disaster." if suffix else ""))
     print(f"\nwrote recovery_grid_predictions.parquet ({len(oof)} rows, {oof.model.nunique()} models)")
 
-    # ----------------------------------------------------------- metrics
+    # metrics
     episodes_all = build_episode_ids(event_dates)
     metrics, calib = [], []
     for name, g in oof.groupby("model", sort=False):
@@ -236,14 +256,17 @@ def main():
     mt["verdict"] = np.where(mt["c_index_beats_chance"], "A - statistically supported",
                              np.where(mt["c_index"] > 0.5, "B - suggestive but uncertain",
                                       "C - unsupported"))
-    mt.to_parquet(artifact_file("recovery_grid_metrics.parquet"), index=False)
-    pd.concat(calib, ignore_index=True).to_parquet(artifact_file("recovery_probability_calibration.parquet"),
-                                                    index=False)
+    save_frame(mt, f"recovery_grid_metrics{suffix}",
+               "Concordance, integrated Brier and calibration per survival model." + (" Sensitivity run excluding events censored by a subsequent disaster." if suffix else ""))
+    save_frame(pd.concat(calib, ignore_index=True),
+               f"recovery_probability_calibration{suffix}",
+               "Predicted against observed recovery probabilities." + (" Sensitivity run excluding events censored by a subsequent disaster." if suffix else ""))
     print(f"wrote recovery_grid_metrics.parquet ({len(mt)} models), recovery_probability_calibration.parquet")
 
-    # ----------------------------------------------------------- recovery categories
+    # recovery categories
     cat = recovery_categories(oof, episodes_all)
-    cat.to_parquet(artifact_file("recovery_category_metrics.parquet"), index=False)
+    save_frame(cat, f"recovery_category_metrics{suffix}",
+               "Metrics for the pre-specified recovery category." + (" Sensitivity run excluding events censored by a subsequent disaster." if suffix else ""))
     print(f"wrote recovery_category_metrics.parquet ({len(cat)} rows)")
 
 
@@ -282,3 +305,7 @@ def recovery_categories(oof, episodes_all, threshold=20):
 
 if __name__ == "__main__":
     main()
+    print("\n" + "=" * 60)
+    # T2: the same grid with the competing-event censored rows removed, so the two
+    # treatments of informative censoring can be compared directly.
+    main(exclude_competing=True)

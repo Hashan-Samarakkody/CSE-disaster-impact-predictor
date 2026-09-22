@@ -20,9 +20,24 @@ The yearly workbooks are discovered by pattern, not by an enumerated list, so ad
 future year means dropping the file in and re running stage 01. The pattern is defined in
 `src/data/cse_market_data.py`.
 
-The superseded EM-DAT export is retained deliberately. The upgrade from the February export
-to the September one changed the event count, and the audit cites both. Deleting it would
-break that record.
+### Which EM-DAT export the study reads
+
+`emdat_sri_lanka_disasters.xlsx` is the live file and the only one any code opens. It is
+the CRED export covering 1986 to 2025, downloaded on 2026-09-12, and it carries **110
+records** on its `EM-DAT Data` sheet. Every count in the sample flow accounting starts
+from those 110.
+
+`emdat_sri_lanka_disasters_superseded_2026_02_09.xlsx` is the earlier export, downloaded
+on 2026-02-09, covering 2000 to 2025 with 86 records. It is read by nothing. It is
+retained deliberately because the upgrade to the September export changed the event count,
+`docs/audit.md` cites numbers produced under both, and deleting the earlier file would
+leave those citations unverifiable. The 24 extra records in the live export are all
+pre 2000 and none of them can be modelled: the ASPI series begins on 2000-01-03, so they
+have no pre-event close to baseline against. The sample flow table records that exclusion
+explicitly rather than leaving it implicit.
+
+The full accounting from 110 raw records to 74 modelled events is in
+`artifacts/tables/sample_flow.parquet` and `docs/figures/eda_11_sample_flow.png`.
 
 ## 2. Local reference inputs
 
@@ -102,6 +117,12 @@ citation of CRED and the Université catholique de Louvain. NASA POWER, the Worl
 FRED, DesInventar and Wikidata each publish their own terms. The exchange archive is the
 property of the Colombo Stock Exchange.
 
-The `LICENSE` file in this repository covers only the original work of the author. It
-grants no rights over any third party data and does not override any source's own terms.
-Anyone wishing to use this repository must request permission first, as that file explains.
+The `LICENSE` file covers only the original work of the author, the code, the notebooks
+and the documentation, and since 2026-09-22 it does so under the MIT licence, so the
+method and the workflow can be verified by anyone.
+
+It grants no rights over any third party data and overrides no source's own terms. The two
+directories that hold third party material are `data/`, which carries the raw EM-DAT export
+and the Colombo Stock Exchange archive, and `artifacts/external/`, which carries the cached
+downloads. Anyone redistributing or reusing anything in either must satisfy the originating
+source directly, whatever the code licence permits.

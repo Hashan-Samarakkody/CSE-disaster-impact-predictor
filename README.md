@@ -16,32 +16,62 @@ assessments that EM-DAT finalises weeks after an event, so the model cannot be r
 before a disaster. It answers the question, given a disaster of known severity, what was
 the market response.
 
+Every feature is classified by availability at the prediction origin, real time or ex post,
+and the two information sets are reported separately, so a reader can see exactly which
+results depend on information a forecaster could not have had.
+
+The target definitions and evaluation rules were frozen in this repository on 19 September 2026 at commit `928a255`, before any performance under them was observed. The feature set was not pre registered: GARCH volatility, NASA POWER hazard intensity, DesInventar severity and election proximity were all added after the proposal, and the study does not claim otherwise.
+
 ## The three prediction targets
 
-1. **ASPI percentage change.** The forward log return in percent from the last pre event
-   close over five trading sessions.
-2. **Abnormal trading volume.** Mean market wide traded volume over the five post event
-   sessions (t0 to t0+4, t0 counted as the first) relative to its own trailing thirty
-   session mean, minus one. The sign is two sided: a disaster can raise or suppress
-   turnover.
-3. **Market recovery days.** Trading sessions until the index regains its pre event level,
-   right censored at ninety sessions or at the next qualifying disaster.
+Definitions are frozen in `docs/TARGET_DEFINITION_PROTOCOL.md` and implemented in
+`src/targets/event_targets.py`. `P0` is the last ASPI close known before the disaster,
+`Pk` and `Vk` are the close and the market wide volume of the kth complete trading
+session after it.
 
-These three are the whole research question. There is no fourth target. Definitions live in
-`src/targets/event_targets.py` and the readable aliases in `src/config/settings.py`.
+1. **ASPI return magnitude**, `Y1_ASPI_5D_Forward_LogReturn_Pct`. The forward log return
+   in percent over the first five complete sessions, `100 ln(P5 / P0)`.
+2. **Forward abnormal trading volume**, `Y2_5D_Forward_AbnormalVolume_LogRatio`. The
+   natural logarithm of the ratio of mean volume over those five sessions to the mean of
+   the thirty sessions before the event, `ln(mean(V1..V5) / mean(V-30..V-1))`. It is a
+   log ratio, not a ratio minus one. The interpretable companion is the percentage form
+   `100 * (exp(Y2) - 1)`, stored as `Y2_5D_Forward_AbnormalVolume_Pct`: a log ratio of
+   0.4055 reads as turnover 50 percent above normal. The sign is two sided, because a
+   disaster can raise or suppress turnover, and 23 of the 61 observed values are positive.
+3. **Market recovery duration**, `Y3_ASPI_Recovery_Time`. A time to event outcome. Whether
+   a drawdown occurs at all is stage one; conditional on one, the duration is the number
+   of sessions until the index regains `P0`, right censored at ninety sessions or at the
+   next qualifying disaster.
+
+These three are the whole research question. There is no fourth target. The one, ten,
+fifteen and twenty session return columns are declared horizon sensitivity analyses of
+target one, the market adjusted abnormal return is target one with the world market's
+contribution removed, the alternative volume windows are target two measured over one, ten
+and twenty sessions, and the six classification labels are binary views of the same three
+targets. None of them is ever promoted to primary.
+`docs/target_definitions.md` states each one precisely, with the observed distributions
+and a worked example.
 
 ## What the study found
 
+All numbers below come from the walk forward evaluation in this repository, re run in full
+on 2026-09-22 under the frozen target protocol and under the Revision 2 changes
+(`docs/audit.md` Part 8). Every figure traces to that single run.
+
 | Target | What is predictable | Best validated model | Evidence | Supported |
 |---|---|---|---|---|
-| ASPI percentage change, magnitude | nothing | none | 0 of 720 comparisons with an interval excluding zero, across a pre declared 240 configuration grid | No |
-| ASPI percentage change, direction at ten sessions | the sign of the return | logistic regression, combined features | AUC 0.752, interval [0.567, 0.896], Holm p 0.032 | Yes |
-| Volume crash magnitude | the size of the response | support vector regression, Gaussian process | paired bootstrap interval excludes zero against both baselines | Yes |
-| Market recovery days | ranking and probabilities, not the day | two stage drawdown plus Weibull survival model | concordance 0.657, interval [0.522, 0.769], fails the family wise correction | Suggestive |
+| Y1, return magnitude | nothing | none | 0 of 1350 paired bootstrap comparisons across a 465 configuration grid had an interval excluding zero, and 0 of the 18 comparison confirmatory family survived Holm (smallest corrected p 0.641). Best pooled R squared in the notebook arm is 0.042 | No |
+| Y1, return direction at ten sessions | the sign of the return | logistic regression, combined features, ten selected features | ROC AUC 0.817, episode clustered interval [0.657, 0.940], Holm corrected p below 0.001, balanced accuracy 0.757. The ten session horizon is the one pre declared for direction; at the primary five session horizon the AUC is 0.574 and its interval spans 0.5 | Yes |
+| Y2, forward abnormal volume | possibly the size of the response, on weak evidence | random forest, the strongest confirmatory model | pooled R squared 0.334 for the ensemble and 0.303 for the random forest. Under T8 model parity the random forest delta RMSE interval still excludes zero against both baselines, [0.037, 0.175] against naive zero, but it does not survive Holm (corrected p 0.078). Only 34 of 74 events carry an observed label, and the missingness is structured: volume is unavailable for 2000 and for events after 2023. The early gap sits inside the first training block rather than a test fold, but the late gap removes six of the ten held-out points in the fourth fold, and the fold-wise R squared ranges from -0.449 to +0.436 around the pooled figure | Qualified |
+| Y3, recovery duration | nothing, in either duration or ranking | none | every model loses to the training mean baseline on RMSE, and the best Harrell concordance is 0.535 with an interval of [0.371, 0.697]. Every concordance interval contains 0.5, and the Kaplan Meier and Aalen Johansen baselines have the best integrated Brier scores | No |
 
-Read that table with its negatives intact. Exact return magnitude and exact recovery
-duration are not predictable at this sample size, and the study reports that rather than
-working around it. The full numbers are in `docs/results.md` and what they license is in
+Read that table with its negatives intact. Exact return magnitude and recovery duration are
+not predictable at this sample size, and the study reports that rather than working around
+it. The volume result is qualified rather than supported: it is the only target whose
+interval excludes zero, and it still fails the family wise correction on 34 observations.
+Separately, the real time and ex post information sets perform almost identically on the
+principal analysis, +0.0930 against +0.0932 delta RMSE, so knowing the finalised severity
+of an event adds essentially nothing to what the market's own prior state already implies. The full numbers are in `docs/results.md` and what they license is in
 `docs/interpretation.md`.
 
 ## High level methodology
@@ -65,7 +95,7 @@ record, including the experiments that failed.
 
 ```
 README.md                  this file
-LICENSE                    all rights reserved, permission required before any use
+LICENSE                    MIT for the code; third party data keeps its own terms
 config/requirements.txt    pinned dependency list
 data/raw/                  CSE workbooks and the EM-DAT export
 data/external/             reference workbooks used by the thesis text
@@ -73,16 +103,18 @@ notebooks/                 the nine pipeline stages, 01 to 09
 src/config/                paths, the seed, and the three target definitions
 src/data/                  loaders for every raw and live source
 src/features/              market and disaster feature engineering, the sector panel
-src/targets/               the three research targets and the return horizon variants
+src/targets/               the three research targets, the horizon variants and the
+                           market adjusted abnormal return
 src/training/              walk forward splits, purged inner cross validation, oversampling
 src/models/                regression, classification, hurdle, survival, the demo bundle
-src/evaluation/            metrics, collinearity, survival metrics, the statistical verdict
+src/evaluation/            metrics, collinearity, survival metrics, the forecast verdict,
+                           and the event study inference that tests the realised response
 src/visualization/         the figure suites
 src/utils/                 the artifact cache
 apps/streamlit_app.py      the demo web app
 scripts/                   pipeline runners and experiment runners
 artifacts/                 generated cache, not version controlled
-tests/                     151 tests, including 20 that hold the volume target frozen
+tests/                     the test suite, including 20 that hold the volume target frozen
 docs/                      all documentation, listed below
 ```
 
@@ -97,8 +129,21 @@ source .venv/bin/activate         # macOS and Linux
 pip install -r config/requirements.txt
 ```
 
-`requirements.txt` sits in `config/` rather than the repository root, so that the root
-holds only this file, the licence and the ignore rules. Point pip at that path as shown.
+Two dependency files sit in `config/` rather than the repository root, so that the root
+holds only this file, the licence and the ignore rules:
+
+| File | What it is | When to use it |
+|---|---|---|
+| `config/requirements.txt` | the declared direct dependencies, with lower bounds such as `numpy>=1.24` | ordinary installation, forward compatible |
+| `config/requirements.lock.txt` | every direct and transitive dependency pinned to the exact version that produced the reported results, 141 packages | reproducing the published numbers |
+
+```bash
+pip install -r config/requirements.lock.txt    # the exact environment
+pip install -r config/requirements.txt         # the loose, forward-compatible set
+```
+
+The results were produced on **Python 3.12.10**, Windows. The lock file is generated from
+the installed environment rather than maintained by hand.
 
 ## Data requirements
 
@@ -113,8 +158,13 @@ Run the notebooks in numeric order. Each stage reads what it needs from `artifac
 writes what it produces back there, so a later stage fails with a clear message naming the
 missing artifact if an earlier one has not run.
 
+Stage 01 is the exception. Its six external sources are live and unpinned, so re running it
+can return revised figures and move every downstream number. Its outputs are already cached
+under `artifacts/tables/` and `artifacts/external/`, and it ships without stored cell
+outputs for that reason. Start at stage 02 unless a data refresh is intended.
+
 ```
-notebooks/01_data_acquisition.ipynb        slow, network access required
+notebooks/01_data_acquisition.ipynb        slow, network access, live unpinned sources
 notebooks/02_features_targets.ipynb        fast
 notebooks/03_eda_diagnostics.ipynb         fast, fits nothing
 notebooks/04_modeling_regression.ipynb     slowest, over an hour
@@ -128,8 +178,11 @@ notebooks/09_synthesis.ipynb               written record only
 Then the experiment scripts:
 
 ```bash
-python scripts/run_aspi_return_grid.py          # about 75 minutes
-python scripts/run_recovery_survival_grid.py    # about 1 minute
+python scripts/run_event_study.py               # did the market react at all
+python scripts/run_aspi_return_grid.py          # the return grid, a few hours
+python scripts/run_recovery_survival_grid.py    # survival plus competing risks
+python scripts/run_robustness_suite.py          # the closed pre-declared checks, once
+python scripts/train_final_models.py            # fits the bundle the demo app serves
 python scripts/build_final_tables.py
 python scripts/audit_results.py
 ```
@@ -164,6 +217,8 @@ improvement work began. It cannot be rebuilt from a later state, and
 | Document | What it covers |
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | how the whole system fits together, start here |
+| [docs/TARGET_DEFINITION_PROTOCOL.md](docs/TARGET_DEFINITION_PROTOCOL.md) | the frozen specification of the three targets, the binding definition |
+| [docs/target_definitions.md](docs/target_definitions.md) | the same three targets written for a thesis reader, with observed distributions and a worked example |
 | [docs/notebooks/](docs/notebooks/) | one file per notebook stage, nine in total |
 | [docs/audit.md](docs/audit.md) | the complete research record: the frozen protocol, every pre declaration, the full dated change log, and every rejected variant |
 | [docs/results.md](docs/results.md) | every number the executed repository produced |
@@ -172,6 +227,7 @@ improvement work began. It cannot be rebuilt from a later state, and
 | [docs/testing.md](docs/testing.md) | what the test suite checks and why |
 | [docs/data_sources.md](docs/data_sources.md) | every input, its provenance and its terms |
 | [docs/refactor_validation.md](docs/refactor_validation.md) | what was actually executed and verified |
+| [docs/repository_metadata.md](docs/repository_metadata.md) | the GitHub About text, the one correction that cannot be made by a commit |
 | [docs/improvements_to_thesis/](docs/improvements_to_thesis/) | where the written thesis and the implementation disagree |
 
 ## Demo application
@@ -188,17 +244,28 @@ in sample fits for demonstration, not out of sample predictions, and the app say
 Seventy four events and forty pooled out of fold test points. There is no final lockbox
 holdout, because at this sample size setting one aside would cost folds the study cannot
 spare, so an adaptive selection risk remains that the bootstrap and the family wise
-correction reduce but do not eliminate. Across four folds, 35.6 per cent of selected
+correction reduce but do not eliminate. Across four folds, 35.7 per cent of selected
 features were selected in exactly one fold, so no single fold's selection is treated as a
-finding. The recovery target has thirty one observed recoveries in the pooled test set,
-which is thin for a survival model with twenty covariates.
+finding. The recovery target has fourteen observed recoveries in the pooled test set
+against twenty six censored ones, which is thin for a survival model with twenty
+covariates and is the main reason that target returns no result.
 
 ## License
 
-All rights reserved. This repository is published for examination and reference only. It is
-not open source. Written permission is required before any use, including academic and
-educational use. See [LICENSE](LICENSE) and contact hashansamarakkody@gmail.com.
+**The code is MIT licensed.** That covers `src/`, `scripts/`, `tests/`, `apps/`,
+`notebooks/` and `docs/`, so the method, the seeds, the pinned environment and the
+workflow can be inspected, re run and verified by anyone. This replaced the earlier all
+rights reserved terms on 2026-09-22, at the owner's instruction, because the review asks
+that the workflow be verifiable and the previous terms did not allow it.
 
-Third party data carries its own terms, which this licence does not override.
+**Third party data is not covered by it.** EM-DAT, the Colombo Stock Exchange archive, the
+World Bank, NASA POWER, DesInventar, FRED and Wikidata each carry their own terms and
+their own citation and redistribution requirements. The MIT licence grants no rights over
+any of them and overrides none of them. Anyone reusing anything under `data/` or
+`artifacts/external/` must satisfy the originating source directly. See
+[LICENSE](LICENSE) for the scope and [docs/data_sources.md](docs/data_sources.md) for each
+source and its terms.
+
+The models and results are a student research exercise. They are not investment advice.
 
 The models here are a student research exercise. They are not investment advice.
