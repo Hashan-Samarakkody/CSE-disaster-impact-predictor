@@ -14,6 +14,57 @@ from src.training.walk_forward import generate_walk_forward_splits
 
 # chronological walk-forward
 
+def test_expanding_mode_never_trains_on_the_future():
+    """T9. The whole point of a chronological split: every training index must precede
+    every test index, in both modes."""
+    for mode in ("sliding", "expanding"):
+        splits = list(generate_walk_forward_splits(74, 30, 10, 10, mode=mode))
+        assert len(splits) == 4, mode
+        for split in splits:
+            assert split.train_index.max() < split.test_index.min(), mode
+
+
+def test_expanding_and_sliding_modes_never_overlap_train_with_test():
+    for mode in ("sliding", "expanding"):
+        for split in generate_walk_forward_splits(74, 30, 10, 10, mode=mode):
+            assert not set(split.train_index) & set(split.test_index), mode
+
+
+def test_expanding_mode_grows_the_training_block_monotonically():
+    """Expanding keeps the earliest events instead of dropping them, so the block starts
+    at index zero and only ever gets longer."""
+    splits = list(generate_walk_forward_splits(74, 30, 10, 10, mode="expanding"))
+    sizes = [len(s.train_index) for s in splits]
+    assert sizes == sorted(sizes) and len(set(sizes)) == len(sizes), sizes
+    assert all(s.train_index[0] == 0 for s in splits)
+    assert sizes == [30, 40, 50, 60]
+
+
+def test_sliding_mode_is_unchanged_and_is_the_default():
+    """T9 requires the default to stay sliding so no existing result moves."""
+    default = list(generate_walk_forward_splits(74, 30, 10, 10))
+    explicit = list(generate_walk_forward_splits(74, 30, 10, 10, mode="sliding"))
+    assert len(default) == len(explicit)
+    for a, b in zip(default, explicit):
+        assert (a.train_index == b.train_index).all()
+        assert (a.test_index == b.test_index).all()
+    assert all(len(s.train_index) == 30 for s in default)
+
+
+def test_both_modes_score_exactly_the_same_test_events():
+    """A robustness comparison between the two is only meaningful if the held-out events
+    are identical, which they must be by construction."""
+    sliding = list(generate_walk_forward_splits(74, 30, 10, 10, mode="sliding"))
+    expanding = list(generate_walk_forward_splits(74, 30, 10, 10, mode="expanding"))
+    for a, b in zip(sliding, expanding):
+        assert (a.test_index == b.test_index).all()
+
+
+def test_an_unknown_window_mode_raises():
+    with pytest.raises(ValueError, match="mode must be"):
+        list(generate_walk_forward_splits(74, 30, 10, 10, mode="rolling"))
+
+
 def test_walk_forward_never_trains_on_the_future():
     """Thesis 3.7.1 forbids k-fold. Every training index must precede every test index."""
     for s in generate_walk_forward_splits(74, train_window=30, test_window=10, step=10):

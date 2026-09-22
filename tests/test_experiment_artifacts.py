@@ -111,7 +111,9 @@ def test_y3_concordance_verdicts_match_their_own_intervals():
     verdict string drifting away from the interval that produced it rather than pinning
     a particular finding."""
     m = pd.read_parquet(artifact_file("recovery_grid_metrics.parquet"))
-    assert len(m) == 15
+    # 15 original configurations plus the Aalen-Johansen competing-risks arm (T2).
+    assert len(m) == 16
+    assert "aalen_johansen_competing_risks" in set(m["model"])
     assert m["c_index"].between(0.0, 1.0).all()
     assert (m["c_index_ci_low"] <= m["c_index"]).all()
     assert (m["c_index"] <= m["c_index_ci_high"]).all()

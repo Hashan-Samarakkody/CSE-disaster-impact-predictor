@@ -53,7 +53,12 @@ MARKET_TAIL_SESSIONS = 90
 # there on 2026-09-19 at commit 928a255, before any performance under these definitions
 # was observed. P0 is the last close before the prediction origin.
 ASPI_PERCENTAGE_CHANGE = "Y1_ASPI_5D_Forward_LogReturn_Pct"
-VOLUME_CRASH_MAGNITUDE = "Y2_5D_Forward_AbnormalVolume_LogRatio"
+FORWARD_ABNORMAL_VOLUME = "Y2_5D_Forward_AbnormalVolume_LogRatio"
+# Deprecated alias (Revision 2, D6). The old name presupposed a negative sign, but 23 of
+# the 61 observed values are positive. The frozen COLUMN string is unchanged, because
+# cached artifacts and the frozen-baseline regression test depend on it; only the Python
+# identifier moved. Kept so existing imports keep working.
+VOLUME_CRASH_MAGNITUDE = FORWARD_ABNORMAL_VOLUME
 MARKET_RECOVERY_DAYS = "Y3_ASPI_Recovery_Time"
 
 # Declared horizon sensitivity analyses of target one. Never promoted to primary.
@@ -61,7 +66,7 @@ ASPI_PERCENTAGE_CHANGE_10D = "Y1_ASPI_10D_Forward_LogReturn_Pct"
 ASPI_SENSITIVITY_COLS = [f"Y1_ASPI_{h}D_Forward_LogReturn_Pct" for h in (1, 10, 15, 20)]
 
 # Response-window sensitivities and derived views of target two (Revision 2, T5). The
-# five session window in VOLUME_CRASH_MAGNITUDE stays primary.
+# five session window in FORWARD_ABNORMAL_VOLUME stays primary.
 VOLUME_SENSITIVITY_COLS = [f"Y2_{w}D_Forward_AbnormalVolume_LogRatio" for w in (1, 10, 20)]
 VOLUME_DERIVED_COLS = ["Y2_5D_Forward_AbnormalVolume_Pct",
                        "Y2_5D_Forward_AbnormalVolume_LogRatio_Winsorised"]
@@ -73,16 +78,24 @@ ABNORMAL_RETURN_COLS = [f"Y1_ASPI_{h}D_Forward_AbnormalReturn_Pct"
                         for h in ABNORMAL_RETURN_HORIZONS]
 MARKET_MODEL_AUDIT_COLS = ["market_model_alpha", "market_model_beta", "market_model_n"]
 
-TARGET_COLS = [ASPI_PERCENTAGE_CHANGE, VOLUME_CRASH_MAGNITUDE, MARKET_RECOVERY_DAYS,
+TARGET_COLS = [ASPI_PERCENTAGE_CHANGE, FORWARD_ABNORMAL_VOLUME, MARKET_RECOVERY_DAYS,
                ASPI_PERCENTAGE_CHANGE_10D]
 
 # Columns kept so every target can be recomputed by hand. Never predictors.
 TARGET_AUDIT_COLS = ["prediction_origin_session", "P0", "Y2_V_base", "Y2_V_future5"]
 
+# Y3 is right-censored by construction: 38 of the 74 events carry no observed recovery.
+# Squared error is not defined for a censored duration, so the ordinary regression fit of
+# the recovery target is a DISCLOSED DIAGNOSTIC, kept for comparability with the existing
+# literature, and never the result. The survival analysis in
+# scripts/run_recovery_survival_grid.py is primary. See docs/audit.md Part 8.5 (T3).
+Y3_REGRESSION_IS_DIAGNOSTIC = True
+Y3_DIAGNOSTIC_LABEL = "censoring-blind diagnostic"
+
 # Definitional support. Y2 is a log ratio, so it is unbounded below as well as above.
 TARGET_BOUNDS = {
     ASPI_PERCENTAGE_CHANGE: (None, None),
-    VOLUME_CRASH_MAGNITUDE: (None, None),
+    FORWARD_ABNORMAL_VOLUME: (None, None),
     MARKET_RECOVERY_DAYS: (0.0, 90.0),
     ASPI_PERCENTAGE_CHANGE_10D: (None, None),
 }
@@ -92,7 +105,7 @@ TARGET_BOUNDS = {
 TARGET_LABEL_END_DATE_COL = {
     ASPI_PERCENTAGE_CHANGE: "Y1_horizon_end_date",
     ASPI_PERCENTAGE_CHANGE_10D: "Y1_10D_horizon_end_date",
-    VOLUME_CRASH_MAGNITUDE: "Y2_horizon_end_date",
+    FORWARD_ABNORMAL_VOLUME: "Y2_horizon_end_date",
     MARKET_RECOVERY_DAYS: "Y3_label_end_date",
 }
 
@@ -102,7 +115,7 @@ LABEL_END_DATE_COL = {
     "C0_drawdown_occurs": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
     "C1_negative_return": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
     "C1b_adverse_move": TARGET_LABEL_END_DATE_COL[ASPI_PERCENTAGE_CHANGE],
-    "C2_volume_spike": TARGET_LABEL_END_DATE_COL[VOLUME_CRASH_MAGNITUDE],
+    "C2_volume_spike": TARGET_LABEL_END_DATE_COL[FORWARD_ABNORMAL_VOLUME],
     "C3_recovers_in_90": TARGET_LABEL_END_DATE_COL[MARKET_RECOVERY_DAYS],
     "C3b_slow_recovery": TARGET_LABEL_END_DATE_COL[MARKET_RECOVERY_DAYS],
 }

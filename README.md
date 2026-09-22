@@ -16,6 +16,12 @@ assessments that EM-DAT finalises weeks after an event, so the model cannot be r
 before a disaster. It answers the question, given a disaster of known severity, what was
 the market response.
 
+Every feature is classified by availability at the prediction origin, real time or ex post,
+and the two information sets are reported separately, so a reader can see exactly which
+results depend on information a forecaster could not have had.
+
+The target definitions and evaluation rules were frozen in this repository on 19 September 2026 at commit `928a255`, before any performance under them was observed. The feature set was not pre registered: GARCH volatility, NASA POWER hazard intensity, DesInventar severity and election proximity were all added after the proposal, and the study does not claim otherwise.
+
 ## The three prediction targets
 
 Definitions are frozen in `docs/TARGET_DEFINITION_PROTOCOL.md` and implemented in
@@ -25,18 +31,24 @@ session after it.
 
 1. **ASPI return magnitude**, `Y1_ASPI_5D_Forward_LogReturn_Pct`. The forward log return
    in percent over the first five complete sessions, `100 ln(P5 / P0)`.
-2. **Forward abnormal trading volume**, `Y2_5D_Forward_AbnormalVolume_LogRatio`. The log
-   ratio of mean volume over those five sessions to the mean of the thirty sessions
-   before the event, `ln(mean(V1..V5) / mean(V-30..V-1))`. The sign is two sided: a
-   disaster can raise or suppress turnover.
+2. **Forward abnormal trading volume**, `Y2_5D_Forward_AbnormalVolume_LogRatio`. The
+   natural logarithm of the ratio of mean volume over those five sessions to the mean of
+   the thirty sessions before the event, `ln(mean(V1..V5) / mean(V-30..V-1))`. It is a
+   log ratio, not a ratio minus one. The interpretable companion is the percentage form
+   `100 * (exp(Y2) - 1)`, stored as `Y2_5D_Forward_AbnormalVolume_Pct`: a log ratio of
+   0.4055 reads as turnover 50 percent above normal. The sign is two sided, because a
+   disaster can raise or suppress turnover, and 23 of the 61 observed values are positive.
 3. **Market recovery duration**, `Y3_ASPI_Recovery_Time`. A time to event outcome. Whether
    a drawdown occurs at all is stage one; conditional on one, the duration is the number
    of sessions until the index regains `P0`, right censored at ninety sessions or at the
    next qualifying disaster.
 
-These three are the whole research question. There is no fourth target. The ten, fifteen
-and twenty session return columns are pre registered horizon sensitivity analyses of
-target one, and the six classification labels are binary views of the same three targets.
+These three are the whole research question. There is no fourth target. The one, ten,
+fifteen and twenty session return columns are declared horizon sensitivity analyses of
+target one, the market adjusted abnormal return is target one with the world market's
+contribution removed, the alternative volume windows are target two measured over one, ten
+and twenty sessions, and the six classification labels are binary views of the same three
+targets. None of them is ever promoted to primary.
 `docs/target_definitions.md` states each one precisely, with the observed distributions
 and a worked example.
 
@@ -86,16 +98,18 @@ notebooks/                 the nine pipeline stages, 01 to 09
 src/config/                paths, the seed, and the three target definitions
 src/data/                  loaders for every raw and live source
 src/features/              market and disaster feature engineering, the sector panel
-src/targets/               the three research targets and the return horizon variants
+src/targets/               the three research targets, the horizon variants and the
+                           market adjusted abnormal return
 src/training/              walk forward splits, purged inner cross validation, oversampling
 src/models/                regression, classification, hurdle, survival, the demo bundle
-src/evaluation/            metrics, collinearity, survival metrics, the statistical verdict
+src/evaluation/            metrics, collinearity, survival metrics, the forecast verdict,
+                           and the event study inference that tests the realised response
 src/visualization/         the figure suites
 src/utils/                 the artifact cache
 apps/streamlit_app.py      the demo web app
 scripts/                   pipeline runners and experiment runners
 artifacts/                 generated cache, not version controlled
-tests/                     151 tests, including 20 that hold the volume target frozen
+tests/                     the test suite, including 20 that hold the volume target frozen
 docs/                      all documentation, listed below
 ```
 
@@ -110,8 +124,21 @@ source .venv/bin/activate         # macOS and Linux
 pip install -r config/requirements.txt
 ```
 
-`requirements.txt` sits in `config/` rather than the repository root, so that the root
-holds only this file, the licence and the ignore rules. Point pip at that path as shown.
+Two dependency files sit in `config/` rather than the repository root, so that the root
+holds only this file, the licence and the ignore rules:
+
+| File | What it is | When to use it |
+|---|---|---|
+| `config/requirements.txt` | the declared direct dependencies, with lower bounds such as `numpy>=1.24` | ordinary installation, forward compatible |
+| `config/requirements.lock.txt` | every direct and transitive dependency pinned to the exact version that produced the reported results, 141 packages | reproducing the published numbers |
+
+```bash
+pip install -r config/requirements.lock.txt    # the exact environment
+pip install -r config/requirements.txt         # the loose, forward-compatible set
+```
+
+The results were produced on **Python 3.12.10**, Windows. The lock file is generated from
+the installed environment rather than maintained by hand.
 
 ## Data requirements
 
@@ -146,8 +173,10 @@ notebooks/09_synthesis.ipynb               written record only
 Then the experiment scripts:
 
 ```bash
-python scripts/run_aspi_return_grid.py          # about 75 minutes
-python scripts/run_recovery_survival_grid.py    # about 1 minute
+python scripts/run_event_study.py               # did the market react at all
+python scripts/run_aspi_return_grid.py          # the return grid, a few hours
+python scripts/run_recovery_survival_grid.py    # survival plus competing risks
+python scripts/run_robustness_suite.py          # the closed pre-declared checks, once
 python scripts/train_final_models.py            # fits the bundle the demo app serves
 python scripts/build_final_tables.py
 python scripts/audit_results.py
@@ -222,5 +251,13 @@ not open source. Written permission is required before any use, including academ
 educational use. See [LICENSE](LICENSE) and contact hashansamarakkody@gmail.com.
 
 Third party data carries its own terms, which this licence does not override.
+
+**Open question raised by the Revision 2 review (D5), awaiting the owner's decision.** The
+review asks that the code, seeds, versions and workflow be provided for verification,
+which the current all rights reserved terms do not permit. The recommended resolution is
+to license the CODE under an open licence, for example MIT or BSD 3-Clause, while keeping
+separate and explicit terms for the third party data, which cannot be redistributed under
+any of them. This has deliberately NOT been changed: a licence is a legal instrument and
+only the repository owner can alter it.
 
 The models here are a student research exercise. They are not investment advice.

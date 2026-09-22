@@ -60,7 +60,7 @@ sessions is predictable above chance.
 
 ## 3. The recovery survival grid
 
-`scripts/run_recovery_survival_grid.py`, about one minute.
+`scripts/run_recovery_survival_grid.py`, about two minutes, run twice in one invocation.
 
 Replaces point regression on recovery duration with censoring aware survival analysis, on
 genuine events only. Synthetic oversampled rows are excluded from every survival fit,
@@ -73,8 +73,16 @@ and then models duration for the drawdown cases, a penalised Cox model fitted on
 the event count supports it, and two baselines, a training fold Kaplan Meier curve and a
 training fold median.
 
+It also fits an Aalen-Johansen competing risks arm. A subsequent qualifying disaster is
+not independent censoring: an event that has not recovered is more likely to be overtaken
+by a new one, so treating it as ordinary censoring credits those events with a recovery
+they may never have had. The script then repeats the whole grid with those events dropped,
+so the two treatments can be compared, and writes that run to the `_excl_competing`
+artifacts.
+
 Writes `recovery_grid_predictions.parquet`, `recovery_grid_metrics.parquet`,
-`recovery_probability_calibration.parquet` and `recovery_category_metrics.parquet`.
+`recovery_probability_calibration.parquet` and `recovery_category_metrics.parquet`, each
+also in an `_excl_competing` variant.
 
 Supports: the finding that exact recovery duration cannot be predicted, and the ranking
 result, which under the frozen target protocol no longer clears chance. The best
@@ -89,6 +97,43 @@ Assembles the two grids into the tables the thesis quotes, writing
 `docs/thesis_materials/final_table_aspi.csv`,
 `docs/thesis_materials/final_table_recovery.csv` and the markdown fragments in
 `docs/results.md`. It refits nothing and retypes no number by hand.
+
+## 4a. The event study, a different question
+
+`scripts/run_event_study.py`, seconds.
+
+Everything else in this repository asks whether a model can FORECAST the market response.
+This script asks whether there was a response at all. The two questions are kept apart in
+the code as well as in the prose: `src/evaluation/event_study.py` and
+`src/evaluation/verification.py` do not import each other, and a test asserts it.
+
+Abnormal returns come from the single factor market model, abnormal volume from the mean
+adjusted model, and the cumulative average abnormal value is tested with the cross
+sectional t test, the Boehmer, Musumeci and Poulsen standardised residual test, the Corrado
+rank test and the Kolari and Pynnonen correction for cross sectional correlation. Every
+statistic is validated in `tests/test_event_study.py` twice: it must fire on a planted
+effect and stay silent on a null.
+
+Writes `event_study_caar.parquet` and two event time figures.
+
+Supports: the claim that a measurable market reaction exists, or, as it turns out for the
+return series, that one does not.
+
+## 4b. The robustness suite
+
+`scripts/run_robustness_suite.py`, about ten minutes.
+
+Runs the closed pre declared list in `docs/audit.md` Part 8.7 once, and writes one
+consolidated table. Every check varies exactly one thing against the principal analysis and
+reports the same four quantities: the held out sample size, the error metric, the
+comparison against the zero return benchmark, and an episode clustered bootstrap interval.
+
+A check that cannot be run appears in the table with the reason rather than being omitted,
+which is why several disaster type subgroups and the single crisis period rows carry a
+sample size of zero and a note: the walk forward needs forty events and those subgroups do
+not have them.
+
+Writes `robustness_suite.parquet`.
 
 ## 5. Supporting scripts
 

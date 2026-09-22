@@ -122,6 +122,60 @@ the suite never depends on a live API.
 drawn only from training rows, only within the declared time window, and never exceed the
 pre registered share.
 
+### 2.7 Leakage, promoted out of the notebooks
+
+`tests/test_no_leakage.py` runs the guard that used to live only in a notebook cell, so it
+now fires under pytest without anyone opening a notebook. It asserts that the persisted
+feature specification shares no column with the declared non feature set, that every
+feature is dated at or before the prediction origin, and that the label end purge really
+does drop a training event whose horizon reaches into the test period.
+
+Two of its tests deliberately reintroduce the defect they guard against, confirm that the
+guard raises, and leave the correct state behind. A guard nobody has seen fail is not known
+to work.
+
+### 2.8 The realised response
+
+`tests/test_event_study.py` validates every event study statistic twice over: against a
+synthetic series with a known planted effect, where each must fire, and against a null
+series, where none may. It also pins the properties that make each statistic worth having,
+including that the Corrado statistic is invariant to a strictly increasing transform of the
+abnormal values while a mean based statistic is not, and that the Kolari and Pynnonen
+correction can only ever shrink a result.
+
+One test asserts the structural separation the design depends on: neither
+`src/evaluation/event_study.py` nor `src/evaluation/verification.py` imports the other.
+
+### 2.9 Informative censoring and the competing risks arm
+
+`tests/test_competing_risks.py` checks that the Aalen-Johansen estimator does what
+independent censoring cannot: when the competing event strikes early, its recovery
+incidence must be strictly lower than the Kaplan-Meier one, and when no competing event
+occurs at all the two must agree. It also holds the T3 demotion in place, asserting that no
+exported Y3 error column appears without a diagnostic label.
+
+### 2.10 The closed robustness list
+
+`tests/test_robustness_suite.py` compares what ran against the list pre declared in
+`docs/audit.md` Part 8.7, in both directions: nothing missing and nothing added. It also
+asserts that every unrunnable check carries a stated reason rather than being omitted, and
+that the small disaster type subgroups are never reported as standalone findings.
+
+### 2.11 The new targets
+
+`tests/test_volume_targets.py` holds the constraint that matters for target two: volume is
+unavailable for the 2000 archive year and for events after 2023, and a missing label must
+stay missing. Zero filling would assert that turnover sat exactly at its baseline when in
+fact it is unknown.
+
+`tests/test_abnormal_returns.py` holds the constraint that matters for the market adjusted
+return: the estimation window must close before the prediction origin. One test corrupts
+every session from the origin onward and asserts the fitted coefficients do not move.
+
+`tests/test_sample_flow.py` asserts that the sample accounting closes, and that recomputing
+it from the same inputs reproduces the cached table, so the figure quoted in the thesis can
+never drift from the pipeline.
+
 ## 3. What the suite does not check
 
 It does not verify that the research conclusions are correct. It verifies that the code

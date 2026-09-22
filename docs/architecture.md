@@ -67,7 +67,12 @@ research question.
 Column names are frozen. They appear inside cached artifacts and inside the regression
 tests that hold target construction fixed, so renaming them would invalidate the research
 record. `src/config/settings.py` carries readable aliases, `ASPI_PERCENTAGE_CHANGE`,
-`VOLUME_CRASH_MAGNITUDE` and `MARKET_RECOVERY_DAYS`, which is what new code should import.
+`FORWARD_ABNORMAL_VOLUME` and `MARKET_RECOVERY_DAYS`, which is what new code should
+import. `VOLUME_CRASH_MAGNITUDE` remains as a deprecated alias of the second: the old name
+presupposed a fall, but 23 of the 61 observed values are positive, so the neutral name is
+the one to use.
+
+The target definitions and evaluation rules were frozen in this repository on 19 September 2026 at commit `928a255`, before any performance under them was observed. The feature set was not pre registered: GARCH volatility, NASA POWER hazard intensity, DesInventar severity and election proximity were all added after the proposal, and the study does not claim otherwise.
 
 ## 3. Major data sources
 

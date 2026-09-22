@@ -12,6 +12,55 @@ CAP = 90.0
 DURATION_EPS = 0.5
 
 
+# Competing-risks codes for the Aalen-Johansen estimator (Revision 2, T2).
+EVENT_CENSORED, EVENT_RECOVERY, EVENT_COMPETING = 0, 1, 2
+
+
+def competing_risk_codes(event_observed, censor_reason) -> np.ndarray:
+    """Map the study's censoring reasons onto competing-risks event codes.
+
+    A recovery is the event of interest. A subsequent qualifying disaster is a COMPETING
+    event, not independent censoring: an event that has not recovered is more likely to be
+    overtaken by a new one, so treating it as ordinary censoring overstates recovery.
+    The 90 session cap and the no-drawdown state remain ordinary censoring.
+    """
+    observed = np.asarray(event_observed, dtype=bool)
+    reason = np.asarray(censor_reason, dtype=object)
+    codes = np.where(observed, EVENT_RECOVERY, EVENT_CENSORED)
+    return np.where(~observed & (reason == "next_disaster"), EVENT_COMPETING, codes)
+
+
+def aalen_johansen_recovery(durations, event_codes, grid, eps: float = DURATION_EPS):
+    """1 minus the cumulative incidence of recovery, on `grid`.
+
+    Aalen-Johansen rather than Fine-Gray: the estimator is non-parametric, needs no
+    proportional-subdistribution-hazard assumption, and this arm is a marginal baseline
+    with no covariates, so a regression on the subdistribution hazard would add
+    assumptions without adding anything the comparison needs. Chosen for that reason and
+    recorded here (T2).
+
+    Returns a curve directly comparable with the Kaplan-Meier arm, which treats the
+    competing event as independent censoring and therefore sits below this one.
+    """
+    from lifelines import AalenJohansenFitter
+
+    duration = np.asarray(durations, dtype=float) + eps
+    codes = np.asarray(event_codes, dtype=int)
+    if not (codes == EVENT_RECOVERY).any():
+        return np.ones(len(grid))
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        fitter = AalenJohansenFitter(calculate_variance=False, seed=0)
+        fitter.fit(duration, codes, event_of_interest=EVENT_RECOVERY)
+        cif = fitter.cumulative_density_
+        incidence = np.interp(np.asarray(grid, dtype=float) + eps,
+                              cif.index.to_numpy(dtype=float),
+                              cif.iloc[:, 0].to_numpy(dtype=float),
+                              left=0.0, right=float(cif.iloc[-1, 0]))
+    return np.clip(1.0 - incidence, 0.0, 1.0)
+
+
 class AFTRecoveryModel:
     """Weibull/LogNormal AFT model with right-censoring at `cap`, chosen in-fold by AIC.
 

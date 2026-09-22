@@ -37,9 +37,26 @@ ART = ROOT / "artifacts"
 RANDOM_STATE = 42
 TRAIN_WINDOW, TEST_WINDOW, STEP = 30, 10, 10
 CAPACITIES = (5, 10, 20)
-INFO_SETS = ("market_only", "disaster_only", "combined", "normal_plus_residual")
+INFO_SETS = ("market_only", "disaster_only", "combined", "normal_plus_residual",
+             "real_time", "ex_post")
 MODELS = ("ridge", "elastic_net", "random_forest", "xgboost", "mlp")
 BASELINES = ("naive_zero", "naive_train_mean", "market_only_expected")
+
+# The confirmatory family, pre-declared in docs/audit.md Part 8.4 before this grid was
+# re-run (T7). Everything outside it is exploratory and is written to its own artifact.
+# The grid still runs in full; only what the family-wise correction spans has changed.
+CONFIRMATORY_HORIZON = 5
+CONFIRMATORY_INFO_SETS = ("real_time", "ex_post")
+CONFIRMATORY_CAPACITY = 10
+CONFIRMATORY_MODELS = ("ridge", "random_forest", "mlp")
+
+
+def is_confirmatory(horizon, info_set, k, model) -> bool:
+    """A comparison counts as confirmatory only if all four conditions hold."""
+    return (horizon == CONFIRMATORY_HORIZON
+            and info_set in CONFIRMATORY_INFO_SETS
+            and k == CONFIRMATORY_CAPACITY
+            and model in CONFIRMATORY_MODELS)
 
 RIDGE_ALPHAS = np.logspace(-3, 3, 13)
 ENET_GRID = {"model__alpha": [0.01, 0.1, 1.0], "model__l1_ratio": [0.2, 0.5, 0.8]}
@@ -47,10 +64,12 @@ RF_GRID = {"model__n_estimators": [200], "model__max_depth": [3, None],
            "model__min_samples_leaf": [1, 4]}
 XGB_GRID = {"model__n_estimators": [100, 200], "model__max_depth": [2, 3],
             "model__learning_rate": [0.05]}
+# Deliberately small: parity with the other confirmatory models, not a wider search.
+MLP_GRID = {"model__hidden_layer_sizes": [(8,), (16,)], "model__alpha": [1.0, 10.0]}
 # Pre-specified defaults, used when purging leaves too few rows for ANY inner split --
 # protocol section 1.7: reduce splits first, fall back to these second, NEVER unpurge.
 DEFAULTS = {"ridge": 1.0, "elastic_net": (0.1, 0.5), "random_forest": (200, None, 1),
-            "xgboost": (100, 3, 0.05)}
+            "xgboost": (100, 3, 0.05), "mlp": ((16,), 1.0)}
 
 warnings.filterwarnings("ignore")
 
@@ -114,13 +133,15 @@ def build_search(name, k, cv_splits):
                           ("model", XGBRegressor(random_state=RANDOM_STATE, verbosity=0))])
         grid = XGB_GRID
     elif name == "mlp":
-        # One neural comparison, fixed architecture (no grid, nothing to search, so no
-        # inner CV loop to nest a selector inside; the selector still fits on train rows
-        # only). Shallow and heavily early-stopped: 30 training rows.
+        # T8: the MLP is in the confirmatory family, so it is selected by the SAME purged
+        # inner cross-validation as Ridge and Random Forest. Ranking a tuned model against
+        # an untuned one is not a comparison, and this model currently carries the study's
+        # only positive continuous result, so it must earn it under the same discipline.
+        # The grid is the smallest one that gives parity: two widths by two penalties.
         pipe = _pipeline([("sel", sel), ("scale", StandardScaler()),
-                          ("model", MLPRegressor(hidden_layer_sizes=(16,), alpha=1.0,
-                                                 max_iter=4000, random_state=RANDOM_STATE))])
-        return pipe, None
+                          ("model", MLPRegressor(max_iter=4000, early_stopping=False,
+                                                 random_state=RANDOM_STATE))])
+        grid = MLP_GRID
     else:
         raise ValueError(name)
 
@@ -134,9 +155,12 @@ def build_search(name, k, cv_splits):
         elif name == "random_forest":
             n, d, leaf = DEFAULTS["random_forest"]
             pipe.set_params(model__n_estimators=n, model__max_depth=d, model__min_samples_leaf=leaf)
-        else:
+        elif name == "xgboost":
             n, d, lr = DEFAULTS["xgboost"]
             pipe.set_params(model__n_estimators=n, model__max_depth=d, model__learning_rate=lr)
+        else:
+            hidden, alpha = DEFAULTS["mlp"]
+            pipe.set_params(model__hidden_layer_sizes=hidden, model__alpha=alpha)
         return pipe, None
     return GridSearchCV(pipe, grid, cv=cv_splits, scoring="neg_root_mean_squared_error",
                         n_jobs=1, refit=True), grid
@@ -275,6 +299,7 @@ def main():
         zero_rmse = float(np.sqrt(np.mean(yt ** 2)))
         metrics.append({
             "horizon": h, "info_set": info, "k": k, "model": model, "n": len(g),
+            "confirmatory": is_confirmatory(h, info, k, model),
             "rmse": rmse, "mae": float(np.mean(np.abs(yp - yt))),
             "pooled_r2": float(1 - np.sum((yp - yt) ** 2) / np.sum((yt - yt.mean()) ** 2)),
             "skill_vs_zero": float(1 - rmse / zero_rmse) if zero_rmse else np.nan,
@@ -292,6 +317,7 @@ def main():
                                           random_state=RANDOM_STATE)
             verdicts.append({
                 "horizon": h, "info_set": info, "k": k, "model": model, "baseline": bname,
+                "confirmatory": is_confirmatory(h, info, k, model),
                 "n": boot["n"], "rmse_model": rmse,
                 "rmse_baseline": float(np.sqrt(np.mean((bp - yt) ** 2))),
                 "delta_rmse": boot["delta"], "ci_low": boot["ci_low"], "ci_high": boot["ci_high"],
@@ -304,17 +330,34 @@ def main():
     vt = pd.DataFrame(verdicts)
     if len(vt):
         from statsmodels.stats.multitest import multipletests
-        _, p_holm, _, _ = multipletests(vt["p_one_sided"].fillna(1.0).to_numpy(),
-                                        alpha=0.05, method="holm")
-        vt["p_holm"] = p_holm
-        vt["holm_significant"] = (p_holm < 0.05) & vt["boot_beats"]
+        # T7: the family-wise correction spans the CONFIRMATORY family only. Correcting
+        # across all 720 comparisons made the ranking indistinguishable from selection
+        # noise; correcting across a family nobody pre-declared would be worse.
+        vt["p_holm"] = np.nan
+        confirmatory = vt["confirmatory"].to_numpy(bool)
+        if confirmatory.any():
+            _, p_holm, _, _ = multipletests(
+                vt.loc[confirmatory, "p_one_sided"].fillna(1.0).to_numpy(),
+                alpha=0.05, method="holm")
+            vt.loc[confirmatory, "p_holm"] = p_holm
+        vt["holm_significant"] = (vt["p_holm"] < 0.05) & vt["boot_beats"] & confirmatory
         vt["verdict"] = np.where(vt["boot_beats"], "A - statistically supported",
                                  np.where(vt["delta_rmse"] > 0, "B - suggestive but uncertain",
                                           "C - unsupported"))
-    vt.to_parquet(artifact_file("aspi_grid_verdicts.parquet"), index=False)
-    print(f"wrote aspi_grid_metrics.parquet ({len(mt)} configs), "
-          f"aspi_grid_verdicts.parquet ({len(vt)} comparisons, "
-          f"{int(vt['boot_beats'].sum()) if len(vt) else 0} with a CI excluding zero)")
+        vt.loc[~confirmatory, "verdict"] = "exploratory, not corrected"
+
+    primary = vt[vt["confirmatory"]] if len(vt) else vt
+    exploratory = vt[~vt["confirmatory"]] if len(vt) else vt
+    primary.to_parquet(artifact_file("aspi_grid_verdicts.parquet"), index=False)
+    exploratory.to_parquet(artifact_file("aspi_grid_verdicts_exploratory.parquet"), index=False)
+    print(f"wrote aspi_grid_metrics.parquet ({len(mt)} configs)")
+    print(f"wrote aspi_grid_verdicts.parquet: CONFIRMATORY family of {len(primary)} "
+          f"comparisons (h={CONFIRMATORY_HORIZON}, {CONFIRMATORY_INFO_SETS}, "
+          f"k={CONFIRMATORY_CAPACITY}, {CONFIRMATORY_MODELS}), "
+          f"{int(primary['boot_beats'].sum()) if len(primary) else 0} with a CI excluding zero, "
+          f"{int(primary['holm_significant'].sum()) if len(primary) else 0} surviving Holm")
+    print(f"wrote aspi_grid_verdicts_exploratory.parquet ({len(exploratory)} comparisons, "
+          f"never corrected jointly with the confirmatory family)")
 
     # feature stability
     st = pd.DataFrame(stability_rows)
