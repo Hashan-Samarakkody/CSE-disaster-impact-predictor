@@ -1,0 +1,26 @@
+{
+  "written_utc": "2026-09-22T12:59:40+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "search_grids",
+  "rows": 8,
+  "columns": [
+    "model",
+    "where",
+    "hyperparameter",
+    "values searched"
+  ],
+  "note": "The declared hyperparameter grids, every one selected on purged inner splits."
+}
