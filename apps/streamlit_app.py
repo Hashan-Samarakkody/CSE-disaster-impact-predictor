@@ -13,7 +13,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from src.models.inference import LABEL_DESCRIPTIONS, TARGET_LABELS, get_bundle  # noqa: E402
@@ -117,7 +117,7 @@ def grouped_bar(labels: list[str], series: dict[str, list[float]], colors: dict[
 
 @st.cache_data
 def load_market() -> pd.DataFrame:
-    m = pd.read_parquet(ROOT / "artifacts" / "market.parquet")
+    m = pd.read_parquet(ROOT / "artifacts" / "tables" / "market.parquet")
     m["date"] = pd.to_datetime(m["date"])
     return m
 
