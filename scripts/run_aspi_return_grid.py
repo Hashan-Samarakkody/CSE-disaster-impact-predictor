@@ -40,7 +40,7 @@ CAPACITIES = (5, 10, 20)
 INFO_SETS = ("market_only", "disaster_only", "combined", "normal_plus_residual",
              "real_time", "ex_post")
 MODELS = ("ridge", "elastic_net", "random_forest", "xgboost", "mlp")
-BASELINES = ("naive_zero", "naive_train_mean", "market_only_expected")
+BASELINES = ("naive_zero", "naive_train_mean", "naive_train_median", "market_only_expected")
 
 # The confirmatory family, pre-declared in docs/audit.md Part 8.4 before this grid was
 # re-run (T7). Everything outside it is exploratory and is written to its own artifact.
@@ -230,6 +230,7 @@ def main():
             # Baselines, identical test rows for every candidate (protocol 3.1).
             base_pred = {"naive_zero": np.zeros(len(te)),
                          "naive_train_mean": np.full(len(te), float(np.mean(y_tr))),
+                         "naive_train_median": np.full(len(te), float(np.median(y_tr))),
                          "market_only_expected": np.where(np.isfinite(exp_h[te]), exp_h[te], 0.0)}
             for bname, bp in base_pred.items():
                 for j, row in enumerate(te):

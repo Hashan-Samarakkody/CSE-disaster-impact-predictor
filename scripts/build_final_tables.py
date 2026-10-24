@@ -24,11 +24,14 @@ def build_y1_table() -> pd.DataFrame:
 
     base = (metrics[metrics.info_set == "baseline"]
             .pivot(index="horizon", columns="model", values="rmse"))
-    # `metrics` already carries a `skill_vs_zero`; drop it so the three skill columns
-    # below are all computed the same way, from the same baseline RMSE table.
+    # Drop the pre-computed skill_vs_zero so all reduction metrics are derived
+    # consistently here (examiner change 4: emit both rmse_reduction and mse_reduction,
+    # drop the ambiguous "skill" label). Primary source: aspi_grid_metrics.parquet.
     rows = metrics[metrics.info_set != "baseline"].drop(columns=["skill_vs_zero"]).copy()
     for b in ("naive_zero", "naive_train_mean", "market_only_expected"):
-        rows[f"skill_vs_{b}"] = 1.0 - rows["rmse"] / rows["horizon"].map(base[b])
+        ratio = rows["rmse"] / rows["horizon"].map(base[b])
+        rows[f"rmse_reduction_vs_{b}"] = 1.0 - ratio
+        rows[f"mse_reduction_vs_{b}"] = 1.0 - ratio ** 2
 
     primary = verdicts[verdicts.baseline == "market_only_expected"].set_index(
         ["horizon", "info_set", "k", "model"])
@@ -40,15 +43,16 @@ def build_y1_table() -> pd.DataFrame:
     rows["significant_single_test"] = primary["boot_beats"]
     rows["significant_after_adjustment"] = primary["holm_significant"]
     rows["verdict"] = primary["verdict"]
+    rows["source_artifact"] = "aspi_grid_metrics.parquet"
     return rows.reset_index().rename(columns={
         "rmse": "RMSE", "mae": "MAE", "pooled_r2": "R2",
-        "skill_vs_naive_zero": "skill_vs_zero",
-        "skill_vs_naive_train_mean": "skill_vs_train_mean",
-        "skill_vs_market_only_expected": "skill_vs_market_only",
     })[["horizon", "info_set", "k", "model", "n", "RMSE", "MAE", "R2",
-        "skill_vs_zero", "skill_vs_train_mean", "skill_vs_market_only",
+        "rmse_reduction_vs_naive_zero", "mse_reduction_vs_naive_zero",
+        "rmse_reduction_vs_naive_train_mean", "mse_reduction_vs_naive_train_mean",
+        "rmse_reduction_vs_market_only_expected", "mse_reduction_vs_market_only_expected",
         "bootstrap_delta", "CI_low", "CI_high", "Holm_p",
-        "significant_single_test", "significant_after_adjustment", "verdict"]]
+        "significant_single_test", "significant_after_adjustment", "verdict",
+        "source_artifact"]]
 
 
 def build_y3_table() -> pd.DataFrame:
@@ -68,10 +72,12 @@ def build_y3_table() -> pd.DataFrame:
     # The censoring-aware columns are the result; the point errors are kept only over the
     # genuinely observed recoveries and are named so no reader can mistake them (T3).
     out.insert(1, "result_class", "primary (censoring-aware survival)")
+    out["source_artifact"] = "recovery_grid_metrics.parquet"
     return out[["model", "result_class", "n", "n_recovered", "n_censored", "C_index",
                 "C_index_CI", "Integrated_Brier_Score", "Median_abs_error_uncensored",
                 "MAE_uncensored_diagnostic", "RMSE_uncensored_diagnostic",
-                "max_abs_calibration_gap", "p_holm", "holm_significant", "verdict"]]
+                "max_abs_calibration_gap", "p_holm", "holm_significant", "verdict",
+                "source_artifact"]]
 
 
 def build_y3_regression_diagnostic() -> pd.DataFrame:
@@ -89,10 +95,12 @@ def build_y3_regression_diagnostic() -> pd.DataFrame:
     rows = rows.rename(columns={"rmse_model": "RMSE_model_diagnostic",
                                 "rmse_baseline": "RMSE_baseline_diagnostic",
                                 "delta_rmse": "delta_RMSE_diagnostic"})
+    rows["source_artifact"] = "verdict_table.parquet"
+    rows["specification"] = "unpartitioned full-feature"
     return rows[["target", "result_class", "censoring_aware", "model", "baseline", "n",
                  "RMSE_model_diagnostic", "RMSE_baseline_diagnostic",
                  "delta_RMSE_diagnostic", "ci_low", "ci_high", "p_holm",
-                 "holm_significant", "verdict"]]
+                 "holm_significant", "verdict", "source_artifact", "specification"]]
 
 
 def _md(df, floats=4):

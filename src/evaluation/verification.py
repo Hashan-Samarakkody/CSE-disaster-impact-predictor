@@ -135,7 +135,17 @@ def pooled(results: dict, model: str, target: str):
     return (np.concatenate(store["y_true"]), np.concatenate(store["y_pred"]), idx)
 
 
-def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_train_mean"),
+# Per-target benchmark sets. Y3 excludes naive_zero because zero sessions is not a
+# reachable duration; any positive-valued model beats it mechanically, which would
+# inflate the Holm-significant count without measuring forecast skill (examiner change 1).
+DEFAULT_BASELINES = {
+    "Y1_ASPI_5D_Forward_LogReturn_Pct":      ("naive_zero", "naive_train_mean"),
+    "Y2_5D_Forward_AbnormalVolume_LogRatio": ("naive_zero", "naive_train_mean"),
+    "Y3_ASPI_Recovery_Time":                 ("naive_train_mean",),
+}
+
+
+def verdict_table(results: dict, target_cols, baselines=None,
                   event_dates=None, episode_gap_days: int = 14,
                   confirmatory_models=None):
     """Full per-(model, target, baseline) verdict table.
@@ -150,14 +160,22 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
     """
     from statsmodels.stats.multitest import multipletests
 
+    if baselines is None:
+        target_baselines = DEFAULT_BASELINES
+    elif isinstance(baselines, dict):
+        target_baselines = baselines
+    else:
+        target_baselines = {t: tuple(baselines) for t in target_cols}
+    all_baselines = {b for bs in target_baselines.values() for b in bs}
+
     rows = []
-    models = [m for m in results if m not in baselines]
+    models = [m for m in results if m not in all_baselines]
     for target in target_cols:
         for model in models:
             if target not in results[model]:
                 continue
             yt_m, yp_m, idx_m = pooled(results, model, target)
-            for base in baselines:
+            for base in target_baselines.get(target, ("naive_zero", "naive_train_mean")):
                 if base not in results or target not in results[base]:
                     continue
                 yt_b, yp_b, idx_b = pooled(results, base, target)
@@ -203,16 +221,22 @@ def verdict_table(results: dict, target_cols, baselines=("naive_zero", "naive_tr
 
     table = pd.DataFrame(rows)
     if len(table):
-        # NaN p-values (n too small to bootstrap) can't be corrected, treated as
-        # non-significant rather than dropped, so the row count here matches `table`.
-        family = table["confirmatory"].to_numpy(bool)
+        # Holm correction applied WITHIN each target family (examiner change 2). Pooling
+        # across targets inflates m and makes the correction too conservative; each target
+        # poses its own pre-registered set of comparisons and must be corrected separately.
         table["p_holm"] = np.nan
-        if family.any():
-            pvals = table.loc[family, "p_model_worse"].fillna(1.0).to_numpy()
+        for target, block in table.groupby("target"):
+            family = block["confirmatory"].to_numpy(bool)
+            if not family.any():
+                continue
+            rows_idx = block.index[family]
+            pvals = table.loc[rows_idx, "p_model_worse"].fillna(1.0).to_numpy()
             _, p_holm, _, _ = multipletests(pvals, alpha=0.05, method="holm")
-            table.loc[family, "p_holm"] = p_holm
-        table["holm_significant"] = (table["p_holm"] < 0.05) & table["boot_beats"] & family
-        table.attrs["holm_family_size"] = int(family.sum())
+            table.loc[rows_idx, "p_holm"] = p_holm
+        confirmatory = table["confirmatory"].to_numpy(bool)
+        table["holm_significant"] = (table["p_holm"] < 0.05) & table["boot_beats"] & confirmatory
+        table.attrs["holm_family_sizes"] = (table[table["confirmatory"]]
+                                            .groupby("target").size().to_dict())
     return table
 
 
