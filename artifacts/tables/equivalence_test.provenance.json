@@ -1,0 +1,31 @@
+{
+  "written_utc": "2026-10-25T05:46:00+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "equivalence_test",
+  "rows": 3,
+  "columns": [
+    "target",
+    "horizon",
+    "n_events",
+    "delta_rmse",
+    "ci_low",
+    "ci_high",
+    "equivalence_margin",
+    "margin_justification",
+    "equivalence_supported"
+  ],
+  "note": "Paired bootstrap of RMSE_real_time - RMSE_ex_post per event. Margins pre-stated: 0.10 for Y1 (horizons 5, 10), 0.05 for Y2 (horizon 20). B=10000 bootstrap replications, RANDOM_STATE=42."
+}

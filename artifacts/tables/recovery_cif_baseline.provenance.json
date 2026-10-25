@@ -1,0 +1,32 @@
+{
+  "written_utc": "2026-10-25T05:49:07+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "recovery_cif_baseline",
+  "rows": 5,
+  "columns": [
+    "model",
+    "horizon",
+    "cif_estimate",
+    "km_survival",
+    "ci_low",
+    "ci_high",
+    "greenwood_var",
+    "n_at_risk",
+    "n_events",
+    "n_censored_before"
+  ],
+  "note": "Explicit cumulative-incidence (CIF) baseline for Y3 recovery. CIF = 1 - KM(t) fitted on pooled held-out events with Greenwood CI. Equivalent to the km_train_baseline P_T_le_t column but with uncertainty. Companion to recovery_grid_metrics and survival_discrimination."
+}

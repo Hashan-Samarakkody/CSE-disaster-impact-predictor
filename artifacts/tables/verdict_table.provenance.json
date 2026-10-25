@@ -1,5 +1,5 @@
 {
-  "written_utc": "2026-10-24T06:55:28+00:00",
+  "written_utc": "2026-10-25T06:04:49+00:00",
   "python": "3.12.10",
   "platform": "Windows-11-10.0.26200-SP0",
   "versions": {
@@ -39,5 +39,5 @@
     "p_holm",
     "holm_significant"
   ],
-  "note": "Stage-0 predictability verdicts, cluster bootstrap (primary) + Diebold-Mariano (diagnostic) + Holm per-target over the confirmatory family only."
+  "note": "Per-(model, target, baseline) verdict with per-target Holm. MLP reclassified as confirmatory (T8, pre-registered in docs/audit.md 8.4)."
 }

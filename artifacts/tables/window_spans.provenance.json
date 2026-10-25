@@ -1,0 +1,32 @@
+{
+  "written_utc": "2026-10-25T05:44:50+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "window_spans",
+  "rows": 4,
+  "columns": [
+    "fold",
+    "train_event_first",
+    "train_event_last",
+    "train_date_first",
+    "train_date_last",
+    "train_span_years",
+    "test_date_first",
+    "test_date_last",
+    "test_span_years",
+    "n_hazard_by_type"
+  ],
+  "note": "Training and test window metadata per walk-forward fold. n_hazard_by_type is JSON of disaster type counts in the test fold."
+}

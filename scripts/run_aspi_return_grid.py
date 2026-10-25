@@ -301,13 +301,18 @@ def main():
         g = g.sort_values(["fold", "row"])
         yt, yp = g["y_true"].to_numpy(), g["y_pred"].to_numpy()
         rmse = float(np.sqrt(np.mean((yp - yt) ** 2)))
-        zero_rmse = float(np.sqrt(np.mean(yt ** 2)))
+        rmse_benchmark = float(np.sqrt(np.mean(yt ** 2)))  # naive_zero benchmark
         metrics.append({
             "horizon": h, "info_set": info, "k": k, "model": model, "n": len(g),
             "confirmatory": is_confirmatory(h, info, k, model),
             "rmse": rmse, "mae": float(np.mean(np.abs(yp - yt))),
+            # pooled_r2 denominator: deviation from the pooled mean of held-out y_true
+            # values (NOT fold-specific training-mean forecasts, not held-out sample
+            # variance independently per fold).
             "pooled_r2": float(1 - np.sum((yp - yt) ** 2) / np.sum((yt - yt.mean()) ** 2)),
-            "skill_vs_zero": float(1 - rmse / zero_rmse) if zero_rmse else np.nan,
+            "rmse_improvement": float(rmse_benchmark - rmse),          # absolute
+            "rmse_reduction": float(1.0 - rmse / rmse_benchmark) if rmse_benchmark else np.nan,  # proportional
+            "mse_reduction": float(1.0 - (rmse / rmse_benchmark) ** 2) if rmse_benchmark else np.nan,  # proportional MSE
         })
 
         if info == "baseline":
@@ -330,7 +335,12 @@ def main():
             })
 
     mt = pd.DataFrame(metrics)
-    save_frame(mt, "aspi_grid_metrics", "Pooled metrics per return grid configuration, with the confirmatory flag.")
+    save_frame(mt, "aspi_grid_metrics",
+               "Pooled metrics per return grid configuration, with the confirmatory flag. "
+               "pooled_r2 denominator: deviation from the pooled mean of all held-out y_true "
+               "values (not fold-specific training-mean forecasts, not held-out sample variance "
+               "per fold). Benchmark for rmse_improvement/rmse_reduction/mse_reduction is the "
+               "naive_zero RMSE (sqrt(mean(y_true^2))).")
 
     vt = pd.DataFrame(verdicts)
     if len(vt):

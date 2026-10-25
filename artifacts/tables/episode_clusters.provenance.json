@@ -1,0 +1,28 @@
+{
+  "written_utc": "2026-10-25T05:44:24+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "episode_clusters",
+  "rows": 71,
+  "columns": [
+    "episode_id",
+    "event_ids",
+    "size",
+    "first_date",
+    "last_date",
+    "span_days"
+  ],
+  "note": "Bootstrap conditions on fitted predictions and does not propagate model-fitting or selection uncertainty. The episode-clustered bootstrap resamples whole episodes, not individual events. Episodes defined as groups of disaster events within 14 days of each other (gap_days=14). event_ids is a comma-separated string of dataset row indices."
+}

@@ -1,0 +1,30 @@
+{
+  "written_utc": "2026-10-25T05:54:43+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "survival_calibration",
+  "rows": 80,
+  "columns": [
+    "model",
+    "horizon",
+    "predicted_prob",
+    "observed_km_prob",
+    "n_at_risk",
+    "n_events",
+    "ci_low",
+    "ci_high"
+  ],
+  "note": "Predicted P(T<=t) vs observed KM P(T<=t) at each horizon for each model. CIs: Greenwood formula for KM, inverted to CDF scale."
+}

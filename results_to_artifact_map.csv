@@ -1,0 +1,90 @@
+thesis_section,label,value,source_artifact,source_column,row_filter
+EventStudy,return_CAAR_1_5,+0.0006,event_study_caar.parquet,caar,"series=return, event_time=5"
+EventStudy,return_p_bmp_k5,0.9665,event_study_caar.parquet,p_bmp,"series=return, event_time=5"
+EventStudy,return_p_corrado_k5,0.9031,event_study_caar.parquet,p_corrado,"series=return, event_time=5"
+EventStudy,return_p_kp_k5,0.9735,event_study_caar.parquet,p_kolari_pynnonen,"series=return, event_time=5"
+EventStudy,volume_CAAR_1_20,+2.8910,event_study_caar.parquet,caar,"series=volume, event_time=20"
+EventStudy,volume_p_corrado_k20,0.0001,event_study_caar.parquet,p_corrado,"series=volume, event_time=20"
+EventStudy,volume_p_kp_k20,0.2086,event_study_caar.parquet,p_kolari_pynnonen,"series=volume, event_time=20"
+EventStudy,n_events,74,event_study_caar.parquet,n_events,"series=return, event_time=5"
+Placebo,reject_bmp_5pct,0.000,placebo_event_study_provenance.json,empirical_rejection_rate_5pct.bmp,
+Placebo,reject_corrado_5pct,0.000,placebo_event_study_provenance.json,empirical_rejection_rate_5pct.corrado,
+Placebo,reject_kp_5pct,0.000,placebo_event_study_provenance.json,empirical_rejection_rate_5pct.kolari_pynnonen,
+Y1_magnitude,best_conf_rmse_h5_rt_ridge,2.7761,aspi_grid_metrics.parquet,rmse,"horizon=5, info_set=real_time, k=10, model=ridge, confirmatory=True"
+Y1_magnitude,best_conf_pooled_r2_h5_rt_ridge,-0.0245,aspi_grid_metrics.parquet,pooled_r2,"horizon=5, info_set=real_time, k=10, model=ridge, confirmatory=True"
+Y1_magnitude,n_holm_significant_confirmatory_h5,0,verdict_table.parquet,holm_significant,"target=Y1_ASPI_5D_Forward_LogReturn_Pct, confirmatory=True"
+Y1_direction,auc_h5_logistic,0.5739,aspi_direction_metrics.parquet,roc_auc,"horizon=5, model=logistic"
+Y1_direction,auc_ci_low_h5_logistic,0.4131,aspi_direction_metrics.parquet,auc_ci_low,"horizon=5, model=logistic"
+Y1_direction,auc_ci_high_h5_logistic,0.7486,aspi_direction_metrics.parquet,auc_ci_high,"horizon=5, model=logistic"
+Y1_direction,p_holm_h5_logistic,0.8675,aspi_direction_metrics.parquet,p_holm,"horizon=5, model=logistic"
+Y1_direction,holm_significant_h5_logistic,False,aspi_direction_metrics.parquet,holm_significant,"horizon=5, model=logistic"
+Y1_direction,balanced_accuracy_h5_logistic,0.5100,aspi_direction_metrics.parquet,balanced_accuracy,"horizon=5, model=logistic"
+Y1_direction,mcc_h5_logistic,0.0250,aspi_direction_metrics.parquet,mcc,"horizon=5, model=logistic"
+Y1_direction,auc_h5_random_forest,0.5439,aspi_direction_metrics.parquet,roc_auc,"horizon=5, model=random_forest"
+Y1_direction,auc_ci_low_h5_random_forest,0.3624,aspi_direction_metrics.parquet,auc_ci_low,"horizon=5, model=random_forest"
+Y1_direction,auc_ci_high_h5_random_forest,0.7181,aspi_direction_metrics.parquet,auc_ci_high,"horizon=5, model=random_forest"
+Y1_direction,p_holm_h5_random_forest,0.8675,aspi_direction_metrics.parquet,p_holm,"horizon=5, model=random_forest"
+Y1_direction,holm_significant_h5_random_forest,False,aspi_direction_metrics.parquet,holm_significant,"horizon=5, model=random_forest"
+Y1_direction,auc_h10_logistic,0.8170,aspi_direction_metrics.parquet,roc_auc,"horizon=10, model=logistic"
+Y1_direction,auc_ci_low_h10_logistic,0.6566,aspi_direction_metrics.parquet,auc_ci_low,"horizon=10, model=logistic"
+Y1_direction,auc_ci_high_h10_logistic,0.9396,aspi_direction_metrics.parquet,auc_ci_high,"horizon=10, model=logistic"
+Y1_direction,p_holm_h10_logistic,0.0000,aspi_direction_metrics.parquet,p_holm,"horizon=10, model=logistic"
+Y1_direction,holm_significant_h10_logistic,True,aspi_direction_metrics.parquet,holm_significant,"horizon=10, model=logistic"
+Y1_direction,balanced_accuracy_h10_logistic,0.7569,aspi_direction_metrics.parquet,balanced_accuracy,"horizon=10, model=logistic"
+Y1_direction,mcc_h10_logistic,0.5300,aspi_direction_metrics.parquet,mcc,"horizon=10, model=logistic"
+Y1_direction,auc_h10_random_forest,0.7093,aspi_direction_metrics.parquet,roc_auc,"horizon=10, model=random_forest"
+Y1_direction,auc_ci_low_h10_random_forest,0.5286,aspi_direction_metrics.parquet,auc_ci_low,"horizon=10, model=random_forest"
+Y1_direction,auc_ci_high_h10_random_forest,0.8738,aspi_direction_metrics.parquet,auc_ci_high,"horizon=10, model=random_forest"
+Y1_direction,p_holm_h10_random_forest,0.1395,aspi_direction_metrics.parquet,p_holm,"horizon=10, model=random_forest"
+Y1_direction,holm_significant_h10_random_forest,False,aspi_direction_metrics.parquet,holm_significant,"horizon=10, model=random_forest"
+Y2_volume,rf_rmse,0.4995,verdict_table.parquet,rmse_model,"target=Y2, model=random_forest, baseline=naive_zero"
+Y2_volume,rf_delta_rmse_vs_zero,0.1060,verdict_table.parquet,delta_rmse,"target=Y2, model=random_forest, baseline=naive_zero"
+Y2_volume,rf_ci_low_vs_zero,0.0371,verdict_table.parquet,ci_low,"target=Y2, model=random_forest, baseline=naive_zero"
+Y2_volume,rf_ci_high_vs_zero,0.1754,verdict_table.parquet,ci_high,"target=Y2, model=random_forest, baseline=naive_zero"
+Y2_volume,rf_p_holm_vs_zero,0.0204,verdict_table.parquet,p_holm,"target=Y2, model=random_forest, baseline=naive_zero"
+Y2_volume,rf_holm_significant,True,verdict_table.parquet,holm_significant,"target=Y2, model=random_forest, baseline=naive_zero"
+Y2_volume,pooled_r2_note_random_forest,see aspi_grid_metrics or results_regression.pkl,verdict_table.parquet / aspi_grid_metrics.parquet,pooled_r2,"target=Y2, model=random_forest"
+Y2_volume,pooled_r2_note_ensemble,see aspi_grid_metrics or results_regression.pkl,verdict_table.parquet / aspi_grid_metrics.parquet,pooled_r2,"target=Y2, model=ensemble"
+Y3_recovery,n_total_events,74,dataset.parquet,Y3_ASPI_Recovery_Time,all rows
+Y3_recovery,n_observed_recoveries,36,dataset.parquet,Y3_event_observed,Y3_event_observed=True
+Y3_recovery,n_censored,38,dataset.parquet,Y3_censored,Y3_censored=True
+Y3_recovery,best_c_index_two_stage_lognormal_k20,0.5346,recovery_grid_metrics.parquet,c_index,model=two_stage_lognormal_k20
+Y3_recovery,best_c_ci_low_two_stage_lognormal_k20,0.3708,recovery_grid_metrics.parquet,c_index_ci_low,model=two_stage_lognormal_k20
+Y3_recovery,best_c_ci_high_two_stage_lognormal_k20,0.6974,recovery_grid_metrics.parquet,c_index_ci_high,model=two_stage_lognormal_k20
+Y3_recovery,n_holm_significant_survival,0,recovery_grid_metrics.parquet,holm_significant,
+Y3_recovery,baseline_naive_zero_excluded,True — zero sessions is not a valid recovery duration,src/evaluation/verification.py,DEFAULT_BASELINES,Y3_ASPI_Recovery_Time
+Y3_recovery,km_baseline_c_index,0.5027,recovery_grid_metrics.parquet,c_index,model=km_train_baseline
+Y3_recovery,cif_at_t10,0.4091,recovery_cif_baseline.parquet,cif_estimate,horizon=10
+Y3_recovery,cif_ci_low_t10,0.2036,recovery_cif_baseline.parquet,ci_low,horizon=10
+Y3_recovery,cif_at_t20,0.6061,recovery_cif_baseline.parquet,cif_estimate,horizon=20
+Y3_recovery,cif_ci_low_t20,0.3973,recovery_cif_baseline.parquet,ci_low,horizon=20
+Y3_recovery,cif_at_t30,0.6623,recovery_cif_baseline.parquet,cif_estimate,horizon=30
+Y3_recovery,cif_ci_low_t30,0.4563,recovery_cif_baseline.parquet,ci_low,horizon=30
+Y3_recovery,cif_at_t60,0.6623,recovery_cif_baseline.parquet,cif_estimate,horizon=60
+Y3_recovery,cif_ci_low_t60,0.4563,recovery_cif_baseline.parquet,ci_low,horizon=60
+Y3_recovery,cif_at_t90,0.6623,recovery_cif_baseline.parquet,cif_estimate,horizon=90
+Y3_recovery,cif_ci_low_t90,0.4563,recovery_cif_baseline.parquet,ci_low,horizon=90
+InfoSetEquivalence,delta_rmse_Y1_5D,0.0207,equivalence_test.parquet,delta_rmse,target=Y1_5D
+InfoSetEquivalence,equiv_supported_Y1_5D,False,equivalence_test.parquet,equivalence_supported,target=Y1_5D
+InfoSetEquivalence,delta_rmse_Y1_10D,0.2747,equivalence_test.parquet,delta_rmse,target=Y1_10D
+InfoSetEquivalence,equiv_supported_Y1_10D,False,equivalence_test.parquet,equivalence_supported,target=Y1_10D
+InfoSetEquivalence,delta_rmse_Y2,-0.4916,equivalence_test.parquet,delta_rmse,target=Y2
+InfoSetEquivalence,equiv_supported_Y2,False,equivalence_test.parquet,equivalence_supported,target=Y2
+PowerMDE,mde_rmse_Y1_5D,1.7354,minimum_detectable_effect.parquet,mde_rmse,target=Y1_5D
+PowerMDE,mde_rmse_Y2_5D,0.4170,minimum_detectable_effect.parquet,mde_rmse,target=Y2_5D
+PowerMDE,mde_rmse_Y3,13.3900,minimum_detectable_effect.parquet,mde_rmse,target=Y3
+PowerMDE,mde_rmse_Y1_10D,3.2362,minimum_detectable_effect.parquet,mde_rmse,target=Y1_10D
+Sampling,n_labelled_Y1_ASPI_5D_main,74,sample_accounting.parquet,n_labelled,"target=Y1_ASPI_5D, variant=main"
+Sampling,n_held_out_Y1_ASPI_5D_main,40,sample_accounting.parquet,n_held_out,"target=Y1_ASPI_5D, variant=main"
+Sampling,n_labelled_Y1_ASPI_10D_main,74,sample_accounting.parquet,n_labelled,"target=Y1_ASPI_10D, variant=main"
+Sampling,n_held_out_Y1_ASPI_10D_main,40,sample_accounting.parquet,n_held_out,"target=Y1_ASPI_10D, variant=main"
+Sampling,n_labelled_Y2_5D_main,61,sample_accounting.parquet,n_labelled,"target=Y2_5D, variant=main"
+Sampling,n_held_out_Y2_5D_main,40,sample_accounting.parquet,n_held_out,"target=Y2_5D, variant=main"
+Sampling,n_labelled_Y3_recovery_time_main,74,sample_accounting.parquet,n_labelled,"target=Y3_recovery_time, variant=main"
+Sampling,n_held_out_Y3_recovery_time_main,40,sample_accounting.parquet,n_held_out,"target=Y3_recovery_time, variant=main"
+Sampling,n_labelled_Y3_recovery_time_excl_competing_risk,74,sample_accounting.parquet,n_labelled,"target=Y3_recovery_time, variant=excl_competing_risk"
+Sampling,n_held_out_Y3_recovery_time_excl_competing_risk,40,sample_accounting.parquet,n_held_out,"target=Y3_recovery_time, variant=excl_competing_risk"
+HolmCorrection,family_size_Y1_ASPI_10D_Forward_LogReturn_Pct,18,analysis_map.parquet,family_size,"target=Y1_ASPI_10D_Forward_LogReturn_Pct, tier=confirmatory"
+HolmCorrection,family_size_Y1_ASPI_5D_Forward_LogReturn_Pct,18,analysis_map.parquet,family_size,"target=Y1_ASPI_5D_Forward_LogReturn_Pct, tier=confirmatory"
+HolmCorrection,family_size_Y2_5D_Forward_AbnormalVolume_LogRatio,18,analysis_map.parquet,family_size,"target=Y2_5D_Forward_AbnormalVolume_LogRatio, tier=confirmatory"
+HolmCorrection,family_size_Y3_ASPI_Recovery_Time,9,analysis_map.parquet,family_size,"target=Y3_ASPI_Recovery_Time, tier=confirmatory"

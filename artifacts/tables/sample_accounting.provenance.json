@@ -1,0 +1,35 @@
+{
+  "written_utc": "2026-10-25T05:44:09+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "sample_accounting",
+  "rows": 5,
+  "columns": [
+    "target",
+    "variant",
+    "n_events_total",
+    "n_with_valid_origin",
+    "n_with_baseline",
+    "n_with_forward_window",
+    "n_labelled",
+    "n_training_eligible",
+    "n_purged",
+    "n_excluded",
+    "n_held_out",
+    "exclusion_reason",
+    "model_refit_per_event"
+  ],
+  "note": "Per-target and per-variant sample sizes. n_training_eligible is fold-0 training set size (minimum across folds). n_purged = n_labelled - n_held_out - n_training_eligible."
+}

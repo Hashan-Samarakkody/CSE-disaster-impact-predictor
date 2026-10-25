@@ -1,0 +1,39 @@
+{
+  "written_utc": "2026-10-25T05:45:18+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "prediction_ledger",
+  "rows": 19240,
+  "columns": [
+    "event_id",
+    "event_date",
+    "disaster_type",
+    "date_is_exact",
+    "episode_id",
+    "horizon",
+    "info_set",
+    "k",
+    "fold",
+    "target",
+    "model",
+    "y_true",
+    "y_pred",
+    "bench_zero",
+    "bench_train_mean",
+    "bench_train_median",
+    "outcome_resolution_date"
+  ],
+  "note": "Full prediction log. Y1 rows from aspi_grid_predictions.parquet; Y3 rows from recovery_grid_predictions.parquet. bench_zero=0.0 for Y1 (NaN for Y3). episode_id from build_episode_ids with gap_days=14."
+}

@@ -1,0 +1,36 @@
+{
+  "written_utc": "2026-10-25T06:05:06+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "analysis_map",
+  "rows": 91,
+  "columns": [
+    "target",
+    "target_role",
+    "model",
+    "tier",
+    "info_set",
+    "k",
+    "benchmark",
+    "n",
+    "family_id",
+    "family_size",
+    "p_raw",
+    "p_holm",
+    "holm_significant",
+    "source_artifact"
+  ],
+  "note": "One row per comparison actually performed. Regression rows from verdict_table; direction rows from aspi_direction_metrics; classification rows from classification_summary."
+}

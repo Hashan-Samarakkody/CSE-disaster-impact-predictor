@@ -1,0 +1,31 @@
+{
+  "written_utc": "2026-10-25T05:44:16+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "feature_availability",
+  "rows": 68,
+  "columns": [
+    "feature",
+    "block",
+    "observation_date_rule",
+    "publication_date_rule",
+    "revision_policy",
+    "usable_from_rule",
+    "info_set",
+    "shifted_to_P0",
+    "notes"
+  ],
+  "note": "One row per feature with availability class, block assignment, and reclassifications applied for date_is_exact, days_to_election, election_within_5d, and 1000-affected threshold features."
+}

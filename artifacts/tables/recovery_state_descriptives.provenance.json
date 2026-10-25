@@ -1,0 +1,34 @@
+{
+  "written_utc": "2026-10-25T05:44:36+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "recovery_state_descriptives",
+  "rows": 4,
+  "columns": [
+    "state",
+    "n",
+    "mean",
+    "median",
+    "q25",
+    "q75",
+    "min",
+    "max",
+    "drawdown_threshold",
+    "detection_gate_length",
+    "recovery_threshold",
+    "horizon_cap"
+  ],
+  "note": "Descriptives by Y3 recovery state. Thresholds read from src/targets/event_targets.py constants: DRAWDOWN_WINDOW, MAX_RECOVERY_SESSIONS. Recovery requires ASPI >= P0 after prior dip."
+}
