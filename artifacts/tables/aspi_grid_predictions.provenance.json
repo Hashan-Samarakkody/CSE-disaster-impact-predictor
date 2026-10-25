@@ -1,5 +1,5 @@
 {
-  "written_utc": "2026-09-22T12:01:04.453422+00:00",
+  "written_utc": "2026-10-25T06:39:00+00:00",
   "python": "3.12.10",
   "platform": "Windows-11-10.0.26200-SP0",
   "versions": {
@@ -15,7 +15,7 @@
     "yfinance": "1.6.0"
   },
   "artifact": "aspi_grid_predictions",
-  "rows": 18600,
+  "rows": 18800,
   "columns": [
     "horizon",
     "info_set",
@@ -26,5 +26,5 @@
     "y_true",
     "y_pred"
   ],
-  "note": "Out-of-fold predictions for every return grid configuration. Sidecar backfilled from the file's own modification time after the 2026-09-22 run; the artifact itself was not rewritten."
+  "note": "Out-of-fold predictions for every return grid configuration."
 }

@@ -1,5 +1,5 @@
 {
- "commit": "9562995e0295a4b229d300ccb169abf2aeba84ad",
+ "commit": "b793b264e06fb9846c9e7afa19d7494f5c493c2a",
  "n_events": 74,
  "event_ids": [
   0,
@@ -8470,9 +8470,9 @@
    "dm_beats": false,
    "dm_agrees": true,
    "verdict": "better, not distinguishable",
-   "confirmatory": false,
+   "confirmatory": true,
    "note": "",
-   "p_holm": NaN,
+   "p_holm": 1.0,
    "holm_significant": false
   },
   {
@@ -8493,9 +8493,9 @@
    "dm_beats": false,
    "dm_agrees": true,
    "verdict": "better, not distinguishable",
-   "confirmatory": false,
+   "confirmatory": true,
    "note": "",
-   "p_holm": NaN,
+   "p_holm": 1.0,
    "holm_significant": false
   },
   {
@@ -8656,7 +8656,7 @@
    "verdict": "BEATS BASELINE",
    "confirmatory": true,
    "note": "",
-   "p_holm": 0.020399999999999998,
+   "p_holm": 0.023799999999999998,
    "holm_significant": true
   },
   {
@@ -8679,7 +8679,7 @@
    "verdict": "BEATS BASELINE",
    "confirmatory": true,
    "note": "",
-   "p_holm": 0.10229999999999999,
+   "p_holm": 0.1209,
    "holm_significant": false
   },
   {
@@ -8702,7 +8702,7 @@
    "verdict": "BEATS BASELINE",
    "confirmatory": true,
    "note": "",
-   "p_holm": 0.118,
+   "p_holm": 0.1416,
    "holm_significant": false
   },
   {
@@ -8884,9 +8884,9 @@
    "dm_beats": true,
    "dm_agrees": true,
    "verdict": "BEATS BASELINE",
-   "confirmatory": false,
+   "confirmatory": true,
    "note": "",
-   "p_holm": NaN,
+   "p_holm": 0.1416,
    "holm_significant": false
   },
   {
@@ -8907,9 +8907,9 @@
    "dm_beats": false,
    "dm_agrees": false,
    "verdict": "BEATS BASELINE",
-   "confirmatory": false,
+   "confirmatory": true,
    "note": "",
-   "p_holm": NaN,
+   "p_holm": 0.21999999999999997,
    "holm_significant": false
   },
   {
@@ -9160,9 +9160,9 @@
    "dm_beats": false,
    "dm_agrees": true,
    "verdict": "worse than baseline",
-   "confirmatory": false,
+   "confirmatory": true,
    "note": "",
-   "p_holm": NaN,
+   "p_holm": 1.0,
    "holm_significant": false
   },
   {
@@ -9505,9 +9505,9 @@
    "dm_beats": false,
    "dm_agrees": true,
    "verdict": "better, not distinguishable",
-   "confirmatory": false,
+   "confirmatory": true,
    "note": "",
-   "p_holm": NaN,
+   "p_holm": 1.0,
    "holm_significant": false
   },
   {
@@ -9528,9 +9528,9 @@
    "dm_beats": false,
    "dm_agrees": true,
    "verdict": "better, not distinguishable",
-   "confirmatory": false,
+   "confirmatory": true,
    "note": "",
-   "p_holm": NaN,
+   "p_holm": 1.0,
    "holm_significant": false
   },
   {

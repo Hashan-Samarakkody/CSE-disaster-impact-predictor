@@ -1,5 +1,5 @@
 {
-  "written_utc": "2026-09-22T12:18:33.804078+00:00",
+  "written_utc": "2026-10-25T06:46:59+00:00",
   "python": "3.12.10",
   "platform": "Windows-11-10.0.26200-SP0",
   "versions": {
@@ -27,5 +27,5 @@
     "n_folds",
     "selection_frequency"
   ],
-  "note": "How often each feature was selected across folds. Sidecar backfilled from the file's own modification time after the 2026-09-22 run; the artifact itself was not rewritten."
+  "note": "How often each feature was selected across folds."
 }
