@@ -28,6 +28,17 @@ of session `t`.
 `V_{-1} … V_{-30}` = market-wide traded volumes of the 30 complete sessions immediately
 preceding `τ`.
 
+**Forecast issuance timing.** The forecast is issued before the opening of session t, using
+information available through the close of session t−1 (which is P0). All market-state
+features (log_return, lagged returns, moving averages, volatility, volume ratios) are
+computed from closes at or before P0. The onset-session price reaction (the return from P0
+to P1) is included in the five-session forward target Y1 = 100 × ln(P5 / P0) but is not
+available as a predictor feature. This means the event-study window (measuring cumulative
+abnormal returns from k = 1) and the forecasting target (measuring forward returns from P0)
+overlap by one session. They answer different questions: the event study asks whether an
+average market response is detectable across events, while the forecasting model asks whether
+heterogeneity across individual events is predictable.
+
 `V1 … V5` = market-wide traded volumes of the first five complete sessions after `τ`.
 
 All target observations occur strictly after the prediction origin. No predictor feature

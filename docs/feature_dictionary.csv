@@ -33,7 +33,7 @@ aspi_close,No,No,Raw Market Data,CSE,ASPI closing price on the matched trading d
 trading_volume,No,No,Raw Market Data,CSE,Raw daily trading volume on the matched trading day
 price_source,No,No,Provenance,Internal,Data source identifier for the ASPI price record
 volume_source,No,No,Provenance,Internal,Data source identifier for the volume record
-log_return,Yes,No,Returns/Momentum,Internal,Day-0 ASPI log return (continuously compounded); base signal from which lagged returns and ratios derive
+log_return,Yes,No,Returns/Momentum,Internal,ASPI log return at P0 (the last close before the prediction origin τ); base signal from which lagged returns and ratios derive
 lag_return_t-1,Yes,No,Returns/Momentum,Internal,"1-day-lagged log return, strictly pre-event (shift applied before any rolling calculation); short-horizon momentum/reversal signal"
 lag_return_t-2,Yes,No,Returns/Momentum,Internal,2-day-lagged log return; extends short-horizon momentum/reversal context
 lag_return_t-3,Yes,No,Returns/Momentum,Internal,3-day-lagged log return; extends short-horizon momentum/reversal context

@@ -45,8 +45,8 @@ MARKET_FEATURES = [
     "volume_features_available",
     "gdp_growth_pct", "inflation_cpi_pct", "macro_available",
     "sp500_log_return", "fx_logret_1", "fx_logret_5", "fx_vol_30",
-    # Election proximity is a pre-event state of the political/market environment, known
-    # from the electoral calendar with no reference to any disaster.
+    # Reclassified ex_post (examiner A8): gazette dates not systematically available
+    # per-event, so election proximity cannot be confirmed as real-time.
     "days_to_election", "election_within_5d",
 ]
 
@@ -68,9 +68,8 @@ DISASTER_FEATURES = [
 
 # availability at the prediction origin
 
-# Demonstrably knowable at the prediction origin: market state, the disaster's own
-# identity and timing, and the electoral calendar. These are the only columns a
-# real-time forecaster could have had.
+# Demonstrably knowable at the prediction origin: market state (closes through P0,
+# GARCH, volume, FX, global indices) and the disaster type and recency counts.
 REALTIME_FEATURES = [
     "log_return", "lag_return_t-1", "lag_return_t-2", "lag_return_t-3", "lag_return_t-5",
     "price_to_sma_5", "price_to_ema_5", "price_to_sma_10", "price_to_ema_10",
@@ -80,17 +79,20 @@ REALTIME_FEATURES = [
     "vol_ratio_1_30", "vol_ratio_5_30", "vol_ratio_10_30", "vol_cv_30", "log_vol_change_1",
     "volume_features_available",
     "sp500_log_return", "fx_logret_1", "fx_logret_5", "fx_vol_30",
-    "days_to_election", "election_within_5d",
     "disaster_Drought", "disaster_Flood", "disaster_Other", "disaster_Storm",
     "days_since_last_disaster", "disasters_trailing_365d",
-    "date_is_exact",
 ]
 
-# Finalised after the prediction origin. EM-DAT settles damage and casualty figures over
-# days to months, DesInventar compiles local loss records afterwards, NASA POWER
-# reanalysis publishes with a lag of several days, and the World Bank series are annual.
-# Any result that depends on these is an ex post attribution, not a forecast.
+# Finalised after the prediction origin, or not reliably known per-event in real time.
+# EM-DAT settles damage and casualty figures over days to months; DesInventar compiles
+# local loss records afterwards; NASA POWER reanalysis publishes with a lag of several
+# days; the World Bank series are annual. Election features (days_to_election,
+# election_within_5d) are reclassified ex_post because gazette dates are not
+# systematically available per-event (examiner A8). date_is_exact describes retrospective
+# database quality, not information available at prediction origin (examiner A8).
 EXPOST_FEATURES = [
+    "date_is_exact",
+    "days_to_election", "election_within_5d",
     "financial_damage", "financial_damage_observed", "log_financial_damage",
     "population_affected", "log_population_affected",
     "total_deaths", "deaths_available", "no_homeless", "homeless_available",

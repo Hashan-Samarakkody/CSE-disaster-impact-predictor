@@ -90,7 +90,7 @@
     "sma_5"
   ],
   "AVAILABILITY_CLASS": {
-    "date_is_exact": "real_time",
+    "date_is_exact": "ex_post",
     "financial_damage": "ex_post",
     "financial_damage_observed": "ex_post",
     "population_affected": "ex_post",
@@ -152,8 +152,8 @@
     "fx_logret_1": "real_time",
     "fx_logret_5": "real_time",
     "fx_vol_30": "real_time",
-    "days_to_election": "real_time",
-    "election_within_5d": "real_time",
+    "days_to_election": "ex_post",
+    "election_within_5d": "ex_post",
     "log_damage_x_flood": "ex_post",
     "volume_features_available": "real_time",
     "garch_cond_vol_available": "real_time",

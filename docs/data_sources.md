@@ -126,3 +126,26 @@ directories that hold third party material are `data/`, which carries the raw EM
 and the Colombo Stock Exchange archive, and `artifacts/external/`, which carries the cached
 downloads. Anyone redistributing or reusing anything in either must satisfy the originating
 source directly, whatever the code licence permits.
+
+## 8. Known limitations: historical data vintages and retrospective event selection
+
+The macroeconomic variables used in this study (GDP growth, CPI inflation, lending rate)
+were retrieved from the FRED and World Bank databases in 2026. These databases report revised
+national accounts, which may differ from the values that were publicly available at the time
+each disaster occurred. Although annual observations are post-dated to July 1 of the
+following year to approximate publication lag (see Section 3.3), this convention does not
+guarantee that the retrieved values match historical first releases. Historical vintage data
+for Sri Lanka were not available to the investigator.
+
+The event universe was constructed using finalized EM-DAT affected-population totals, which
+are retrospectively revised as reports are consolidated (Centre for Research on the
+Epidemiology of Disasters, 2024; see also
+https://doc.emdat.be/docs/known-issues-and-limitations/specific-biases/). This creates a
+look-ahead bias in event selection: an investor at the time of the disaster would not have
+known whether the event would ultimately meet the 1,000-affected threshold used in this
+study. The event universe is therefore retrospective and appropriate for research purposes,
+but does not automatically describe an operational alert system.
+
+These two limitations qualify the real-time interpretation of the macroeconomic features and
+the generalisability of the event-selection criterion. They do not affect the ex-post
+attribution analysis or the within-sample event-study findings.
