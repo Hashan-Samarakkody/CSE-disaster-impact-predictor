@@ -41,18 +41,18 @@ summary = (ROOT / "docs/revision_2_summary.md").read_text(encoding="utf-8")
 alldocs = readme + results + interp + summary
 
 print("\n--- claims about the confirmatory family ---")
-check("confirmatory family size is 18", len(grid_v) == 18, f"got {len(grid_v)}")
+check("confirmatory family size is 24", len(grid_v) == 24, f"got {len(grid_v)}")
 check("0 confirmatory intervals exclude zero",
       int(((grid_v.ci_low > 0) | (grid_v.ci_high < 0)).sum()) == 0)
 check("0 confirmatory survive Holm", int(grid_v.holm_significant.sum()) == 0)
 mn = grid_v.p_holm.min()
-check("smallest confirmatory Holm p is 0.641 as quoted",
-      abs(mn - 0.6408) < 5e-4 and "0.641" in alldocs, f"artifact {mn:.4f}")
-check("exploratory table has 1332 rows", len(grid_e) == 1332, f"got {len(grid_e)}")
-check("1350 total comparisons is quoted and correct",
-      len(grid_v) + len(grid_e) == 1350 and "1350" in alldocs)
-check("465 configurations is quoted and correct",
-      len(grid_m) == 465 and "465" in alldocs, f"metrics rows {len(grid_m)}")
+check("smallest confirmatory Holm p is 1.000 as quoted",
+      abs(mn - 1.0) < 5e-4 and "1.000" in alldocs, f"artifact {mn:.4f}")
+check("exploratory table has 1776 rows", len(grid_e) == 1776, f"got {len(grid_e)}")
+check("1800 total comparisons is quoted and correct",
+      len(grid_v) + len(grid_e) == 1800 and "1800" in alldocs)
+check("470 configurations is quoted and correct",
+      len(grid_m) == 470 and "470" in alldocs, f"metrics rows {len(grid_m)}")
 
 print("\n--- claims about Y1 and Y2 pooled metrics ---")
 T1 = "Y1_ASPI_5D_Forward_LogReturn_Pct"
@@ -69,8 +69,8 @@ rf = verdict[(verdict.model == "random_forest") & (verdict.baseline == "naive_ze
 check("RF Y2 interval [0.037, 0.175] as quoted",
       abs(rf.ci_low - 0.0371) < 5e-4 and abs(rf.ci_high - 0.1754) < 5e-4
       and "0.037" in alldocs and "0.175" in alldocs)
-check("RF Y2 Holm p is 0.078 as quoted",
-      abs(rf.p_holm - 0.0782) < 5e-4 and "0.078" in alldocs, f"artifact {rf.p_holm:.4f}")
+check("RF Y2 Holm p is 0.024 as quoted",
+      abs(rf.p_holm - 0.0238) < 5e-4 and "0.024" in alldocs, f"artifact {rf.p_holm:.4f}")
 check("Y2 held out points are 34 as quoted",
       len(flat(res["ensemble"][T2], "y_true")) == 34 and "34 held" in alldocs)
 

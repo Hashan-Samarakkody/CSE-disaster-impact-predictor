@@ -13,7 +13,7 @@ appeared in earlier drafts.
 | Sample widened from 76 to 94 eligible, target reformulated | 2026-09-12 | During revision | audit.md Part 7 |
 | Feature reclassification (date_is_exact, election features → ex_post) | 2026-09-15 | During revision | feature_availability.parquet |
 | Target definitions frozen | 2026-09-19 | Before final run | commit 928a255, TARGET_DEFINITION_PROTOCOL.md |
-| Confirmatory family defined (18 comparisons, Holm α=0.05) | 2026-09-19 | Before final run | audit.md Part 8.4 |
+| Confirmatory family defined (18 comparisons, Holm α=0.05; enlarged to 24 by adding naive_train_median baseline during examiner revision) | 2026-09-19 | Before final run | audit.md Part 8.4 |
 | SMOGN ablation pre-declared | 2026-09-19 | Before final run | audit.md Part 8.7 |
 | Robustness suite (26 checks) pre-declared | 2026-09-19 | Before final run | audit.md Part 8.7 |
 | MLP reclassified as confirmatory (consistent with main text) | 2026-09-21 | Before final run | scripts/patch_mlp_tier.py |

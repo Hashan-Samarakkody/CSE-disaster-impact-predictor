@@ -10,8 +10,8 @@ EventStudy,n_events,74,event_study_caar.parquet,n_events,"series=return, event_t
 Placebo,reject_bmp_5pct,0.000,placebo_event_study_provenance.json,empirical_rejection_rate_5pct.bmp,
 Placebo,reject_corrado_5pct,0.000,placebo_event_study_provenance.json,empirical_rejection_rate_5pct.corrado,
 Placebo,reject_kp_5pct,0.000,placebo_event_study_provenance.json,empirical_rejection_rate_5pct.kolari_pynnonen,
-Y1_magnitude,best_conf_rmse_h5_rt_ridge,2.7761,aspi_grid_metrics.parquet,rmse,"horizon=5, info_set=real_time, k=10, model=ridge, confirmatory=True"
-Y1_magnitude,best_conf_pooled_r2_h5_rt_ridge,-0.0245,aspi_grid_metrics.parquet,pooled_r2,"horizon=5, info_set=real_time, k=10, model=ridge, confirmatory=True"
+Y1_magnitude,best_conf_rmse_h5_rt_mlp,2.7223,aspi_grid_metrics.parquet,rmse,"horizon=5, info_set=real_time, k=10, model=mlp, confirmatory=True"
+Y1_magnitude,best_conf_pooled_r2_h5_rt_mlp,0.0149,aspi_grid_metrics.parquet,pooled_r2,"horizon=5, info_set=real_time, k=10, model=mlp, confirmatory=True"
 Y1_magnitude,n_holm_significant_confirmatory_h5,0,verdict_table.parquet,holm_significant,"target=Y1_ASPI_5D_Forward_LogReturn_Pct, confirmatory=True"
 Y1_direction,auc_h5_logistic,0.5739,aspi_direction_metrics.parquet,roc_auc,"horizon=5, model=logistic"
 Y1_direction,auc_ci_low_h5_logistic,0.4131,aspi_direction_metrics.parquet,auc_ci_low,"horizon=5, model=logistic"
@@ -41,7 +41,7 @@ Y2_volume,rf_rmse,0.4995,verdict_table.parquet,rmse_model,"target=Y2, model=rand
 Y2_volume,rf_delta_rmse_vs_zero,0.1060,verdict_table.parquet,delta_rmse,"target=Y2, model=random_forest, baseline=naive_zero"
 Y2_volume,rf_ci_low_vs_zero,0.0371,verdict_table.parquet,ci_low,"target=Y2, model=random_forest, baseline=naive_zero"
 Y2_volume,rf_ci_high_vs_zero,0.1754,verdict_table.parquet,ci_high,"target=Y2, model=random_forest, baseline=naive_zero"
-Y2_volume,rf_p_holm_vs_zero,0.0204,verdict_table.parquet,p_holm,"target=Y2, model=random_forest, baseline=naive_zero"
+Y2_volume,rf_p_holm_vs_zero,0.0238,verdict_table.parquet,p_holm,"target=Y2, model=random_forest, baseline=naive_zero"
 Y2_volume,rf_holm_significant,True,verdict_table.parquet,holm_significant,"target=Y2, model=random_forest, baseline=naive_zero"
 Y2_volume,pooled_r2_note_random_forest,see aspi_grid_metrics or results_regression.pkl,verdict_table.parquet / aspi_grid_metrics.parquet,pooled_r2,"target=Y2, model=random_forest"
 Y2_volume,pooled_r2_note_ensemble,see aspi_grid_metrics or results_regression.pkl,verdict_table.parquet / aspi_grid_metrics.parquet,pooled_r2,"target=Y2, model=ensemble"

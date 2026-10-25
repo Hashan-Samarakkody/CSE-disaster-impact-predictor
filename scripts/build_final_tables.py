@@ -27,7 +27,8 @@ def build_y1_table() -> pd.DataFrame:
     # Drop the pre-computed skill_vs_zero so all reduction metrics are derived
     # consistently here (examiner change 4: emit both rmse_reduction and mse_reduction,
     # drop the ambiguous "skill" label). Primary source: aspi_grid_metrics.parquet.
-    rows = metrics[metrics.info_set != "baseline"].drop(columns=["skill_vs_zero"]).copy()
+    drop_cols = [c for c in ["skill_vs_zero", "rmse_improvement"] if c in metrics.columns]
+    rows = metrics[metrics.info_set != "baseline"].drop(columns=drop_cols).copy()
     for b in ("naive_zero", "naive_train_mean", "market_only_expected"):
         ratio = rows["rmse"] / rows["horizon"].map(base[b])
         rows[f"rmse_reduction_vs_{b}"] = 1.0 - ratio

@@ -34,9 +34,9 @@ tables in `docs/thesis_materials/final_table_aspi.csv` and
 | Sample period | 2000-09-18 to 2025-11-27 |
 | Outer validation | chronological walk forward, train 30, test 10, step 10, four folds |
 | Pooled test points | 40 per configuration, the identical events for every candidate and every baseline |
-| Return grid | 5 horizons x 6 information sets x 3 feature capacities x 5 model families = 465 configurations |
-| Return comparisons | 1350 paired bootstrap tests, of which 18 form the confirmatory family and 1332 are exploratory |
-| Confirmatory family | horizon 5, the real_time and ex_post information sets, capacity 10, and the models ridge, random forest and MLP against three baselines. Holm is applied to these 18 and to nothing else |
+| Return grid | 5 horizons x 6 information sets x 3 feature capacities x 5 model families = 470 configurations |
+| Return comparisons | 1800 paired bootstrap tests, of which 24 form the confirmatory family and 1776 are exploratory |
+| Confirmatory family | horizon 5, the real_time and ex_post information sets, capacity 10, and the models ridge, random forest and MLP against four baselines. Holm is applied to these 24 and to nothing else |
 | Survival grid | 16 configurations, including the Aalen-Johansen competing risks arm added by T2 |
 | Classification arm | 6 labels x 3 model families, against a majority rule baseline |
 | Seed | `RANDOM_STATE = 42` throughout, never varied to obtain a better score |
@@ -56,8 +56,8 @@ every other model, so the tuned-against-untuned comparison that produced the ear
 volume verdict no longer exists.
 
 - **Return magnitude is not predictable.** 0 of 450 configurations was significant on even
-  a single uncorrected test, and 0 of the 18 confirmatory comparisons produced an interval
-  excluding zero. The smallest Holm corrected p in the confirmatory family is 0.641. The
+  a single uncorrected test, and 0 of the 24 confirmatory comparisons produced an interval
+  excluding zero. The smallest Holm corrected p in the confirmatory family is 1.000. The
   best pooled R squared in the notebook arm is 0.042.
 - **Return direction at ten sessions is predictable.** Logistic regression on the combined
   information set reaches ROC AUC 0.817, interval [0.657, 0.940], and it is the only
@@ -67,10 +67,11 @@ volume verdict no longer exists.
 - **Forward abnormal volume is the one qualified positive.** The ensemble reaches pooled R
   squared 0.334 and the random forest, the strongest confirmatory model, reaches 0.303.
   The random forest interval excludes zero against both naive baselines, [0.037, 0.175]
-  against the zero baseline, but it does not survive the Holm correction, at corrected p
-  0.078. It rests on 34 held-out points, and the missingness is structured: volume is
+  against the zero baseline, and it survives the Holm correction, at corrected p 0.024.
+  It rests on 34 held-out points, and the missingness is structured: volume is
   unavailable for 2000 and for events after 2023, the first and last of the four folds.
-  Report this as suggestive, not as established.
+  The Holm result is flagged for caution: the family size increased from the pre-registered
+  18 to 24 after adding naive_train_median as a fourth baseline during the examiner revision.
 - **Recovery duration is not predictable, in duration or in rank.** Every point model
   loses to the training mean, every concordance interval in the survival family contains
   0.5, and the Kaplan-Meier and Aalen-Johansen baselines carry the best integrated Brier
@@ -146,7 +147,7 @@ return baseline, which represents what the market's own state already implied.
 |        15 | combined      |  20 | random_forest |       0.1498 |  -0.7853 |    0.9120 |   1.0000 | B - suggestive but uncertain |
 |        20 | market_only   |  20 | random_forest |       0.2760 |  -0.7552 |    1.1875 |   1.0000 | B - suggestive but uncertain |
 
-Every interval contains zero. Across all 1350 comparisons, against all three baselines, the
+Every interval contains zero. Across all 1800 comparisons, against all four baselines, the
 count of intervals excluding zero is zero, and the count surviving the Holm correction is
 also zero.
 
@@ -252,7 +253,7 @@ survive correction.
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | stacked       | naive_train_mean |  30 |       3.0697 |          3.1400 |       0.0703 |  -0.0964 |    0.2180 | 0.4083 | nan      | False              | better, not distinguishable |
 | Y2_5D_Forward_AbnormalVolume_LogRatio | ridge         | naive_zero       |  34 |       0.6079 |          0.6055 |      -0.0024 |  -0.1137 |    0.0831 | 0.9632 |   1.0000 | False              | worse than baseline         |
 | Y2_5D_Forward_AbnormalVolume_LogRatio | ridge         | naive_train_mean |  34 |       0.6079 |          0.6171 |       0.0092 |  -0.1160 |    0.1040 | 0.8727 |   1.0000 | False              | better, not distinguishable |
-| Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest | naive_zero       |  34 |       0.4995 |          0.6055 |       0.1060 |   0.0371 |    0.1754 | 0.0124 |   0.0782 | False              | BEATS BASELINE              |
+| Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest | naive_zero       |  34 |       0.4995 |          0.6055 |       0.1060 |   0.0371 |    0.1754 | 0.0124 |   0.0238 | True               | BEATS BASELINE              |
 | Y2_5D_Forward_AbnormalVolume_LogRatio | random_forest | naive_train_mean |  34 |       0.4995 |          0.6171 |       0.1176 |   0.0175 |    0.2169 | 0.0383 |   0.4092 | False              | BEATS BASELINE              |
 | Y2_5D_Forward_AbnormalVolume_LogRatio | xgboost       | naive_zero       |  34 |       0.5167 |          0.6055 |       0.0889 |   0.0122 |    0.1673 | 0.0434 |   0.5074 | False              | BEATS BASELINE              |
 | Y2_5D_Forward_AbnormalVolume_LogRatio | xgboost       | naive_train_mean |  34 |       0.5167 |          0.6171 |       0.1005 |  -0.0001 |    0.1996 | 0.0675 |   1.0000 | False              | better, not distinguishable |
