@@ -18,7 +18,8 @@ def _sample_counts(dataset: pd.DataFrame, target_col: str, splits) -> tuple[int,
 
 
 def build_sample_accounting(dataset: pd.DataFrame, splits,
-                            has_excl_competing: bool = False) -> pd.DataFrame:
+                            has_excl_competing: bool = False,
+                            recovery_excl_path=None) -> pd.DataFrame:
     n_events_total = len(dataset)
 
     rows = []
@@ -121,6 +122,9 @@ def build_sample_accounting(dataset: pd.DataFrame, splits,
 
     # --- Y3 excl_competing_risk ---
     if has_excl_competing:
+        excl_metrics = pd.read_parquet(str(recovery_excl_path))
+        n_held_out_excl = int(excl_metrics["n"].iloc[0])
+        n_competing_removed = n_held_out_y3 - n_held_out_excl
         rows.append({
             "target": "Y3_recovery_time",
             "variant": "excl_competing_risk",
@@ -131,8 +135,8 @@ def build_sample_accounting(dataset: pd.DataFrame, splits,
             "n_labelled": n_labelled_y3,
             "n_training_eligible": n_training_y3,
             "n_purged": n_purged_y3,
-            "n_excluded": n_excluded_y3,
-            "n_held_out": n_held_out_y3,
+            "n_excluded": n_competing_removed,
+            "n_held_out": n_held_out_excl,
             "exclusion_reason": "competing_risk_removed_from_censoring",
             "model_refit_per_event": False,
         })
@@ -151,7 +155,7 @@ def main():
     recovery_excl_path = artifact_file("recovery_grid_metrics_excl_competing.parquet")
     has_excl_competing = pathlib.Path(str(recovery_excl_path)).exists()
 
-    df = build_sample_accounting(dataset, splits, has_excl_competing)
+    df = build_sample_accounting(dataset, splits, has_excl_competing, recovery_excl_path)
     save_frame(df, "sample_accounting",
                note="Per-target and per-variant sample sizes. Training and held-out counts "
                     "include only non-missing labels for that target; training eligibility "

@@ -182,7 +182,7 @@ def run_variant(daily: pd.DataFrame, event_dates, variant: str, series: str) -> 
     # Attach metadata columns
     table["variant"] = variant
     table["estimation_window"] = ESTIMATION_WINDOW
-    table["min_obs"] = n_usable     # events with a usable estimation window
+    table["min_obs"] = MIN_ESTIMATION_ROWS  # minimum sessions required for estimation
     table["gap_sessions"] = 0       # no gap between estimation window end and event
 
     return table
