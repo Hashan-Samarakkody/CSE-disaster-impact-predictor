@@ -76,10 +76,12 @@ volume verdict no longer exists.
   loses to the training mean, every concordance interval in the survival family contains
   0.5, and the Kaplan-Meier and Aalen-Johansen baselines carry the best integrated Brier
   scores, so the fitted models are worse calibrated than doing nothing.
-- **Later knowledge of severity buys almost nothing.** On the principal analysis the
-  real_time information set gives a delta RMSE of +0.0930 and the ex_post set +0.0932.
-  The finalised EM-DAT, DesInventar, NASA POWER and World Bank variables move the result
-  by 0.0002.
+- **Later knowledge of severity: equivalence not established.** The robustness suite
+  information-set check is pending a re-run after the 2026-10-25 feature reclassification.
+  The direct equivalence test (ex_post RMSE minus real_time RMSE at h=5, k=10) gives
+  delta=+0.133 CI [−0.074, +0.309], which does not establish equivalence (CI spans zero
+  and exceeds the 0.10 margin). Post-reclassification severity values on the principal
+  analysis are recorded in robustness_suite.parquet once that re-run completes.
 - **A measurable response does not imply a forecastable one.** The event study finds no
   detectable realised return response at all, CAAR(1,5) = +0.0006 with every test p above
   0.85, while volume shows CAAR(1,5) = +0.63 log points on which only the Corrado rank
@@ -308,11 +310,11 @@ survive correction.
 
 Thirteen comparisons have an interval excluding zero. Nine of them belong to target two,
 where the ensemble, the random forest, extreme gradient boosting, the shallow network and
-the stacked model all beat the zero baseline. Three survive the Holm correction: the
-target two ensemble against the zero baseline at p 0.021, and two target three models, the
-Gaussian process and the support vector regression, which beat the zero baseline while
-losing to the training mean. Beating one baseline and losing to the other is not a result,
-so only the target two ensemble counts.
+the stacked model all beat the zero baseline. No comparison in this exploratory inventory
+(verdict_table rows, combined features k=20) survives Holm correction: ensemble and
+stacked rows do not enter the Holm family, and all single-model rows show Holm p = 1.000
+or NaN. The confirmatory family result (aspi_grid_verdicts, k=10) is reported in sections
+3 and 5.
 
 ---
 

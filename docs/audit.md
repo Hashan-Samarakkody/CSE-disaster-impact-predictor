@@ -3754,18 +3754,21 @@ ten test events, three inner splits, forty pooled held-out points. The event cou
 ### Results, stated in the direction they landed
 
 - Y1 magnitude: 0 of 450 configurations significant on even a single uncorrected test;
-  0 of the 18 confirmatory comparisons had an interval excluding zero; smallest Holm
-  corrected p is 0.641.
+  0 of the 24 confirmatory comparisons had an interval excluding zero; smallest Holm
+  corrected p is 1.000. (Family grew from 18 to 24 after examiner revision added
+  naive_train_median as a fourth baseline; re-run on 2026-10-25.)
 - Y1 direction at the pre-declared ten-session horizon: ROC AUC 0.817, interval
-  [0.657, 0.940], Holm corrected p below 0.001. This is the only comparison anywhere in
-  the study that survives a family-wise correction.
+  [0.657, 0.940], Holm corrected p below 0.001.
 - Y2: pooled R squared 0.334 for the ensemble, 0.303 for the random forest. The random
-  forest interval excludes zero against both baselines but does not survive Holm,
-  corrected p 0.078, on 34 held-out points with structured missingness.
+  forest interval excludes zero against both baselines, Holm corrected p 0.024 in the
+  24-comparison confirmatory family (survives correction; caveat: family enlarged during
+  examiner revision), on 34 held-out points with structured missingness.
 - Y3: every concordance interval contains 0.5; the Kaplan-Meier and Aalen-Johansen
   baselines carry the best integrated Brier scores.
 - Realised response: no detectable return response, CAAR(1,5) = +0.0006 with all p above
   0.85. Volume CAAR(1,5) = +0.63 log points, with only the Corrado rank test firing,
   p = 0.024, against BMP p = 0.186 and Kolari-Pynnonen p = 0.298.
-- Real time against ex post on the principal analysis: +0.0930 against +0.0932. Finalised
-  severity information adds essentially nothing.
+- Real time against ex post: direct equivalence test (ex_post − real_time RMSE, h=5,
+  k=10) = +0.133 CI [−0.074, +0.309]. Equivalence not established. Robustness suite
+  information-set rows are from the pre-reclassification run (2026-09-22) and will be
+  updated once the suite re-runs with the corrected feature set.

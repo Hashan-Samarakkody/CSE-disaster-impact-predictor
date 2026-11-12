@@ -84,7 +84,10 @@ positive.
 draft reported Holm corrected p 0.021 for the volume target and called it supported. That
 comparison ranked a tuned tree model against an untuned neural network. T8 required both
 to be selected on the same purged inner splits; once they are, the advantage falls to
-corrected p 0.078 and the verdict becomes qualified. The frozen Y2 regression baseline was
+corrected p 0.078 (under the original 18-comparison family). After the examiner revision
+added naive_train_median as a fourth baseline, the family grew to 24 comparisons and the
+RF Y2 Holm p became 0.024, which now survives correction. The verdict carries a caveat:
+the enlarged family was not finalized before examining results. The frozen Y2 regression baseline was
 re-anchored for the same reason, with the previous baseline retained beside it as
 `artifacts/results/frozen_baseline_superseded_f076bd96.json`.
 

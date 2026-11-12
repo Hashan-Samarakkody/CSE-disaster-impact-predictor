@@ -404,10 +404,14 @@ Shallow network: RMSE 0.491, pooled R squared +0.326. Stacked: RMSE 0.549 on twe
 points, pooled R squared +0.315. Random forest: RMSE 0.500, MAE 0.400, pooled R squared
 +0.303. Gaussian process: +0.281. Extreme gradient boosting: +0.254.
 
-**Model comparisons.** Nine of the thirteen comparisons in the whole study whose interval
-excludes zero belong to this target. The ensemble beats both naive baselines, and its
-advantage over the zero baseline survives the family wise correction at Holm p 0.021. The
-random forest beats both baselines on a single test. Eleven models were compared.
+**Model comparisons.** Nine of the thirteen comparisons in the exploratory full-feature
+inventory (verdict_table, combined, k=20) whose interval excludes zero belong to this
+target. The ensemble beats both naive baselines; the random forest beats both on a single
+test. In the confirmatory information-set comparison (aspi_grid_verdicts, k=10), the
+random forest at k=10 real_time and ex_post survives Holm correction at p 0.024 (24-
+comparison family including naive_train_median added during examiner revision). The earlier
+Holm p 0.021 was from an older, non-parity comparison and is superseded. Eleven models
+were compared in the exploratory arm.
 
 **Classification arm.** Volume spike label, random forest: accuracy 0.647, balanced
 accuracy 0.612, precision 0.545, recall 0.462, F1 0.500, ROC AUC 0.656, bootstrap interval
