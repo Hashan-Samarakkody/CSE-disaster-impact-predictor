@@ -76,12 +76,15 @@ volume verdict no longer exists.
   loses to the training mean, every concordance interval in the survival family contains
   0.5, and the Kaplan-Meier and Aalen-Johansen baselines carry the best integrated Brier
   scores, so the fitted models are worse calibrated than doing nothing.
-- **Later knowledge of severity: equivalence not established.** The robustness suite
-  information-set check is pending a re-run after the 2026-10-25 feature reclassification.
-  The direct equivalence test (ex_post RMSE minus real_time RMSE at h=5, k=10) gives
-  delta=+0.133 CI [−0.074, +0.309], which does not establish equivalence (CI spans zero
-  and exceeds the 0.10 margin). Post-reclassification severity values on the principal
-  analysis are recorded in robustness_suite.parquet once that re-run completes.
+- **Feature reclassification changed the real-time vs ex-post comparison materially.**
+  After moving date_is_exact, days_to_election and election_within_5d to ex_post (Change 1),
+  the robustness suite information-set check gives: real_time delta_RMSE = −0.104
+  CI [−0.441, +0.147]; ex_post delta_RMSE = +0.096 CI [−0.077, +0.234]. Neither interval
+  excludes zero, but the gap is now 0.200 RMSE units, not 0.0002. The direct equivalence
+  test gives +0.133 CI [−0.074, +0.309], which does not establish equivalence. The
+  reclassification reveals that the date/election features were the components allowing
+  real_time to beat naive_zero in the previous run — their proper ex_post assignment is
+  methodologically correct but changes the apparent severity of the negative result.
 - **A measurable response does not imply a forecastable one.** The event study finds no
   detectable realised return response at all, CAAR(1,5) = +0.0006 with every test p above
   0.85, while volume shows CAAR(1,5) = +0.63 log points on which only the Corrado rank

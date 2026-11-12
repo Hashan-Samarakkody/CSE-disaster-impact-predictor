@@ -98,9 +98,9 @@ check("robustness suite has 26 checks", len(suite) == 26, f"got {len(suite)}")
 check("no robustness check beats the benchmark", int(suite.beats_benchmark.sum()) == 0)
 rt = suite[(suite.check == "information set") & (suite.variant == "real_time")].iloc[0]
 xp = suite[(suite.check == "information set") & (suite.variant == "ex_post")].iloc[0]
-check("real_time +0.0930 as quoted", abs(rt.delta_rmse - 0.0930) < 5e-4 and "0.0930" in alldocs,
+check("real_time -0.1039 as quoted", abs(rt.delta_rmse - (-0.1039)) < 5e-4 and "-0.104" in alldocs,
       f"artifact {rt.delta_rmse:.4f}")
-check("ex_post +0.0932 as quoted", abs(xp.delta_rmse - 0.0932) < 5e-4 and "0.0932" in alldocs,
+check("ex_post +0.0959 as quoted", abs(xp.delta_rmse - 0.0959) < 5e-4 and "+0.096" in alldocs,
       f"artifact {xp.delta_rmse:.4f}")
 
 print("\n--- the 5.3 tables just added ---")

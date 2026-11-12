@@ -3770,5 +3770,7 @@ ten test events, three inner splits, forty pooled held-out points. The event cou
   p = 0.024, against BMP p = 0.186 and Kolari-Pynnonen p = 0.298.
 - Real time against ex post: direct equivalence test (ex_post − real_time RMSE, h=5,
   k=10) = +0.133 CI [−0.074, +0.309]. Equivalence not established. Robustness suite
-  information-set rows are from the pre-reclassification run (2026-09-22) and will be
-  updated once the suite re-runs with the corrected feature set.
+  information-set rows (re-run 2026-11-12 after feature reclassification): real_time
+  delta_RMSE = −0.104 CI [−0.441, +0.147]; ex_post delta_RMSE = +0.096 CI [−0.077, +0.234].
+  Neither beats naive_zero; gap grew from 0.0002 (pre-reclassification) to 0.200 after
+  date/election features correctly moved to ex_post.

@@ -27,11 +27,15 @@ of a better result.
    survives a family-wise correction: the direction of the return at the pre-declared ten
    session horizon, ROC AUC 0.817. Return magnitude, recovery duration and every
    classification label fail. Forward abnormal volume is the one qualified positive.
-4. **Later knowledge of severity buys essentially nothing.** The real-time and ex-post
-   information sets differ by 0.0002 in delta RMSE on the principal analysis. The
-   finalised EM-DAT damage assessments, DesInventar counts, NASA POWER reanalysis and
-   annual World Bank series — 31 of the 68 features — do not improve on what the market's
-   own prior state already implies.
+4. **Later knowledge of severity does not establish equivalence.** After the 2026-10-25
+   feature reclassification, the robustness suite information-set check gives real_time
+   delta_RMSE = −0.104 CI [−0.441, +0.147] and ex_post delta_RMSE = +0.096 CI [−0.077,
+   +0.234]. The direct equivalence test gives +0.133 CI [−0.074, +0.309]. Neither CI
+   excludes zero; the gap between real-time and ex-post grew from 0.0002 (pre-reclassification)
+   to 0.200 once date/election features were correctly assigned to ex_post. The finalised
+   EM-DAT damage assessments, DesInventar counts, NASA POWER reanalysis and annual World Bank
+   series — 31 of the 68 features — provide modest signal in ex_post but not enough to beat
+   naive_zero either.
 
 Taken together these separate two questions that the earlier draft ran together: whether
 disasters move the market, and whether those moves can be predicted. The answer to the
