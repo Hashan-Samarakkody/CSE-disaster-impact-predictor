@@ -13,7 +13,8 @@ Variants
     next session).
 (c) constant_mean          — constant-mean return model (Brown & Warner 1985, mean-
     adjusted), no factor.
-(d) zero_expected          — zero expected return; abnormal return equals the raw return.
+(d) zero_expected          — zero expected daily change; return uses raw returns and volume
+    uses daily changes in log volume (not the log-volume level).
 
 Both series (return, volume) are run under every variant. The output has one row per
 (variant, series, event_time).
@@ -71,10 +72,10 @@ def build_zero_expected_panel(daily: pd.DataFrame, event_dates,
                                min_estimation: int = MIN_ESTIMATION_ROWS,
                                date_col: str = "date",
                                value_col: str = "log_return") -> AbnormalPanel:
-    """Build abnormal panel with zero expected return (AR = raw return).
+    """Build abnormal panel with zero expected change (AR = observed change).
 
     This is a degenerate case of the market model with alpha=0, beta=0.
-    Residual std is estimated as the unconditional std of the estimation-window returns
+    Residual std is estimated as the unconditional std of the estimation-window changes
     (ddof=1, consistent with the zero-parameter expected-return specification).
     """
     frame = daily.sort_values(date_col).reset_index(drop=True)
@@ -100,8 +101,8 @@ def build_zero_expected_panel(daily: pd.DataFrame, event_dates,
         if len(usable) < min_estimation:
             continue
 
-        # Zero expected return: alpha=0, beta=0
-        resid = values[usable]  # residuals are raw returns themselves
+        # Zero expected change: alpha=0, beta=0
+        resid = values[usable]
         ddof = max(len(usable) - 1, 1)  # one degree of freedom for the mean (constrained to 0)
         sigma = float(np.sqrt(np.sum(resid ** 2) / ddof))
 
@@ -110,7 +111,7 @@ def build_zero_expected_panel(daily: pd.DataFrame, event_dates,
         ar = np.full(len(k_values), np.nan)
         fd = np.full(len(k_values), np.nan)
         safe = event_rows[inside]
-        ar[inside] = values[safe]   # abnormal = raw return (expected = 0)
+        ar[inside] = values[safe]
         fd[inside] = zeros[safe]    # no factor deviation
 
         rows_ar.append(ar)
@@ -162,8 +163,15 @@ def run_variant(daily: pd.DataFrame, event_dates, variant: str, series: str) -> 
                                      value_col=value_col, factor_col=factor_col)
 
     elif variant == "zero_expected":
-        # Zero expected return: AR = raw return
-        panel = build_zero_expected_panel(daily, event_dates, value_col=value_col)
+        # A zero expected volume level is meaningless; use the daily log change instead.
+        zero_expected_daily = daily
+        zero_expected_col = value_col
+        if series == "volume":
+            zero_expected_daily = daily.copy()
+            zero_expected_col = "log_volume_change"
+            zero_expected_daily[zero_expected_col] = zero_expected_daily[value_col].diff()
+        panel = build_zero_expected_panel(
+            zero_expected_daily, event_dates, value_col=zero_expected_col)
 
     else:
         raise ValueError(f"Unknown variant: {variant!r}")
@@ -225,7 +233,8 @@ def main() -> None:
     save_frame(out, "abnormal_return_variants",
                "Event study results under four expected-return model specifications "
                "(contemporaneous_sp500, lagged_sp500, constant_mean, zero_expected) "
-               "for both return and volume series. All variants reported without selection.")
+               "for both return and volume series. Zero-expected volume uses daily "
+               "log-volume changes, not log-volume levels. All variants reported.")
     print(f"\nwrote abnormal_return_variants.parquet ({len(out)} rows)")
 
 
