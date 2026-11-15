@@ -20,6 +20,42 @@ The yearly workbooks are discovered by pattern, not by an enumerated list, so ad
 future year means dropping the file in and re running stage 01. The pattern is defined in
 `src/data/cse_market_data.py`.
 
+### SHA-256 checksums
+
+Verify the files have not changed since the study was run:
+
+| File | SHA-256 |
+|---|---|
+| `cse_market_indices_daily.xls` | `1bda6b39812f22d7b4091b7a59fdde72ad7ffc16349bb7fe2cbd12aa75e5772f` |
+| `cse_securities_2000.xls` | `2b8b1e629c09443586dbf878378876154e67795756f17fddd78fb95f4524ba80` |
+| `cse_securities_2001.xls` | `990a298750b00376e7187a8821a0a6c390312e89b0453976fd7bc5fc66fba7b6` |
+| `cse_securities_2002.xls` | `d6d21ec083db929308a2522a0e4a65e100b5cf76cc193da45676712ce459708a` |
+| `cse_securities_2003.xls` | `d29d201d21737e09a993add644b5c60bf71469c3b1b34e18df9b5ba3fdbce8bd` |
+| `cse_securities_2004.xls` | `a3d60fdfce5a18ff6f932398f50407f53db85d8cfcb8935f261a2401ef7fd19d` |
+| `cse_securities_2005.xls` | `8154def55bcf06372b8d541b0b5aa619ffecdac8e8054164eb7603ebe3b7822e` |
+| `cse_securities_2006.xls` | `e8beae81d2c11cf6ee4351222543a8408d11888b6a5b64c749703e1baaeee5a9` |
+| `cse_securities_2007.xls` | `5d7a40df55198917a8be26ec6795fa327e99ba547b61545e5f21a5065fbecbd2` |
+| `cse_securities_2008.xls` | `f2d1a73294775959dbcfcd8b5e0a49f42900cb9fab1fb400e976a7b000540841` |
+| `cse_securities_2009.xls` | `e026373c7549854e9bdb5c0acf3071d2c8de74e8019f00e326253535b96af89d` |
+| `cse_securities_2010.xls` | `a77958d9db58b3bd83297f17235ea760ea5089082a326024f9931e86844ff136` |
+| `cse_securities_2011.xls` | `22316b6e1808c279a17553cad66e85cbe19d56823d923f336f195b6cf3f4abfe` |
+| `cse_securities_2012.xls` | `853b6d03a6eafa1fbd5a558fd62cfbf1db36735e9d4fce1fbe9d935a26f392f3` |
+| `cse_securities_2013.xls` | `03807192f846c4fb166df8e063b02190a27547c1f2220f388a0c761ce3434019` |
+| `cse_securities_2014.xls` | `472f3bf6edbfecc41a288490874cd0cfee6b9bdcb4b4890af79b21af8a4a4d4c` |
+| `cse_securities_2015.xlsx` | `8244436de45be5b65890af97cbccae5990fc640705b8d03902871c7d79954a7c` |
+| `cse_securities_2016.xls` | `f2024fbd6f95ebfaf995b9b5ae1dde578ad2ea45bc033c5127bbdfcde49a064d` |
+| `cse_securities_2017.xls` | `7c27d189a9db76a1b8f2ccfd104f184131de91faff03c86a516bd58272b96139` |
+| `cse_securities_2018.xls` | `fc26d74d616e0c9a8f9c63557028f9718cf567fa6e90ea08061a24d6a108beec` |
+| `cse_securities_2019.xls` | `f7fa80f177ed6d1399f0fb42f18c67c25c154a56a39576f8fafdbebe0ed7e90b` |
+| `cse_securities_2020.xls` | `4e5be148cc087c9ad0c644a632c44cfad3dad6bb28440de4b6612847261881be` |
+| `cse_securities_2021.xls` | `27b4fe74bc9ab910057bcbbd9bc1f2a5103c73f6dcccea4b39d70180379ce4a0` |
+| `cse_securities_2022.xls` | `6ee2c45ee8f97c37895fee0ca185c6d000f854b310fedd2445b9255d99c6944b` |
+| `cse_securities_2023.xls` | `511d82ea61543a3953024573a59c923d235cb56b3929ea72fe60f55f7389087e` |
+| `emdat_sri_lanka_disasters.xlsx` | `5dd49acfb9b3565b703b872c41fe5adf85c2eb7f334f5a39ca36de8f357e1d61` |
+| `emdat_sri_lanka_disasters_superseded_2026_02_09.xlsx` | `5e7024e9d210555d01635e1d94a316a8ae272574d6d0714e538cc0db87ff72a2` |
+
+Verify with: `python -c "import hashlib; print(hashlib.sha256(open('data/raw/FILENAME','rb').read()).hexdigest())"`
+
 ### Which EM-DAT export the study reads
 
 `emdat_sri_lanka_disasters.xlsx` is the live file and the only one any code opens. It is

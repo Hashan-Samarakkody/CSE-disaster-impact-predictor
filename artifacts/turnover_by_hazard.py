@@ -1,7 +1,7 @@
 """Turnover (Y2, five sessions) out-of-fold RMSE by hazard group: random forest vs zero benchmark.
 Reads only committed artifacts: artifacts/models/results_regression.pkl and artifacts/tables/dataset.parquet.
 Interval: percentile bootstrap, 10,000 event-level resamples within each group, seed 42 (exploratory, unadjusted).
-Usage (repository root): python scripts/build_turnover_by_hazard.py
+Usage (repository root): python artifacts/turnover_by_hazard.py
 """
 import pickle
 from pathlib import Path

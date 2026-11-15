@@ -3,7 +3,7 @@
 Figure 16: predicted versus realised five-session return, real-time information set,
            confirmatory capacity k = 10 (ridge, random forest, MLP).
 Figure 20: paired real-time versus ex-post RMSE for the five-session return, k = 10.
-Usage: python scripts/build_manuscript_figures.py   (from the repository root)
+Usage: python artifacts/generate_image.py   (from the repository root)
 """
 from pathlib import Path
 import numpy as np, pandas as pd
