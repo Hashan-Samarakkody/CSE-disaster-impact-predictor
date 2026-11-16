@@ -64,11 +64,11 @@ Y3_recovery,cif_at_t60,0.6623,recovery_cif_baseline.parquet,cif_estimate,horizon
 Y3_recovery,cif_ci_low_t60,0.4563,recovery_cif_baseline.parquet,ci_low,horizon=60
 Y3_recovery,cif_at_t90,0.6623,recovery_cif_baseline.parquet,cif_estimate,horizon=90
 Y3_recovery,cif_ci_low_t90,0.4563,recovery_cif_baseline.parquet,ci_low,horizon=90
-InfoSetEquivalence,delta_rmse_Y1_5D,0.0207,equivalence_test.parquet,delta_rmse,target=Y1_5D
+InfoSetEquivalence,delta_rmse_Y1_5D,0.1332,equivalence_test.parquet,delta_rmse,target=Y1_5D
 InfoSetEquivalence,equiv_supported_Y1_5D,False,equivalence_test.parquet,equivalence_supported,target=Y1_5D
-InfoSetEquivalence,delta_rmse_Y1_10D,0.2747,equivalence_test.parquet,delta_rmse,target=Y1_10D
+InfoSetEquivalence,delta_rmse_Y1_10D,0.1849,equivalence_test.parquet,delta_rmse,target=Y1_10D
 InfoSetEquivalence,equiv_supported_Y1_10D,False,equivalence_test.parquet,equivalence_supported,target=Y1_10D
-InfoSetEquivalence,delta_rmse_Y2,-0.4916,equivalence_test.parquet,delta_rmse,target=Y2
+InfoSetEquivalence,delta_rmse_Y2,-0.1539,equivalence_test.parquet,delta_rmse,target=Y2
 InfoSetEquivalence,equiv_supported_Y2,False,equivalence_test.parquet,equivalence_supported,target=Y2
 PowerMDE,mde_rmse_Y1_5D,1.7354,minimum_detectable_effect.parquet,mde_rmse,target=Y1_5D
 PowerMDE,mde_rmse_Y2_5D,0.4170,minimum_detectable_effect.parquet,mde_rmse,target=Y2_5D
@@ -83,5 +83,5 @@ Sampling,n_held_out_Y2_5D_main,34,sample_accounting.parquet,n_held_out,"target=Y
 Sampling,n_labelled_Y3_recovery_time_main,74,sample_accounting.parquet,n_labelled,"target=Y3_recovery_time, variant=main"
 Sampling,n_held_out_Y3_recovery_time_main,40,sample_accounting.parquet,n_held_out,"target=Y3_recovery_time, variant=main"
 Sampling,n_labelled_Y3_recovery_time_excl_competing_risk,74,sample_accounting.parquet,n_labelled,"target=Y3_recovery_time, variant=excl_competing_risk"
-Sampling,n_held_out_Y3_recovery_time_excl_competing_risk,40,sample_accounting.parquet,n_held_out,"target=Y3_recovery_time, variant=excl_competing_risk"
+Sampling,n_held_out_Y3_recovery_time_excl_competing_risk,30,sample_accounting.parquet,n_held_out,"target=Y3_recovery_time, variant=excl_competing_risk"
 HolmCorrection,family_size_Y1_ASPI_5D_Forward_LogReturn_Pct,24,analysis_map.parquet,family_size,"target=Y1_ASPI_5D_Forward_LogReturn_Pct, tier=confirmatory"

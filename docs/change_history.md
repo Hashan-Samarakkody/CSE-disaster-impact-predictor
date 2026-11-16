@@ -18,6 +18,12 @@ appeared in earlier drafts.
 | Robustness suite (26 checks) pre-declared | 2026-09-19 | Before final run | audit.md Part 8.7 |
 | MLP reclassified as confirmatory (consistent with main text) | 2026-09-21 | Before final run | scripts/patch_mlp_tier.py |
 | Single final pipeline run | 2026-09-22 | Final run | audit.md Part 8.11 |
+| R1 examiner revision: n_purged split into n_unevaluated_tail and true n_purged | 2026-11-16 | Post-examination | scripts/build_sample_accounting.py, commit 7912c50 |
+| R1 examiner revision: docs replaced "pre-registered" with "protocol-frozen" | 2026-11-16 | Post-examination | docs/results.md, interpretation.md, audit.md, commit 7912c50 |
+| R1 examiner revision: confirmatory family corrected to 24 comparisons, Holm p=0.024 | 2026-11-16 | Post-examination | README.md, commit 7912c50 |
+| R1 examiner revision: MDE dependence_assumption corrected to i.i.d. formula | 2026-11-16 | Post-examination | scripts/build_mde.py, commit e316634 |
+| R1 examiner revision: episode-level permutation test added for direction classifiers | 2026-11-16 | Post-examination | scripts/run_direction_permutation_test.py, artifacts/tables/aspi_direction_permutation.parquet |
+| R1 examiner revision: volume sensitivity analysis (1/5/10/20 session windows) | 2026-11-16 | Post-examination | artifacts/volume_sensitivity_horizons.py, artifacts/tables/volume_sensitivity_horizons.parquet |
 
 The protocol was frozen at commit 928a255d on 2026-09-19, before any model performance under
 the current target definitions was observed. However, the investigator had prior exposure to
