@@ -87,7 +87,8 @@ def main():
             "mde_rmse": mde_rmse,
             "mde_r2": mde_r2,
             "dependence_assumption": (
-                "episode-clustered, effective n reduced by cluster structure"
+                "i.i.d. pooled test observations; "
+                "formula uses raw n, not cluster-adjusted effective n"
             ),
         })
 
