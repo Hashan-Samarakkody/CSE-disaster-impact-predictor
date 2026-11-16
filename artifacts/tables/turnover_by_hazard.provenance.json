@@ -1,0 +1,16 @@
+{
+  "artifact": "turnover_by_hazard.parquet",
+  "created": "2026-11-16T11:56:35.424465+00:00",
+  "rows": 2,
+  "columns": [
+    "group",
+    "n",
+    "rmse_rf",
+    "rmse_zero",
+    "delta_rmse",
+    "ci_low",
+    "ci_high"
+  ],
+  "script": "artifacts/turnover_by_hazard.py",
+  "note": "Provenance sidecar generated post-commit; artifact produced by the named script reading committed artifacts only."
+}

@@ -1,0 +1,16 @@
+{
+  "artifact": "volume_sensitivity_horizons.parquet",
+  "created": "2026-11-16T11:56:35.443645+00:00",
+  "rows": 4,
+  "columns": [
+    "window",
+    "n_test",
+    "rmse_rf",
+    "rmse_zero",
+    "delta_rmse",
+    "ci_lo",
+    "ci_hi"
+  ],
+  "script": "artifacts/volume_sensitivity_horizons.py",
+  "note": "Provenance sidecar generated post-commit; artifact produced by the named script reading committed artifacts only."
+}

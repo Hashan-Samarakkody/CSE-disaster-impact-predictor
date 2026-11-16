@@ -59,11 +59,13 @@ def test_ex_post_set_holds_the_variables_that_settle_after_the_event():
     named: World Bank macro, EM-DAT severity, DesInventar and NASA POWER."""
     for column in ("gdp_growth_pct", "inflation_cpi_pct", "macro_available",
                    "financial_damage", "total_deaths", "population_affected",
-                   "di_affected_log", "hz_precip_max3d", "mag_wind_kph"):
+                   "di_affected_log", "hz_precip_max3d", "mag_wind_kph",
+                   # reclassified 2026-10-25: election proximity and exact-date flag
+                   # settle after the event (via Wikidata election lookup)
+                   "days_to_election", "date_is_exact"):
         assert availability_class(column) == "ex_post", column
     for column in ("log_return", "lag_return_t-1", "rolling_std_30", "sp500_log_return",
-                   "fx_logret_1", "days_to_election", "disaster_Flood",
-                   "days_since_last_disaster", "date_is_exact"):
+                   "fx_logret_1", "disaster_Flood", "days_since_last_disaster"):
         assert availability_class(column) == "real_time", column
 
 

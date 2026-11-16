@@ -41,11 +41,11 @@ interval excludes zero against both naive baselines, [0.037, 0.175] against the 
 baseline. It survives the Holm family wise correction, at corrected p 0.024.
 
 One qualification belongs beside that number. The confirmatory family grew from the
-pre-registered 18 comparisons to 24 after adding naive_train_median as a fourth baseline
+protocol-frozen 18 comparisons to 24 after adding naive_train_median as a fourth baseline
 during the examiner revision (Change 1). The Holm correction was reapplied to the enlarged
 family. The survival of the RF Y2 result at p 0.024 should therefore be read against a
 family that was not finalized before examining results, and is treated here as supportive
-rather than confirmatory in the strict pre-registered sense. The second, the target is observed for only 34 of
+rather than confirmatory in the strict protocol-frozen sense. The second, the target is observed for only 34 of
 74 events, and the missingness is structured rather than random: market wide volume is
 unavailable for the 2000 archive year and for events after 2023. The early gap falls
 inside the first training block rather than inside a test fold and so costs no held-out
@@ -61,7 +61,7 @@ Safe sentence for the thesis:
 > in the five session volume response and an uncertainty interval excluding the no effect
 > baseline. The random forest result survives the Holm family wise correction at p 0.024,
 > though the correction was applied to an enlarged family that includes a baseline added
-> during examiner revision rather than the pre-registered 18 comparisons. The result rests
+> during examiner revision rather than the protocol-frozen 18 comparisons. The result rests
 > on 34 held out observations, and the missing labels are concentrated in the first and
 > last validation folds.
 

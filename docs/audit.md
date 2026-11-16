@@ -178,7 +178,7 @@ same short window,  that later drop was never seen because the search had alread
 ### 5. Augmentation (SMOGN)
 
 - Time-aware SMOGN, fit on the fold's real, post-purge training rows only, with the
-  pre-registered 25% synthetic-share cap, applied per (fold, target) inside the target
+  protocol-frozen 25% synthetic-share cap, applied per (fold, target) inside the target
   loop (never once per fold shared across targets).
 - SMOGN on/off was measured, not assumed (P2-6, `artifacts/tables/smogn_ablation.parquet`):
   helps Y1/Y2/Y3 on both RMSE and pooled R2; on `Y1_EventWindow_0_10` the two metrics
@@ -661,7 +661,7 @@ the archive's final row exactly.
 This admits the **10 qualifying EM-DAT events after 2023-06-28**,  2023-07-04,
 2023-09-28, 2023-11-01, 2023-12-01, 2024-01-01, 2024-05-15, 2024-10-11, 2024-11-25, and
 Storm Ditwah on 2025-11-20 and 2025-11-27,  taking **N from 64 toward 74**, subject to
-each event still passing the pre-registered ≥1000-affected filter.
+each event still passing the protocol-frozen ≥1000-affected filter.
 
 **This is the single largest change in the pass**, because it adds real out-of-fold test
 points rather than features. The inclusion filter is unchanged; only the market series
@@ -1719,13 +1719,13 @@ Model B is the study as it stands and is a legitimate research object. Model A i
 | Y3 window overlapping a later event                   | Target                    | MODERATE           | Quantified and disclosed; truncation function still uncalled                                                             |
 | Model/config selection on reported folds              | **Optimistic bias** | HIGH               | Disclosed in a dedicated subsection (see §29)                                                                           |
 
-**On the last row,  this is the one that cannot be fixed by code.** The SMOGN configuration was reverted after its held-out scores were seen. K, the split geometry, and the primary-model choice were all evaluated against the same folds that are reported. This is disclosed explicitly rather than concealed, and the pre-registered 25% synthetic-share cap now provides a score-independent justification for the SMOGN revert.
+**On the last row,  this is the one that cannot be fixed by code.** The SMOGN configuration was reverted after its held-out scores were seen. K, the split geometry, and the primary-model choice were all evaluated against the same folds that are reported. This is disclosed explicitly rather than concealed, and the protocol-frozen 25% synthetic-share cap now provides a score-independent justification for the SMOGN revert.
 
 ---
 
 ### 9. Event-Window and Overlapping-Event Audit
 
-**30-day pre / 90-day post: KEEP.** Justified a priori by the thesis's own argument (delayed price discovery in a semi-strong-inefficient frontier market) and, critically, **not tuned against test performance**. Systematically searching [-5,+20], [-10,+30], [-20,+60] and picking the best would be window-shopping on the test set. The current single pre-registered window is the more defensible choice, and this audit recommends against the window sweep the master prompt offers as an option.
+**30-day pre / 90-day post: KEEP.** Justified a priori by the thesis's own argument (delayed price discovery in a semi-strong-inefficient frontier market) and, critically, **not tuned against test performance**. Systematically searching [-5,+20], [-10,+30], [-20,+60] and picking the best would be window-shopping on the test set. The current single protocol-frozen window is the more defensible choice, and this audit recommends against the window sweep the master prompt offers as an option.
 
 The three roles of the pre-event window must be separated in the write-up, because they currently blur:
 
@@ -1939,7 +1939,7 @@ Given that the study exists to predict catastrophic impacts, a model with accept
 | stacked Y1     | −0.775                                 | **−0.134**         |
 | RF Y1          | −0.315                                 | −0.412 (worse)           |
 
-**Measured,  the SMOGN over-augmentation ablation:** widening the minority mask to the union of Y1/Y2/Y3 quintile tails with 2 draws per row produced 26, 28 synthetic rows against 30 real per fold and made **every model on every target worse** (RF Y1 pooled R² −0.32  −1.39; Ridge Y3 RMSE 36.6  62.9). Reverted. This variant is also rejected independently by the pre-registered 25% synthetic-share cap (it reaches 46, 48%), so the revert does not rest on having seen its scores.
+**Measured,  the SMOGN over-augmentation ablation:** widening the minority mask to the union of Y1/Y2/Y3 quintile tails with 2 draws per row produced 26, 28 synthetic rows against 30 real per fold and made **every model on every target worse** (RF Y1 pooled R² −0.32  −1.39; Ridge Y3 RMSE 36.6  62.9). Reverted. This variant is also rejected independently by the protocol-frozen 25% synthetic-share cap (it reaches 46, 48%), so the revert does not rest on having seen its scores.
 
 **Measured,  feature count (K=20 vs K=10), pooled R²:** K=10 better on 6 of 9 model-target cells (ridge Y1 −1.634  −0.803; ridge Y2 −3.539  −1.250; RF Y2 −0.120  −0.057) but **destroys the study's only positive R²** (ridge Y3 +0.038  −0.079). K=20 retained; both reported.
 
@@ -2465,7 +2465,7 @@ Ranked by (research value × defensibility) / (complexity × overfitting risk). 
 - **Modified configuration:** (a) exact, (b) tolerance,  within 1% of baseline, (c) stable,  at or above baseline for 3 consecutive sessions.
 - **Validation:** as above.
 - **Metrics:** MAE in trading days per definition; correlation between the three Y3 vectors; whether model ranking changes.
-- **Expected interpretation:** if conclusions flip across definitions, Y3 results are definition-artefacts and must be heavily qualified. Do **not** adopt whichever definition scores best,  report all three and keep the pre-registered exact definition as primary.
+- **Expected interpretation:** if conclusions flip across definitions, Y3 results are definition-artefacts and must be heavily qualified. Do **not** adopt whichever definition scores best,  report all three and keep the protocol-frozen exact definition as primary.
 
 ---
 
@@ -2702,7 +2702,7 @@ A further feature/model pass was then run, cited and reasoned before implementat
   filter-method combination for small-N tabular data (VIF/correlation pruning + importance
   ranking; a >0.75 correlation-pair diagnostic table is also generated and saved to
   `artifacts/tables/y1_feature_stability.csv`, but the ACTUAL drop threshold stays at the
-  pre-registered 0.95, per author decision, not the harder 0.75 that would count as
+  protocol-frozen 0.95, per author decision, not the harder 0.75 that would count as
   revising a pre-declared rule after seeing results).
 - **PCA**,  added as a reported ablation only (`notebooks/04_modeling_regression.ipynb`,
   section 4.8b): PCA(10 components)+Ridge vs RF-selected-features+Ridge, same folds. Not
@@ -3649,7 +3649,7 @@ rather than being omitted.
 | T14 | an exact dependency lock file beside the existing loose requirements |
 | T15 | the closed robustness list in 8.7 |
 | D1 | the repository description, corrected in `docs/repository_metadata.md`; the GitHub About field itself is a site setting and must be applied by the owner |
-| D2 to D6 | documentation and metadata corrections, including withdrawing the "pre-registered" claim for the study as a whole in favour of the narrower, verifiable statement that the target definitions and evaluation rules were frozen on 2026-09-19 at commit `928a255` before any performance under them was observed |
+| D2 to D6 | documentation and metadata corrections, including withdrawing the "protocol-frozen" claim for the study as a whole in favour of the narrower, verifiable statement that the target definitions and evaluation rules were frozen on 2026-09-19 at commit `928a255` before any performance under them was observed |
 
 ## 8.9 Licence change, on the owner's instruction
 

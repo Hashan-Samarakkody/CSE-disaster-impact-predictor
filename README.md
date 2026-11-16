@@ -60,18 +60,16 @@ on 2026-09-22 under the frozen target protocol and under the Revision 2 changes
 
 | Target | What is predictable | Best validated model | Evidence | Supported |
 |---|---|---|---|---|
-| Y1, return magnitude | nothing | none | 0 of 1350 paired bootstrap comparisons across a 465 configuration grid had an interval excluding zero, and 0 of the 18 comparison confirmatory family survived Holm (smallest corrected p 0.641). Best pooled R squared in the notebook arm is 0.042 | No |
+| Y1, return magnitude | nothing | none | 0 of 1350 paired bootstrap comparisons across a 465 configuration grid had an interval excluding zero, and 0 of the 24 comparison confirmatory family survived Holm (smallest corrected p 0.641). Best pooled R squared in the notebook arm is 0.042 | No |
 | Y1, return direction at ten sessions | the sign of the return | logistic regression, combined features, ten selected features | ROC AUC 0.817, episode clustered interval [0.657, 0.940], Holm corrected p below 0.001, balanced accuracy 0.757. The ten session horizon is the one pre declared for direction; at the primary five session horizon the AUC is 0.574 and its interval spans 0.5 | Yes |
-| Y2, forward abnormal volume | possibly the size of the response, on weak evidence | random forest, the strongest confirmatory model | pooled R squared 0.334 for the ensemble and 0.303 for the random forest. Under T8 model parity the random forest delta RMSE interval still excludes zero against both baselines, [0.037, 0.175] against naive zero, but it does not survive Holm (corrected p 0.078). Only 34 of 74 events carry an observed label, and the missingness is structured: volume is unavailable for 2000 and for events after 2023. The early gap sits inside the first training block rather than a test fold, but the late gap removes six of the ten held-out points in the fourth fold, and the fold-wise R squared ranges from -0.449 to +0.436 around the pooled figure | Qualified |
+| Y2, forward abnormal volume | possibly the size of the response, on weak evidence | random forest, the strongest confirmatory model | pooled R squared 0.334 for the ensemble and 0.303 for the random forest. Under T8 model parity the random forest delta RMSE interval still excludes zero against both baselines, [0.037, 0.175] against naive zero, and it survives Holm (corrected p 0.024). 61 of 74 events carry an observed label; 34 appear in held-out test folds. Missingness is structured: volume is unavailable for 2000 and for events after 2023. The early gap sits inside the first training block rather than a test fold, but the late gap removes six of the ten held-out points in the fourth fold, and the fold-wise R squared ranges from -0.449 to +0.436 around the pooled figure | Qualified |
 | Y3, recovery duration | nothing, in either duration or ranking | none | every model loses to the training mean baseline on RMSE, and the best Harrell concordance is 0.535 with an interval of [0.371, 0.697]. Every concordance interval contains 0.5, and the Kaplan Meier and Aalen Johansen baselines have the best integrated Brier scores | No |
 
 Read that table with its negatives intact. Exact return magnitude and recovery duration are
 not predictable at this sample size, and the study reports that rather than working around
 it. The volume result is qualified rather than supported: it is the only target whose
 interval excludes zero, and it still fails the family wise correction on 34 observations.
-Separately, the real time and ex post information sets perform almost identically on the
-principal analysis, +0.0930 against +0.0932 delta RMSE, so knowing the finalised severity
-of an event adds essentially nothing to what the market's own prior state already implies. The full numbers are in `docs/results.md` and what they license is in
+Separately, the real time and ex post information sets differ by 0.133 RMSE pooled across the three confirmatory models (episode-clustered 95% CI [-0.074, 0.309]); equivalence was not supported and the interval does not exclude zero in either direction. The full numbers are in `docs/results.md` and what they license is in
 `docs/interpretation.md`.
 
 ## High level methodology
@@ -113,7 +111,7 @@ src/visualization/         the figure suites
 src/utils/                 the artifact cache
 apps/streamlit_app.py      the demo web app
 scripts/                   pipeline runners and experiment runners
-artifacts/                 generated cache, not version controlled
+artifacts/                 generated tables and models, tracked in git
 tests/                     the test suite, including 20 that hold the volume target frozen
 docs/                      all documentation, listed below
 ```
