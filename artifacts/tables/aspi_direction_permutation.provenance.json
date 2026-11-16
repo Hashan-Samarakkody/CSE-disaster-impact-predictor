@@ -1,0 +1,32 @@
+{
+  "written_utc": "2026-11-16T12:31:27+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "aspi_direction_permutation",
+  "rows": 10,
+  "columns": [
+    "horizon",
+    "model",
+    "n_test",
+    "n_permutations",
+    "observed_auc",
+    "perm_auc_mean",
+    "perm_auc_sd",
+    "perm_auc_p95",
+    "p_value",
+    "primary"
+  ],
+  "note": "Episode-level permutation test, B=5000, seed=42. y_true permuted at episode level (one event per episode). p = (1 + count(perm_auc >= obs_auc)) / (1 + B). primary=True marks the pre-declared horizon=10 / logistic comparison."
+}

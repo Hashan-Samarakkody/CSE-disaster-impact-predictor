@@ -172,7 +172,25 @@ the check cannot go stale.
 `scripts/run_headline_confirmation.py` re confirms the return and volume headline numbers
 against the cached predictions.
 
-## 7. Reproducing everything
+## 7. Examiner revision scripts
+
+`scripts/run_direction_permutation_test.py` runs the episode-level permutation test for
+all 10 (horizon, model) direction classifiers. 5,000 permutations, joblib parallel,
+episode-level y_true shuffle. Output: `artifacts/tables/aspi_direction_permutation.parquet`.
+Run with `--b 1000` for a quick check.
+
+`scripts/build_mde.py` computes prospective minimum detectable effects from the
+naive-train-mean baseline residuals. Output: `artifacts/tables/minimum_detectable_effect.parquet`.
+
+`scripts/verify_references.py` queries the Crossref API for every DOI in a reference list
+file. Input: `docs/references.txt` (one DOI per line) or a path argument. Output:
+`docs/reference_check.csv`. Requires a network connection.
+
+`scripts/build_sample_accounting.py` builds `artifacts/tables/sample_accounting.parquet`
+with per-target sample sizes, now including `n_unevaluated_tail` (events beyond the last
+test fold) and `n_purged` (true horizon-overlap purge count) as separate columns.
+
+## 8. Reproducing everything
 
 ```bash
 python -m pytest tests/ -q
