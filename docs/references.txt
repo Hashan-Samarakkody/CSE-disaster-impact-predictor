@@ -1,0 +1,10 @@
+# Thesis reference DOIs — one per line
+# Lines starting with # are ignored by scripts/verify_references.py
+# Paste each DOI from the thesis bibliography below (bare form or doi.org URL).
+# Then run: python scripts/verify_references.py
+#
+# Example format:
+#   10.1016/j.ijdrr.2020.101234
+#   https://doi.org/10.1080/01621459.1979.10482531
+#
+# ---- paste DOIs below this line ----
