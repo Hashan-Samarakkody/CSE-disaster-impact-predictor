@@ -1,0 +1,125 @@
+# APA References — CSE Disaster Impact Predictor Thesis
+# Source: R6_SET_clean.pdf reference section + DOIs verified via Crossref (see reference_check.csv)
+# Generated: 2026-11-18
+# 16 DOIs verified (all resolved). Pitarakis (2023) DOI absent from Crossref (see references_notes.md).
+# Molteni (2024) not present in manuscript; see references_notes.md.
+# ─────────────────────────────────────────────────────────────────────────────
+
+Amihud, Y. (2002). Illiquidity and stock returns: Cross-section and time-series effects. Journal of Financial Markets, 5(1), 31–56. https://doi.org/10.1016/S1386-4181(01)00024-6
+
+Andersen, P. K., Geskus, R. B., de Witte, T., & Putter, H. (2012). Competing risks in epidemiology: possibilities and pitfalls. International Journal of Epidemiology, 41(3), 861–870. https://doi.org/10.1093/ije/dyr213
+
+Bergmeir, C., Hyndman, R. J., & Koo, B. (2018). A note on the validity of cross-validation for evaluating autoregressive time series prediction. Computational Statistics & Data Analysis, 120, 70–83.
+
+Boehmer, E., Musumeci, J., & Poulsen, A. B. (1991). Event-study methodology under conditions of event-induced variance. Journal of Financial Economics, 30(2), 253–272.
+
+Botzen, W. J. W., Deschenes, O., & Sanders, M. (2019). The economic impacts of natural disasters: a review of models and empirical studies. Review of Environmental Economics and Policy, 13(2), 167–188.
+
+Bourdeau-Brien, M., & Kryzanowski, L. (2017). The impact of natural disasters on the stock returns and volatilities of local firms. Quarterly Review of Economics and Finance, 63, 259–270.
+
+Brown, S. J., & Warner, J. B. (1985). Using daily stock returns: the case of event studies. Journal of Financial Economics, 14(1), 3–31.
+
+Caldera, C., & Pagnottoni, P. (2022). Measuring financial market risk under climate change: a global time-series approach. Physica A: Statistical Mechanics and its Applications, 599, 127514.
+
+Campbell, J. Y., Lo, A. W., & MacKinlay, A. C. (1997). The econometrics of financial markets. Princeton University Press.
+
+Cawley, G. C., & Talbot, N. L. C. (2010). On over-fitting in model selection and subsequent selection bias in performance evaluation. Journal of Machine Learning Research, 11, 2079–2107.
+
+Centre for Research on the Epidemiology of Disasters. (2023). EM-DAT: The international disaster database. https://www.emdat.be/
+
+Clark, T. E., & McCracken, M. W. (2001). Tests of equal forecast accuracy and encompassing for nested models. Journal of Econometrics, 105(1), 85–110.
+
+Corrado, C. J. (1989). A nonparametric test for abnormal security-price performance in event studies. Journal of Financial Economics, 23(2), 385–395.
+
+Cox, D. R. (1972). Regression models and life-tables. Journal of the Royal Statistical Society: Series B (Methodological), 34(2), 187–220.
+
+Diebold, F. X., & Mariano, R. S. (1995). Comparing predictive accuracy. Journal of Business & Economic Statistics, 13(3), 253–263.
+
+Fama, E. F. (1970). Efficient capital markets: a review of theory and empirical work. Journal of Finance, 25(2), 383–417.
+
+Fama, E. F., Fisher, L., Jensen, M. C., & Roll, R. (1969). The adjustment of stock prices to new information. International Economic Review, 10(1), 1–21.
+
+Fine, J. P., & Gray, R. J. (1999). A proportional hazards model for the subdistribution of a competing risk. Journal of the American Statistical Association, 94(446), 496–509.
+
+Gelman, A., & Stern, H. (2006). The difference between "significant" and "not significant" is not itself statistically significant. The American Statistician, 60(4), 328–331. https://doi.org/10.1198/000313006X152649
+
+Giacomini, R., & White, H. (2006). Tests of conditional predictive ability. Econometrica, 74(6), 1545–1578.
+
+Hamilton, J. D. (1994). Time series analysis. Princeton University Press.
+
+Harrell, F. E. (2015). Regression modeling strategies: with applications to linear models, logistic and ordinal regression, and survival analysis (2nd ed.). Springer.
+
+Harvey, D., Leybourne, S., & Newbold, P. (1997). Testing the equality of prediction mean squared errors. International Journal of Forecasting, 13(2), 281–291.
+
+Holm, S. (1979). A simple sequentially rejective multiple test procedure. Scandinavian Journal of Statistics, 6(2), 65–70.
+
+Huynh, T. D., & Xia, Y. (2023). Panic selling when disaster strikes: evidence in the bond and stock markets. Management Science, 69(12), 7442–7460. https://doi.org/10.1287/mnsc.2021.4018
+
+Hyndman, R. J., & Koehler, A. B. (2006). Another look at measures of forecast accuracy. International Journal of Forecasting, 22(4), 679–688.
+
+Ishwaran, H., Kogalur, U. B., Blackstone, E. H., & Lauer, M. S. (2008). Random survival forests. Annals of Applied Statistics, 2(3), 841–860.
+
+Jayasinghe, C. M. (2023). Forecasting models for sector-wise stock price indices: Colombo Stock Exchange. Journal of Accountancy & Finance, 9(2), 1–16. https://doi.org/10.57075/jaf922sp05
+
+Kalainathan, K. (2022). The stock market reaction to the unexpected events in Sri Lanka. Peradeniya Management Review, 4(1), 1–14. https://doi.org/10.4038/pmr.v4i1.52
+
+Kaplan, E. L., & Meier, P. (1958). Nonparametric estimation from incomplete observations. Journal of the American Statistical Association, 53(282), 457–481.
+
+Klomp, J. (2017). Flooded with debt. Journal of International Money and Finance, 73(A), 93–103.
+
+Kolari, J. W., & Pynnonen, S. (2010). Event study testing with cross-sectional correlation of abnormal returns. Review of Financial Studies, 23(11), 3996–4025.
+
+Kothari, S. P., & Warner, J. B. (2007). Econometrics of event studies. In B. E. Eckbo (Ed.), Handbook of empirical corporate finance (Vol. 1, pp. 3–36). Elsevier.
+
+López de Prado, M. (2018). Advances in financial machine learning. Wiley.
+
+Lundberg, S. M., Erion, G., Chen, H., DeGrave, A., Prutkin, J. M., Nair, B., Katz, R., Himmelfarb, J., Bansal, N., & Lee, S.-I. (2020). From local explanations to global understanding with explainable AI for trees. Nature Machine Intelligence, 2(1), 56–67.
+
+Lundberg, S. M., & Lee, S.-I. (2017). A unified approach to interpreting model predictions. Advances in Neural Information Processing Systems, 30, 4765–4774.
+
+MacKinlay, A. C. (1997). Event studies in economics and finance. Journal of Economic Literature, 35(1), 13–39.
+
+Molnar, C. (2022). Interpretable machine learning: a guide for making black box models explainable (2nd ed.). https://christophm.github.io/interpretable-ml-book/
+
+Page, M. J., McKenzie, J. E., Bossuyt, P. M., Boutron, I., Hoffmann, T. C., Mulrow, C. D., Shamseer, L., Tetzlaff, J. M., Akl, E. A., Brennan, S. E., Chou, R., Gluud, C., Mayo-Wilson, E., McDonald, S., McGuinness, L. A., Stewart, L. A., Thomas, J., Tricco, A. C., Welch, V. A., … Moher, D. (2021). The PRISMA 2020 statement: an updated guideline for reporting systematic reviews. BMJ, 372, n71.
+
+Pagnottoni, P., Spelta, A., Pecora, N., & Flori, A. (2022). Climate change and financial stability: natural disaster impacts on global stock markets. Physica A, 599, 127514.
+
+Pathirawasam, C. (2011). The relationship between trading volume and stock returns. E+M Ekonomie a Management, 14(1), 116–124.
+
+Perera, L. A. S., Priyadarshani, G. W. Y., & Jayawardena, L. N. A. C. (2025). Forecasting stock returns in the emerging market context. Unpublished.
+
+Pitarakis, J.-Y. (2023). Direct multi-step forecasting and forecast evaluation. Econometric Reviews, 42(10), 1005–1035.
+[NOTE: DOI not in Crossref index as of 2026-11-18. See references_notes.md for details.]
+
+Priyadarshani, G. W. Y., & Perera, L. A. S. (2023). The effect of climate risk on stock market performance: evidence from Sri Lanka. International Journal of Accountancy, 3(1), 1–15. https://doi.org/10.4038/ija.v3i1.51
+
+Roberts, D. R., Bahn, V., Ciuti, S., Boyce, M. S., Elith, J., Guillera-Arroita, G., Hauenstein, S., Lahoz-Monfort, J. J., Schröder, B., Thuiller, W., Warton, D. I., Wintle, B. A., Hartig, F., & Dormann, C. F. (2017). Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure. Ecography, 40(8), 913–929.
+
+Rodrigo, D. S., & Rajapaksha, K. T. (2023). Short-term forecasting for daily stock market indices using discrete Fourier transforms. International Journal of Research and Innovation in Social Science, 7(1), 1163–1174. https://doi.org/10.47772/IJRISS.2023.7011163
+
+Saberironaghi, M., Ren, J., & Saberironaghi, A. (2025). Stock market prediction using machine learning and deep learning techniques: a review. AppliedMath, 5(3), 76. https://doi.org/10.3390/appliedmath5030076
+
+Samarawickrama, I. D. W., & Pallegedara, A. (2023). Sri Lankan stock market volatility analysis: an ARMA-GARCH approach. Sri Lankan Journal of Business Economics, 12. https://doi.org/10.31357/sljbe.v12.6442
+
+Shmueli, G. (2010). To explain or to predict? Statistical Science, 25(3), 289–310. https://doi.org/10.1214/10-STS330
+
+Steyerberg, E. W. (2009). Clinical prediction models: a practical approach to development, validation, and updating. Springer.
+
+Tashman, L. J. (2000). Out-of-sample tests of forecasting accuracy: an analysis and review. International Journal of Forecasting, 16(4), 437–450.
+
+Uno, H., Cai, T., Pencina, M. J., D'Agostino, R. B., & Wei, L. J. (2011). On the C-statistics for evaluating overall adequacy of risk prediction procedures with censored survival data. Statistics in Medicine, 30(10), 1105–1117. https://doi.org/10.1002/sim.4154
+
+Varma, S., & Simon, R. (2006). Bias in error estimation when using cross-validation for model selection. BMC Bioinformatics, 7(1), 91.
+
+Vithushan, M., & Kethmi, G. A. P. (2025). A comparative analysis of time series models for predicting the S&P SL 20 index of the Colombo Stock Exchange (CSE). Book of Abstracts: International Research Conference of the Open University of Sri Lanka. https://doi.org/10.65646/3rc20dmv3t1038
+
+Vittinghoff, E., & McCulloch, C. E. (2007). Relaxing the rule of ten events per variable in logistic and Cox regression. American Journal of Epidemiology, 165(6), 710–718. https://doi.org/10.1093/aje/kwk052
+
+Wang, L., & Kutan, A. M. (2013). The impact of natural disasters on stock markets: evidence from Japan and the US. Comparative Economic Studies, 55(4), 672–686.
+
+Wickramarathna, G., & Ratnayake, H. (2022). Machine learning approach in stock market prediction: a case of Colombo Stock Exchange. International Journal of Scientific and Research Publications, 12(5), 183–189. https://doi.org/10.29322/IJSRP.12.05.2022.p12519
+
+Worthington, A., & Valadkhani, A. (2004). Measuring the impact of natural disasters on capital markets: an empirical application using intervention analysis. Applied Economics, 36(19), 2177–2186.
+
+Zhou, X. (2023). The impact of natural disaster on US stock market index: using DID, ARMAX-GARCH, and random forest. Advances in Economics, Management and Political Sciences, 63, 1–8. https://doi.org/10.54254/2754-1169/63/20231387

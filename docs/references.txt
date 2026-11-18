@@ -1,10 +1,94 @@
 # Thesis reference DOIs — one per line
 # Lines starting with # are ignored by scripts/verify_references.py
-# Paste each DOI from the thesis bibliography below (bare form or doi.org URL).
-# Then run: python scripts/verify_references.py
+# Populated from manuscript R6_SET_clean.pdf references section.
+# DOIs present in manuscript are listed below.
+# Entries without DOIs in the manuscript are listed as comments.
 #
-# Example format:
-#   10.1016/j.ijdrr.2020.101234
-#   https://doi.org/10.1080/01621459.1979.10482531
+# Pitarakis (2023) and Molteni (2024) are flagged below.
+# ---- DOIs below this line ----
+
+# Amihud (2002) — Illiquidity and stock returns
+10.1016/S1386-4181(01)00024-6
+
+# Andersen et al. (2012) — Competing risks in epidemiology
+10.1093/ije/dyr213
+
+# Gelman & Stern (2006) — "significant" vs "not significant"
+10.1198/000313006X152649
+
+# Huynh & Xia (2023) — Panic selling when disaster strikes
+10.1287/mnsc.2021.4018
+
+# Jayasinghe (2023) — Forecasting models for CSE sector indices
+10.57075/jaf922sp05
+
+# Kalainathan (2022) — Stock market reaction to unexpected events in Sri Lanka
+10.4038/pmr.v4i1.52
+
+# Priyadarshani & Perera (2023) — Climate risk and Sri Lankan stock market
+10.4038/ija.v3i1.51
+
+# Rodrigo & Rajapaksha (2023) — Short-term forecasting using Fourier transforms
+10.47772/IJRISS.2023.7011163
+
+# Saberironaghi et al. (2025) — Stock market prediction using ML/DL review
+10.3390/appliedmath5030076
+
+# Samarawickrama & Pallegedara (2023) — Sri Lankan stock market volatility ARMA-GARCH
+10.31357/sljbe.v12.6442
+
+# Shmueli (2010) — To explain or to predict
+10.1214/10-STS330
+
+# Uno et al. (2011) — C-statistics for censored survival data
+10.1002/sim.4154
+
+# Vithushan & Kethmi (2025) — Comparative analysis S&P SL 20 index
+10.65646/3rc20dmv3t1038
+
+# Vittinghoff & McCulloch (2007) — Relaxing rule of ten events per variable
+10.1093/aje/kwk052
+
+# Wickramarathna & Ratnayake (2022) — ML approach CSE stock market prediction
+10.29322/IJSRP.12.05.2022.p12519
+
+# Zhou (2023) — Natural disaster impact on US stock market index
+10.54254/2754-1169/63/20231387
+
+# ---- Entries without DOIs in manuscript (journal articles needing DOI search) ----
+# Bergmeir et al. (2018) — Computational Statistics & Data Analysis 120:70-83
+# Boehmer et al. (1991) — Journal of Financial Economics 30(2):253-272
+# Botzen et al. (2019) — Review of Environmental Economics and Policy 13(2):167-188
+# Bourdeau-Brien & Kryzanowski (2017) — Quarterly Review of Economics and Finance 63:259-270
+# Brown & Warner (1985) — Journal of Financial Economics 14(1):3-31
+# Cawley & Talbot (2010) — JMLR 11:2079-2107
+# Clark & McCracken (2001) — Journal of Econometrics 105(1):85-110
+# Corrado (1989) — Journal of Financial Economics 23(2):385-395
+# Cox (1972) — JRSS-B 34(2):187-220
+# Diebold & Mariano (1995) — JBES 13(3):253-263
+# Fama (1970) — Journal of Finance 25(2):383-417
+# Fama et al. (1969) — International Economic Review 10(1):1-21
+# Fine & Gray (1999) — JASA 94(446):496-509
+# Giacomini & White (2006) — Econometrica 74(6):1545-1578
+# Harvey et al. (1997) — International Journal of Forecasting 13(2):281-291
+# Holm (1979) — Scandinavian Journal of Statistics 6(2):65-70
+# Hyndman & Koehler (2006) — International Journal of Forecasting 22(4):679-688
+# Ishwaran et al. (2008) — Annals of Applied Statistics 2(3):841-860
+# Kaplan & Meier (1958) — JASA 53(282):457-481
+# Klomp (2017) — Journal of International Money and Finance 73(PA):93-103
+# Kolari & Pynnonen (2010) — Review of Financial Studies 23(11):3996-4025
+# MacKinlay (1997) — Journal of Economic Literature 35(1):13-39
+# Page et al. (2021) — BMJ 372:n71
+# Pagnottoni et al. (2022) — Physica A 599:127514
+# Pathirawasam (2011) — E+M Ekonomie a Management 14(1):116-124
+# Roberts et al. (2017) — Ecography 40(8):913-929
+# Tashman (2000) — International Journal of Forecasting 16(4):437-450
+# Varma & Simon (2006) — BMC Bioinformatics 7:91
+# Wang & Kutan (2013) — Comparative Economic Studies 55(4):672-686
+# Worthington & Valadkhani (2004) — Applied Economics 36(19):2177-2186
 #
-# ---- paste DOIs below this line ----
+# FLAG: Pitarakis (2023) — "Direct multi-step forecasting and forecast evaluation"
+#   Econometric Reviews 42(10):1005-1035 — NO DOI IN MANUSCRIPT; needs Crossref lookup
+# FLAG: Molteni (2024) — NOT FOUND IN MANUSCRIPT REFERENCES
+#   This reference does not appear anywhere in R6_SET_clean.pdf.
+#   Cannot fix without knowing the full citation.
