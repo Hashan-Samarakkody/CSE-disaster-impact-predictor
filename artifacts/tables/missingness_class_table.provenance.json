@@ -1,0 +1,30 @@
+{
+  "written_utc": "2026-11-18T06:07:51+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "missingness_class_table",
+  "rows": 68,
+  "columns": [
+    "feature",
+    "block",
+    "availability_class",
+    "class_label",
+    "n_total",
+    "n_observed",
+    "n_missing",
+    "pct_missing"
+  ],
+  "note": "Per-feature missingness counts and class labels (manuscript Table 13). block and availability_class from feature_availability.parquet. date_macro and event_name excluded (not features). class_label = block / availability_class."
+}
