@@ -1,0 +1,538 @@
+{
+  "generated_by": "scripts/build_manuscript_numbers.py",
+  "numbers": [
+    {
+      "value": 74,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_events_total",
+      "location": "abstract / Table 4: total qualifying disasters"
+    },
+    {
+      "value": 74,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_labelled[Y1_ASPI_5D]",
+      "location": "Table 4: Y1 labelled events"
+    },
+    {
+      "value": 40,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_held_out[Y1_ASPI_5D]",
+      "location": "Table 4: Y1 held-out events"
+    },
+    {
+      "value": 1,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_purged[Y1_ASPI_5D]",
+      "location": "Table 4: Y1 purged"
+    },
+    {
+      "value": 4,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_unevaluated_tail[Y1_ASPI_5D]",
+      "location": "Table 4: Y1 tail"
+    },
+    {
+      "value": 61,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_labelled[Y2_5D]",
+      "location": "Table 4: Y2 labelled events"
+    },
+    {
+      "value": 34,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_held_out[Y2_5D]",
+      "location": "Table 4: Y2 held-out events"
+    },
+    {
+      "value": 1,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_purged[Y2_5D]",
+      "location": "Table 4: Y2 purged"
+    },
+    {
+      "value": 74,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_labelled[Y3_recovery_time]",
+      "location": "Table 4: Y3 labelled events"
+    },
+    {
+      "value": 40,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_held_out[Y3_recovery_time]",
+      "location": "Table 4: Y3 held-out events"
+    },
+    {
+      "value": 2,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_purged[Y3_recovery_time]",
+      "location": "Table 4: Y3 purged"
+    },
+    {
+      "value": 4,
+      "artifact": "sample_accounting.parquet",
+      "column": "n_unevaluated_tail[Y3_recovery_time]",
+      "location": "Table 4: Y3 tail"
+    },
+    {
+      "value": 49,
+      "artifact": "verdict_table.parquet",
+      "column": "count(confirmatory==True)",
+      "location": "Table 9: confirmatory family size (24)"
+    },
+    {
+      "value": 0.05,
+      "artifact": "verdict_table.parquet",
+      "column": "Holm alpha (protocol)",
+      "location": "Table 9 / stats guide: Holm \u03b1"
+    },
+    {
+      "value": 1.0,
+      "artifact": "verdict_table.parquet",
+      "column": "p_holm.min()[Y1 confirmatory]",
+      "location": "Table 9: Y1 smallest Holm p"
+    },
+    {
+      "value": 0.106,
+      "artifact": "verdict_table.parquet",
+      "column": "delta_rmse[Y2,RF,naive_zero,confirmatory]",
+      "location": "Table 9 / abstract: Y2 RF \u0394RMSE"
+    },
+    {
+      "value": 0.037,
+      "artifact": "verdict_table.parquet",
+      "column": "ci_low[Y2,RF,naive_zero,confirmatory]",
+      "location": "Table 9: Y2 RF CI lower"
+    },
+    {
+      "value": 0.175,
+      "artifact": "verdict_table.parquet",
+      "column": "ci_high[Y2,RF,naive_zero,confirmatory]",
+      "location": "Table 9: Y2 RF CI upper"
+    },
+    {
+      "value": 0.0238,
+      "artifact": "verdict_table.parquet",
+      "column": "p_holm[Y2,RF,naive_zero,confirmatory]",
+      "location": "Table 9 / stats guide: Y2 RF Holm p"
+    },
+    {
+      "value": true,
+      "artifact": "verdict_table.parquet",
+      "column": "holm_significant[Y2,RF,naive_zero,confirmatory]",
+      "location": "Table 9: Y2 Holm significant"
+    },
+    {
+      "value": 0.817,
+      "artifact": "aspi_direction_metrics.parquet",
+      "column": "roc_auc[h=10,logistic]",
+      "location": "Table 10: logistic h=10 AUC"
+    },
+    {
+      "value": 0.657,
+      "artifact": "aspi_direction_metrics.parquet",
+      "column": "auc_ci_low[h=10,logistic]",
+      "location": "Table 10: logistic h=10 AUC CI lower"
+    },
+    {
+      "value": 0.94,
+      "artifact": "aspi_direction_metrics.parquet",
+      "column": "auc_ci_high[h=10,logistic]",
+      "location": "Table 10: logistic h=10 AUC CI upper"
+    },
+    {
+      "value": 0.7569,
+      "artifact": "aspi_direction_metrics.parquet",
+      "column": "balanced_accuracy[h=10,logistic]",
+      "location": "Table 10: logistic h=10 balanced accuracy"
+    },
+    {
+      "value": 0.53,
+      "artifact": "aspi_direction_metrics.parquet",
+      "column": "mcc[h=10,logistic]",
+      "location": "Table 10: logistic h=10 MCC"
+    },
+    {
+      "value": 40,
+      "artifact": "aspi_direction_metrics.parquet",
+      "column": "n[h=10,logistic]",
+      "location": "Table 10: test n"
+    },
+    {
+      "value": 0.817,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[primary]",
+      "location": "Tables 16a/17: primary permutation AUC"
+    },
+    {
+      "value": 0.0004,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[primary]",
+      "location": "Tables 16a/17: primary permutation p"
+    },
+    {
+      "value": 5000,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "n_permutations[primary]",
+      "location": "Tables 16a/17: B"
+    },
+    {
+      "value": 0.5019,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "perm_auc_mean[primary]",
+      "location": "Table 16a: permutation AUC mean"
+    },
+    {
+      "value": 0.665,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "perm_auc_p95[primary]",
+      "location": "Table 16a: permutation AUC 95th pct"
+    },
+    {
+      "value": 0.1822,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=1,logistic]",
+      "location": "Appendix K: permutation p h=1 logistic"
+    },
+    {
+      "value": 0.5869,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=1,logistic]",
+      "location": "Appendix K: AUC h=1 logistic"
+    },
+    {
+      "value": 0.1258,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=1,random_forest]",
+      "location": "Appendix K: permutation p h=1 random_forest"
+    },
+    {
+      "value": 0.6125,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=1,random_forest]",
+      "location": "Appendix K: AUC h=1 random_forest"
+    },
+    {
+      "value": 0.2042,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=5,logistic]",
+      "location": "Appendix K: permutation p h=5 logistic"
+    },
+    {
+      "value": 0.5739,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=5,logistic]",
+      "location": "Appendix K: AUC h=5 logistic"
+    },
+    {
+      "value": 0.3197,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=5,random_forest]",
+      "location": "Appendix K: permutation p h=5 random_forest"
+    },
+    {
+      "value": 0.5439,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=5,random_forest]",
+      "location": "Appendix K: AUC h=5 random_forest"
+    },
+    {
+      "value": 0.0004,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=10,logistic]",
+      "location": "Appendix K: permutation p h=10 logistic"
+    },
+    {
+      "value": 0.817,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=10,logistic]",
+      "location": "Appendix K: AUC h=10 logistic"
+    },
+    {
+      "value": 0.017,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=10,random_forest]",
+      "location": "Appendix K: permutation p h=10 random_forest"
+    },
+    {
+      "value": 0.7093,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=10,random_forest]",
+      "location": "Appendix K: AUC h=10 random_forest"
+    },
+    {
+      "value": 0.0224,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=15,logistic]",
+      "location": "Appendix K: permutation p h=15 logistic"
+    },
+    {
+      "value": 0.6942,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=15,logistic]",
+      "location": "Appendix K: AUC h=15 logistic"
+    },
+    {
+      "value": 0.3031,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=15,random_forest]",
+      "location": "Appendix K: permutation p h=15 random_forest"
+    },
+    {
+      "value": 0.5489,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=15,random_forest]",
+      "location": "Appendix K: AUC h=15 random_forest"
+    },
+    {
+      "value": 0.0824,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=20,logistic]",
+      "location": "Appendix K: permutation p h=20 logistic"
+    },
+    {
+      "value": 0.6375,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=20,logistic]",
+      "location": "Appendix K: AUC h=20 logistic"
+    },
+    {
+      "value": 0.1844,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "p_value[h=20,random_forest]",
+      "location": "Appendix K: permutation p h=20 random_forest"
+    },
+    {
+      "value": 0.585,
+      "artifact": "aspi_direction_permutation.parquet",
+      "column": "observed_auc[h=20,random_forest]",
+      "location": "Appendix K: AUC h=20 random_forest"
+    },
+    {
+      "value": 0.0006,
+      "artifact": "event_study_caar.parquet",
+      "column": "caar[return,k=5]",
+      "location": "Table 7: CAAR return k=5"
+    },
+    {
+      "value": -0.0056,
+      "artifact": "event_study_caar.parquet",
+      "column": "ci_low[return,k=5]",
+      "location": "Table 7: CAAR return CI lower"
+    },
+    {
+      "value": 0.0067,
+      "artifact": "event_study_caar.parquet",
+      "column": "ci_high[return,k=5]",
+      "location": "Table 7: CAAR return CI upper"
+    },
+    {
+      "value": 0.177,
+      "artifact": "event_study_caar.parquet",
+      "column": "t_cross_sectional[return,k=5]",
+      "location": "Table 7: return t_cross"
+    },
+    {
+      "value": 0.8597,
+      "artifact": "event_study_caar.parquet",
+      "column": "p_cross_sectional[return,k=5]",
+      "location": "Table 7: return p_cross"
+    },
+    {
+      "value": -0.042,
+      "artifact": "event_study_caar.parquet",
+      "column": "t_bmp[return,k=5]",
+      "location": "Table 7: return t_BMP"
+    },
+    {
+      "value": -0.122,
+      "artifact": "event_study_caar.parquet",
+      "column": "t_corrado[return,k=5]",
+      "location": "Table 7: return t_Corrado"
+    },
+    {
+      "value": 0.9977,
+      "artifact": "event_study_caar.parquet",
+      "column": "mean_cross_correlation[return]",
+      "location": "Table 7: return mean pairwise r"
+    },
+    {
+      "value": 0.6296,
+      "artifact": "event_study_caar.parquet",
+      "column": "caar[volume,k=5]",
+      "location": "Table 7: CAAR volume k=5"
+    },
+    {
+      "value": -0.1567,
+      "artifact": "event_study_caar.parquet",
+      "column": "ci_low[volume,k=5]",
+      "location": "Table 7: CAAR volume CI lower"
+    },
+    {
+      "value": 1.416,
+      "artifact": "event_study_caar.parquet",
+      "column": "ci_high[volume,k=5]",
+      "location": "Table 7: CAAR volume CI upper"
+    },
+    {
+      "value": 2.255,
+      "artifact": "event_study_caar.parquet",
+      "column": "t_corrado[volume,k=5]",
+      "location": "Table 7: volume t_Corrado"
+    },
+    {
+      "value": 0.0242,
+      "artifact": "event_study_caar.parquet",
+      "column": "p_corrado[volume,k=5]",
+      "location": "Table 7: volume p_Corrado"
+    },
+    {
+      "value": 1.0,
+      "artifact": "event_study_caar.parquet",
+      "column": "mean_cross_correlation[volume]",
+      "location": "Table 7: volume mean pairwise r"
+    },
+    {
+      "value": 0.535,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "c_index[best model]",
+      "location": "Table 8: best model C-index"
+    },
+    {
+      "value": 0.371,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "c_index_ci_low[best model]",
+      "location": "Table 8: best model C-index CI lower"
+    },
+    {
+      "value": 0.697,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "c_index_ci_high[best model]",
+      "location": "Table 8: best model C-index CI upper"
+    },
+    {
+      "value": "two_stage_lognormal_k20",
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "model[best c_index]",
+      "location": "Table 8: best model name"
+    },
+    {
+      "value": 0.503,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "c_index[km_train_baseline]",
+      "location": "Table 8: KM baseline C-index"
+    },
+    {
+      "value": 0.338,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "integrated_brier_score[best model]",
+      "location": "Table 8a: best model IBS"
+    },
+    {
+      "value": 0.208,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "integrated_brier_score[km_train_baseline]",
+      "location": "Table 8a: KM baseline IBS"
+    },
+    {
+      "value": 0.444,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t10[best model]",
+      "location": "Table 8a: Brier score t=10"
+    },
+    {
+      "value": 0.281,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t10[km_train_baseline]",
+      "location": "Table 8a: KM Brier t=10"
+    },
+    {
+      "value": 0.418,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t20[best model]",
+      "location": "Table 8a: Brier score t=20"
+    },
+    {
+      "value": 0.247,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t20[km_train_baseline]",
+      "location": "Table 8a: KM Brier t=20"
+    },
+    {
+      "value": 0.382,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t30[best model]",
+      "location": "Table 8a: Brier score t=30"
+    },
+    {
+      "value": 0.231,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t30[km_train_baseline]",
+      "location": "Table 8a: KM Brier t=30"
+    },
+    {
+      "value": 0.386,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t60[best model]",
+      "location": "Table 8a: Brier score t=60"
+    },
+    {
+      "value": 0.239,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t60[km_train_baseline]",
+      "location": "Table 8a: KM Brier t=60"
+    },
+    {
+      "value": 0.058,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t90[best model]",
+      "location": "Table 8a: Brier score t=90"
+    },
+    {
+      "value": 0.041,
+      "artifact": "recovery_grid_metrics.parquet",
+      "column": "brier_t90[km_train_baseline]",
+      "location": "Table 8a: KM Brier t=90"
+    },
+    {
+      "value": 1.735,
+      "artifact": "minimum_detectable_effect.parquet",
+      "column": "mde_rmse[Y1_5D]",
+      "location": "Table 17 / appendix: MDE Y1_5D"
+    },
+    {
+      "value": 0.417,
+      "artifact": "minimum_detectable_effect.parquet",
+      "column": "mde_rmse[Y2_5D]",
+      "location": "Table 17 / appendix: MDE Y2_5D"
+    },
+    {
+      "value": 13.39,
+      "artifact": "minimum_detectable_effect.parquet",
+      "column": "mde_rmse[Y3]",
+      "location": "Table 17 / appendix: MDE Y3"
+    },
+    {
+      "value": 3.236,
+      "artifact": "minimum_detectable_effect.parquet",
+      "column": "mde_rmse[Y1_10D]",
+      "location": "Table 17 / appendix: MDE Y1_10D"
+    },
+    {
+      "value": 0.133,
+      "artifact": "docs/audit.md (narrative, section 3771)",
+      "column": "ex_post - real_time RMSE delta, h=5, k=10",
+      "location": "text: RT vs EP equivalence test \u0394RMSE",
+      "note": "CURRENT_NUMBERS.md cites robustness_suite.parquet (RT_vs_EP row) but no such row exists. Value sourced from docs/audit.md. robustness_suite.parquet has separate real_time and ex_post rows."
+    },
+    {
+      "value": [
+        -0.074,
+        0.309
+      ],
+      "artifact": "docs/audit.md (narrative, section 3771)",
+      "column": "CI[ex_post - real_time RMSE delta]",
+      "location": "text: RT vs EP equivalence test CI",
+      "note": "Same provenance caveat as \u0394RMSE above."
+    }
+  ]
+}
