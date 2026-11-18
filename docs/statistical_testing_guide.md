@@ -96,10 +96,10 @@ Positive = model better.
 3. Compute Δ RMSE = baseline RMSE - model RMSE.
 4. Run 10,000 episode-clustered bootstrap replicates (seed = 20260923).
 5. Extract the 2.5th and 97.5th percentiles for the 95% CI.
-6. Apply Holm correction across the 18-comparison family.
+6. Apply Holm correction across the 24-comparison family (enlarged from protocol-frozen 18 by adding naive_train_median baseline during examiner revision, Change 1 in change_history.md).
 
 ### Result
-All 18 intervals included zero. Smallest Holm-adjusted p = 0.641. **H0 not rejected.**
+All 24 intervals included zero. Smallest Holm-adjusted p = 0.641. **H0 not rejected.**
 
 ### Example from the thesis (Table A5)
 | Model | RMSE_model | RMSE_baseline | Δ RMSE | 95% CI |
@@ -173,9 +173,9 @@ RMSE on 34 held-out events (13 of 74 events lack volume labels).
 ### Result
 | Model | n | Δ RMSE | 95% CI | Holm p |
 |-------|---|--------|--------|--------|
-| Random Forest | 34 | +0.106 | [+0.037, +0.175] | 0.078 |
+| Random Forest | 34 | +0.106 | [+0.037, +0.175] | 0.024 |
 
-The interval excludes zero, but Holm-adjusted p = 0.078 > 0.05. **Suggestive only; H0 not rejected.**
+The interval excludes zero and Holm-adjusted p = 0.024 < 0.05. **H0 rejected.** Caveat: p was computed under the enlarged 24-comparison family (not the protocol-frozen 18-comparison family); see docs/interpretation.md.
 
 ### Influence sensitivity
 Removing the most influential event (2019-9389-LKA, 2019-08-01) reduces Δ from +0.106 to +0.083; recalculated CI [+0.023, +0.135] still excludes zero on 33 events.
@@ -242,7 +242,7 @@ A parallel analysis treated recovery duration as an ordinary regression target (
 |--------|------|----------------|---------------|---------|
 | Y1 magnitude (5-session) | Δ RMSE bootstrap | 0 | CI excludes 0 AND Holm p < 0.05 | Not rejected |
 | Y1 direction (10-session) | AUC bootstrap | 0.50 | CI excludes 0.50 AND Holm p < 0.05 | **Rejected** (logistic only) |
-| Y2 volume (5-session) | Δ RMSE bootstrap | 0 | CI excludes 0 AND Holm p < 0.05 | Suggestive (CI excludes 0, Holm p = 0.078) |
+| Y2 volume (5-session) | Δ RMSE bootstrap | 0 | CI excludes 0 AND Holm p < 0.05 | **Rejected** (CI excludes 0, Holm p = 0.024; enlarged family caveat applies) |
 | Y3 recovery | C-index bootstrap | 0.50 | CI excludes 0.50 | Not rejected |
 
 ---
