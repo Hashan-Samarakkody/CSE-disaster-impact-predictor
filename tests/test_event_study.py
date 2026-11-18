@@ -59,12 +59,20 @@ def test_planted_effect_is_recovered_in_the_caar(planted_table):
     assert row.ci_high < 0
 
 
-@pytest.mark.parametrize("statistic", ["t_cross_sectional", "t_bmp", "t_corrado",
-                                       "t_kolari_pynnonen"])
+@pytest.mark.parametrize("statistic", ["t_cross_sectional", "t_bmp", "t_corrado"])
 def test_every_statistic_fires_on_the_planted_effect(planted_table, statistic):
     row = _at(planted_table)
     assert abs(row[statistic]) > CRITICAL, (statistic, row[statistic])
     assert row[statistic] < 0, statistic          # the planted effect is a fall
+
+
+def test_kp_collapses_for_single_security_design(planted_table):
+    """When estimation windows overlap heavily (single security), mean r ≈ 1 and
+    KP t → 0.  This is the correct documented behaviour: KP is uninformative in a
+    single-security event study.  See docs/event_study_dependence.md."""
+    row = _at(planted_table)
+    assert row["mean_cross_correlation"] > 0.95, row["mean_cross_correlation"]
+    assert abs(row["t_kolari_pynnonen"]) < CRITICAL, row["t_kolari_pynnonen"]
 
 
 @pytest.mark.parametrize("statistic", ["t_cross_sectional", "t_bmp", "t_corrado",
@@ -74,9 +82,10 @@ def test_no_statistic_fires_on_the_null(null_table, statistic):
     assert abs(row[statistic]) < CRITICAL, (statistic, row[statistic])
 
 
-@pytest.mark.parametrize("p_column", ["p_cross_sectional", "p_bmp", "p_corrado",
-                                      "p_kolari_pynnonen"])
+@pytest.mark.parametrize("p_column", ["p_cross_sectional", "p_bmp", "p_corrado"])
 def test_p_values_agree_with_their_statistics(planted_table, null_table, p_column):
+    # p_kolari_pynnonen excluded: KP collapses in a single-security design (see
+    # test_kp_collapses_for_single_security_design and docs/event_study_dependence.md)
     assert _at(planted_table)[p_column] < 0.05
     assert _at(null_table)[p_column] > 0.05
 
@@ -101,8 +110,10 @@ def test_cross_correlation_reflects_overlapping_event_windows():
 
     spread = build_abnormal_panel(daily, sessions[np.arange(400, 800, 40)])
     packed = build_abnormal_panel(daily, sessions[np.arange(400, 420, 2)])
-    assert average_cross_correlation(packed) > average_cross_correlation(spread)
-    assert 0.0 <= average_cross_correlation(spread) <= 1.0
+    packed_r, _ = average_cross_correlation(packed)
+    spread_r, spread_diag = average_cross_correlation(spread)
+    assert packed_r > spread_r
+    assert 0.0 <= spread_r <= 1.0
 
 
 def test_corrado_depends_only_on_ranks_where_a_mean_test_does_not():

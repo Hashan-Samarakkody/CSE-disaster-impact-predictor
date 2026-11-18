@@ -150,36 +150,59 @@ def build_abnormal_panel(daily: pd.DataFrame, event_dates, model: str = "market"
                          np.array(window_start), np.array(window_end))
 
 
-def average_cross_correlation(panel: AbnormalPanel) -> float:
-    """Average pairwise correlation of the abnormal returns across the cross-section.
+def average_cross_correlation(panel: AbnormalPanel,
+                              min_overlap: int = 10) -> tuple[float, dict]:
+    """Average pairwise sample correlation of estimation-window market-model residuals.
 
-    The quantity the Kolari and Pynnonen formula needs. Their estimator is the average
-    correlation of the estimation-window residuals ACROSS SECURITIES, and it does not
-    transfer to this design unchanged: this study has one security, the ASPI, observed at
-    74 separate events, so any two events' residual series are the same series on their
-    shared calendar dates and correlate at essentially 1.0 by construction. Using that
-    number would drive every corrected statistic to zero and say nothing.
+    Replaces the previous overlap-share proxy with an estimate from actual data.
+    For each pair (i, j), the sample Pearson correlation of their estimation-window
+    residual series is computed over their shared calendar sessions.  Pairs with fewer
+    than `min_overlap` shared sessions are excluded.  The function returns the mean
+    pairwise correlation and a dict of diagnostics (mean, median, n_pairs_used).
 
-    What actually makes two events dependent here is an overlap of their event windows, in
-    which case they are built from literally the same sessions and their abnormal returns
-    are perfectly dependent; events whose windows do not overlap sit on different sessions
-    of a near-uncorrelated series and are independent. The average pairwise correlation is
-    therefore the share of pairs whose event windows overlap. The Kolari and Pynnonen
-    formula itself is used exactly as published; only this estimator of r is adapted to a
-    single-security design, and the adaptation is recorded rather than hidden.
+    Single-security design note: because every event's residuals come from the same
+    ASPI market-model estimation window, pairs whose windows overlap the same calendar
+    region will have high correlation; pairs whose windows sit on different, non-
+    overlapping calendar ranges will have near-zero correlation.  The average over all
+    eligible pairs is the quantity the Kolari-Pynnonen formula requires.
     """
-    starts = panel.event_window_start
-    ends = panel.event_window_end
-    n = len(starts)
+    residuals = panel.estimation_residuals
+    n = len(residuals)
     if n < 2:
-        return 0.0
-    overlapping = total = 0
+        return 0.0, {"mean": 0.0, "median": 0.0, "n_pairs_used": 0, "n_pairs_total": 0}
+
+    pairwise = []
+    n_total = 0
     for i in range(n):
         for j in range(i + 1, n):
-            total += 1
-            if starts[i] <= ends[j] and starts[j] <= ends[i]:
-                overlapping += 1
-    return float(overlapping / total) if total else 0.0
+            n_total += 1
+            s_i = residuals[i].dropna()
+            s_j = residuals[j].dropna()
+            shared_idx = s_i.index.intersection(s_j.index)
+            if len(shared_idx) < min_overlap:
+                continue
+            x = s_i.loc[shared_idx].to_numpy(float)
+            y = s_j.loc[shared_idx].to_numpy(float)
+            # Pearson r; skip if either series is constant
+            if x.std() == 0 or y.std() == 0:
+                continue
+            r = float(np.corrcoef(x, y)[0, 1])
+            if np.isfinite(r):
+                pairwise.append(r)
+
+    if not pairwise:
+        return 0.0, {"mean": 0.0, "median": 0.0, "n_pairs_used": 0,
+                     "n_pairs_total": n_total}
+
+    arr = np.array(pairwise)
+    mean_r = float(arr.mean())
+    diagnostics = {
+        "mean": mean_r,
+        "median": float(np.median(arr)),
+        "n_pairs_used": len(arr),
+        "n_pairs_total": n_total,
+    }
+    return mean_r, diagnostics
 
 
 def _two_sided_p(statistic: float, dof: Optional[int] = None) -> float:
@@ -309,7 +332,7 @@ def event_study_table(panel: AbnormalPanel, start: Optional[int] = None,
     cumulative_deviation = np.cumsum(
         np.where(np.isnan(panel.factor_deviation[:, panel.event_time >= begin]), 0.0,
                  panel.factor_deviation[:, panel.event_time >= begin]), axis=1)
-    mean_correlation = average_cross_correlation(panel)
+    mean_correlation, _corr_diag = average_cross_correlation(panel)
 
     rows = []
     for column, k in enumerate(selected):
