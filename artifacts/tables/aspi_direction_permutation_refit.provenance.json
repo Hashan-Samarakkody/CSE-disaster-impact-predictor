@@ -1,0 +1,36 @@
+{
+  "written_utc": "2026-11-18T07:25:29+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.2",
+    "sklearn": "1.5.2",
+    "xgboost": "3.4.1",
+    "torch": "not installed",
+    "statsmodels": "0.14.4",
+    "shap": "0.52.0",
+    "matplotlib": "3.9.2",
+    "wbgapi": "1.0.14",
+    "yfinance": "1.6.0"
+  },
+  "artifact": "aspi_direction_permutation_refit",
+  "rows": 10,
+  "columns": [
+    "horizon",
+    "model",
+    "n_test",
+    "n_permutations",
+    "observed_auc",
+    "perm_auc_mean",
+    "perm_auc_sd",
+    "perm_auc_p95",
+    "p_value",
+    "primary",
+    "refit",
+    "runtime_seconds",
+    "p_holm",
+    "holm_significant"
+  ],
+  "note": "Full-refit permutation test, B=5000, seed=42. Primary (h=10, logistic): entire walk-forward refit per permutation (CollinearityRFTopK k=10, StandardScaler, LogisticRegression max_iter=5000). Other 9 comparisons: fixed-prediction episode-level permutation. Holm correction across all 10 comparisons. refit=True marks the full-refit row."
+}

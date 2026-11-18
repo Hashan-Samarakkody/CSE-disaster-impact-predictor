@@ -24,6 +24,13 @@ appeared in earlier drafts.
 | R1 examiner revision: MDE dependence_assumption corrected to i.i.d. formula | 2026-11-16 | Post-examination | scripts/build_mde.py, commit e316634 |
 | R1 examiner revision: episode-level permutation test added for direction classifiers | 2026-11-16 | Post-examination | scripts/run_direction_permutation_test.py, artifacts/tables/aspi_direction_permutation.parquet |
 | R1 examiner revision: volume sensitivity analysis (1/5/10/20 session windows) | 2026-11-16 | Post-examination | artifacts/volume_sensitivity_horizons.py, artifacts/tables/volume_sensitivity_horizons.parquet |
+| R2 examiner revision: data sources retrieval dates corrected (4 sources had post-Aug-13 coverage) | 2026-11-18 | Post-examination | docs/data_sources_retrieval.csv, docs/data_sources_reconciliation.md, commit a88def4 |
+| R2 examiner revision: statistical_testing_guide updated (18→24 comparisons, 0.078→0.024 Holm p) | 2026-11-18 | Post-examination | docs/statistical_testing_guide.md, docs/CURRENT_NUMBERS.md, commit a88def4 |
+| R2 examiner revision: missingness class table regenerated with correct block/availability labels | 2026-11-18 | Post-examination | scripts/build_missingness_class_table.py, artifacts/tables/missingness_class_table.parquet, commit 0d715b6 |
+| R2 examiner revision: KP cross-correlation estimator replaced with actual pairwise sample correlations | 2026-11-18 | Post-examination | src/evaluation/event_study.py, docs/event_study_dependence.md, commit 36d6341 |
+| R2 examiner revision: full-refit permutation mode added for direction primary (h=10, logistic) | 2026-11-18 | Post-examination | scripts/run_direction_permutation_test.py --refit, artifacts/tables/aspi_direction_permutation_refit.parquet, commit 0b4c00c |
+| R2 examiner revision: manuscript_numbers.json generated from artifacts (88 number records) | 2026-11-18 | Post-examination | scripts/build_manuscript_numbers.py, docs/manuscript_numbers.json, commit 7cf297f |
+| R2 examiner revision: full-refit permutation artifact generated (B=5000, h=10 logistic, L2 C=1.0, k=10, combined, seed 42); primary refit p=0.0004 Holm_p=0.0040 — consistent with fixed-prediction result | 2026-11-18 | Post-examination | scripts/run_direction_permutation_test.py --refit, artifacts/tables/aspi_direction_permutation_refit.parquet |
 
 The protocol was frozen at commit 928a255d on 2026-09-19, before any model performance under
 the current target definitions was observed. However, the investigator had prior exposure to
