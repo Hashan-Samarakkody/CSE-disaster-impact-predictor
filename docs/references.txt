@@ -86,9 +86,4 @@
 # Varma & Simon (2006) — BMC Bioinformatics 7:91
 # Wang & Kutan (2013) — Comparative Economic Studies 55(4):672-686
 # Worthington & Valadkhani (2004) — Applied Economics 36(19):2177-2186
-#
-# FLAG: Pitarakis (2023) — "Direct multi-step forecasting and forecast evaluation"
-#   Econometric Reviews 42(10):1005-1035 — NO DOI IN MANUSCRIPT; needs Crossref lookup
-# FLAG: Molteni (2024) — NOT FOUND IN MANUSCRIPT REFERENCES
-#   This reference does not appear anywhere in R6_SET_clean.pdf.
-#   Cannot fix without knowing the full citation.
+
