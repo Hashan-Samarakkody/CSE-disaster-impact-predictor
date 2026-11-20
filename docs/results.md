@@ -1,5 +1,12 @@
 # Results
 
+> **Notice (R2 revision, 2026-11-20):** The confirmatory-family numbers in this document
+> reflect the 2026-09-21 pipeline run under an earlier exploratory configuration
+> (single info_set, wider model set) and are superseded by the current analysis.
+> Canonical current values are in `docs/CURRENT_NUMBERS.md` and the parquet artifacts;
+> `results_to_artifact_map.csv` maps every manuscript number to its source.
+> The ablation and robustness sections (§8) are still current.
+
 Every number the executed repository produced, for all three research targets, in the
 direction it landed. Disappointing results are reported here, not removed.
 
@@ -207,7 +214,7 @@ survive correction.
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | gp               |  40 |  2.7335 |  1.9475 |      0.0067 |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | svr              |  40 |  2.8037 |  1.9417 |     -0.0449 |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | naive_train_mean |  40 |  2.8051 |  1.9483 |     -0.0460 |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | ridge            |  40 |  2.8478 |  1.9051 |     -0.0781 |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | ridge            |  40 |  2.9729 |  2.0113 |     -0.0737 |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | quantile         |  40 |  2.8614 |  2.0840 |     -0.0884 |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | naive_zero       |  40 |  2.8691 |  1.9206 |     -0.0942 |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | xgboost          |  40 |  2.9379 |  2.1282 |     -0.1474 |
@@ -238,8 +245,8 @@ survive correction.
 
 | target                                | model         | baseline         |   n |   rmse_model |   rmse_baseline |   delta_rmse |   ci_low |   ci_high |   dm_p |   p_holm | holm_significant   | verdict                     |
 |:--------------------------------------|:--------------|:-----------------|----:|-------------:|----------------:|-------------:|---------:|----------:|-------:|---------:|:-------------------|:----------------------------|
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | ridge         | naive_zero       |  40 |       2.8478 |          2.8691 |       0.0212 |  -0.1393 |    0.1902 | 0.7939 |   1.0000 | False              | better, not distinguishable |
-| Y1_ASPI_5D_Forward_LogReturn_Pct      | ridge         | naive_train_mean |  40 |       2.8478 |          2.8051 |      -0.0427 |  -0.1798 |    0.1151 | 0.5898 |   1.0000 | False              | worse than baseline         |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | ridge         | naive_zero       |  40 |       2.9729 |          2.8691 |      -0.1039 |  -0.4406 |    0.1465 | 0.7366 |   1.0000 | False              | C - unsupported |
+| Y1_ASPI_5D_Forward_LogReturn_Pct      | ridge         | naive_train_mean |  40 |       2.9729 |          2.8014 |      -0.1715 |  -0.4146 |    0.0507 | 0.9266 |   1.0000 | False              | C - unsupported |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | random_forest | naive_zero       |  40 |       2.7235 |          2.8691 |       0.1456 |  -0.2815 |    0.4777 | 0.4797 |   1.0000 | False              | better, not distinguishable |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | random_forest | naive_train_mean |  40 |       2.7235 |          2.8051 |       0.0817 |  -0.2191 |    0.3234 | 0.5737 |   1.0000 | False              | better, not distinguishable |
 | Y1_ASPI_5D_Forward_LogReturn_Pct      | xgboost       | naive_zero       |  40 |       2.9379 |          2.8691 |      -0.0688 |  -0.4247 |    0.2032 | 0.6575 |   1.0000 | False              | worse than baseline         |

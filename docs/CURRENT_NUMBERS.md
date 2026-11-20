@@ -21,6 +21,14 @@ the artifacts; sources noted for each.
 | n_unevaluated_tail | 4 | sample_accounting.parquet |
 | Holm result | All 24 intervals include zero; not rejected | verdict_table.parquet |
 | Smallest Holm p | 0.641 | verdict_table.parquet |
+| Ridge RMSE (real_time, k=10, h=5) | 2.9729 | aspi_grid_metrics.parquet |
+| Ridge MAE (real_time, k=10, h=5) | 2.0113 | aspi_grid_metrics.parquet |
+| RF RMSE (real_time, k=10, h=5) | 2.8673 | aspi_grid_metrics.parquet |
+| MLP RMSE (real_time, k=10, h=5) | 2.7223 | aspi_grid_metrics.parquet |
+| Ridge RMSE (ex_post, k=10, h=5) | 2.7731 | aspi_grid_metrics.parquet |
+| RF RMSE (ex_post, k=10, h=5) | 2.6820 | aspi_grid_metrics.parquet |
+| MLP RMSE (ex_post, k=10, h=5) | 2.7125 | aspi_grid_metrics.parquet |
+| Superseded ridge RMSE (old exploratory config) | ~~2.8478~~ | docs/results.md (pre-R2 revision) |
 
 ## Target 1 (secondary) — Return direction (Y1 10D logistic)
 
