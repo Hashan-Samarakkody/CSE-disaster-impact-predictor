@@ -1,0 +1,17 @@
+{
+  "script": "scripts/placebo_randomization_test.py",
+  "random_state": 42,
+  "B": 5000,
+  "horizons": [
+    1,
+    5,
+    10,
+    20
+  ],
+  "exclusion_rule": "Candidates excluded from each real event's window [-5, +20]. Pool filtered to same calendar month, different year, vol ratio <= 3.0 (20-session realised vol).",
+  "vol_window": 20,
+  "vol_ratio_filter": 3.0,
+  "n_real_events": 74,
+  "estimation_window": 250,
+  "note": "Kolari-Pynnonen (2010) is uninformative in this single-index design (mean pairwise residual correlation 0.998 for returns, 1.000 for volume). This randomization test provides the correct reference distribution for CAAR/CAAV at horizons 1, 5, 10, 20 trading sessions."
+}

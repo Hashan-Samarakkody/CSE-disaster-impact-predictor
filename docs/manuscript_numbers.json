@@ -534,5 +534,71 @@
       "location": "text: RT vs EP equivalence test CI",
       "note": "Same provenance caveat as \u0394RMSE above."
     }
-  ]
+  ],
+  "RandomizationInference": {
+    "return_h1": {
+      "observed": -0.000592,
+      "placebo_mean": 0.000272,
+      "placebo_sd": 0.001508,
+      "p_randomization": 0.6699,
+      "ci95_low": -0.002526,
+      "ci95_high": 0.003519
+    },
+    "return_h5": {
+      "observed": 0.000555,
+      "placebo_mean": 0.002113,
+      "placebo_sd": 0.003721,
+      "p_randomization": 0.898,
+      "ci95_low": -0.004799,
+      "ci95_high": 0.00958
+    },
+    "return_h10": {
+      "observed": 0.00394,
+      "placebo_mean": 0.002333,
+      "placebo_sd": 0.00533,
+      "p_randomization": 0.4959,
+      "ci95_low": -0.007636,
+      "ci95_high": 0.012942
+    },
+    "return_h20": {
+      "observed": 0.004016,
+      "placebo_mean": 0.002605,
+      "placebo_sd": 0.00797,
+      "p_randomization": 0.6355,
+      "ci95_low": -0.012778,
+      "ci95_high": 0.018071
+    },
+    "volume_h1": {
+      "observed": 0.004164,
+      "placebo_mean": 0.109539,
+      "placebo_sd": 0.107086,
+      "p_randomization": 0.9808,
+      "ci95_low": -0.094422,
+      "ci95_high": 0.321098
+    },
+    "volume_h5": {
+      "observed": 0.629631,
+      "placebo_mean": 0.530104,
+      "placebo_sd": 0.434151,
+      "p_randomization": 0.4099,
+      "ci95_low": -0.304744,
+      "ci95_high": 1.402059
+    },
+    "volume_h10": {
+      "observed": 1.297949,
+      "placebo_mean": 1.007714,
+      "placebo_sd": 0.822488,
+      "p_randomization": 0.3615,
+      "ci95_low": -0.544338,
+      "ci95_high": 2.665418
+    },
+    "volume_h20": {
+      "observed": 2.890959,
+      "placebo_mean": 2.288129,
+      "placebo_sd": 1.573326,
+      "p_randomization": 0.3479,
+      "ci95_low": -0.718014,
+      "ci95_high": 5.422995
+    }
+  }
 }

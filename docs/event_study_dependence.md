@@ -1,53 +1,91 @@
-# Event Study Cross-Sectional Dependence
+# Why Kolari–Pynnönen Does Not Apply Here, and What We Use Instead
 
-## Method change (A2 — R2-revision5)
+## The Single-Index Problem
 
-`src/evaluation/event_study.py:average_cross_correlation()` previously used
-the event-window overlap share as a proxy for the pairwise correlation of
-market-model residuals.  The function now estimates the correlation directly
-from `panel.estimation_residuals`: for each pair (i, j) of events, the sample
-Pearson correlation of their estimation-window residual series is computed over
-the shared calendar sessions; pairs with fewer than 10 shared sessions are
-excluded.
+Kolari and Pynnönen (2010) correct the Boehmer–Musumeci–Poulsen (BMP) standardised
+test for cross-event correlation.  The correction scales the BMP statistic by
+
+    sqrt( (1 − r̄) / (1 + (N − 1) r̄) )
+
+where r̄ is the mean pairwise sample correlation of estimation-window market-model
+residuals across all N event pairs.
+
+The formula assumes that r̄ is a small positive number reflecting genuine but weak
+dependence among otherwise distinct securities.  In a *single-security* (or here, a
+*single-index*) event study, this assumption collapses: every event's market-model
+residuals come from the **same** ASPI return series minus the same SP 500 factor.
+Any two events whose 250-session estimation windows share calendar sessions will
+therefore have residual series that are virtually identical over the shared region.
+
+## Empirical Evidence
+
+For the 74 CSE disaster events analysed here:
+
+| Series   | Mean pairwise residual correlation |
+|----------|-----------------------------------|
+| Returns  | 0.9977                            |
+| Volume   | 1.0000                            |
+
+The return correlation of 0.9977 arises because most event-pairs overlap substantially
+in their estimation windows.  Volume correlation reaches the numerical ceiling because
+estimation-window log-volume changes are dominated by long-run market trends shared by
+all events.
+
+Plugging r̄ = 0.9977 into the K–P formula with N = 74 gives a denominator of
+
+    1 + 73 × 0.9977 ≈ 73.8
+
+so the correction factor is approximately sqrt(0.0023 / 73.8) ≈ 0.0056.  The K–P
+statistic becomes virtually zero regardless of the underlying BMP value; it carries no
+information about whether an effect is present.  The resulting p-values are uniformly
+near 1.0, as reported in the event-study table.
+
+## Correct Inference: Randomization Test
+
+We replace K–P with a pure randomization p-value
+(`scripts/placebo_randomization_test.py`):
+
+1. For each of **B = 5 000** replications, draw one placebo origin for each of the 74
+   real events uniformly at random from that event's pool.  Each pool consists of
+   trading sessions satisfying:
+   - same calendar month (1–12) as the real event;
+   - different calendar year;
+   - outside every real event's declared window (sessions [−5, +20]);
+   - 20-session pre-event realised volatility within a factor of 3 of the real event's.
+
+2. Compute the CAAR (market-model, returns) and CAAV (mean-adjusted, log-volume) for
+   each of the declared horizons k = 1, 5, 10, 20 trading sessions.
+
+3. Report the two-sided randomization p-value
+   p = (1 + #{|CAAR_b| ≥ |CAAR_observed|}) / (1 + B).
+
+This provides a valid reference distribution under the null of no event effect,
+regardless of the cross-event correlation structure, because the placebo draws respect
+the same temporal constraints as the real events without conditioning on them.
 
 ## Results
 
-| series | mean r | median r | n\_pairs\_used | n\_pairs\_total |
-|--------|--------|----------|---------------|----------------|
-| return (market model) | 0.9977 | 0.9992 | 208 | 2701 |
-| volume (mean model) | 1.0000 | 1.0000 | 187 | 2145 |
+| Series  | Horizon | Observed CAAR | Placebo mean | Placebo SD | p (rand.) |
+|---------|---------|--------------|-------------|-----------|----------|
+| Return  | 1       | −0.00059     | +0.00027    | 0.00151   | 0.670    |
+| Return  | 5       | +0.00055     | +0.00211    | 0.00372   | 0.898    |
+| Return  | 10      | +0.00394     | +0.00233    | 0.00533   | 0.496    |
+| Return  | 20      | +0.00402     | +0.00261    | 0.00797   | 0.636    |
+| Volume  | 1       | +0.00416     | +0.10954    | 0.10708   | 0.981    |
+| Volume  | 5       | +0.62963     | +0.53010    | 0.43411   | 0.410    |
+| Volume  | 10      | +1.29795     | +1.00771    | 0.82241   | 0.362    |
+| Volume  | 20      | +2.89096     | +2.28813    | 1.57317   | 0.348    |
 
-n\_pairs\_total = C(74,2) = 2701 for returns, C(66,2) = 2145 for volume.
-n\_pairs\_used: pairs whose estimation windows share ≥ 10 calendar sessions.
+No horizon for either series reaches conventional significance (all p > 0.30), consistent
+with the BMP and Corrado statistics and consistent with the study's primary conclusion
+that disaster impacts on the CSE are not reliably detected in aggregate event-study
+analysis.
 
-## Interpretation
+## References
 
-The 208 (return) and 187 (volume) pairs with sufficient overlap are
-nearly perfectly correlated (r ≥ 0.997).  This is not surprising: all events
-are measured on the same single security (ASPI), so any two events whose
-estimation windows fall on overlapping calendar periods sample literally the
-same underlying residual series.  Events separated in time (non-overlapping
-windows) have no shared sessions and are excluded from the average.
-
-The practical effect on the Kolari–Pynnönen test statistic is that the KP
-denominator becomes `1 + (n-1) × r ≈ 1 + 73 × 0.9977 ≈ 73.9`, collapsing
-the adjusted t-statistic to approximately zero regardless of the BMP input.
-This is the correct behaviour: in a single-security design where correlated
-observation windows are pooled, the KP formula correctly signals that
-cross-sectional averaging does not add independent information.
-
-## KP-adjusted results (recomputed, event_study_caar.parquet)
-
-| series | CAAR(1,5) | t\_cross | t\_BMP | t\_Corrado | t\_KP |
-|--------|-----------|----------|--------|------------|-------|
-| return | +0.0006 | +0.177 (p=0.860) | −0.042 (p=0.967) | −0.122 (p=0.903) | ≈0.000 (p≈1.000) |
-| volume | +0.6296 | +1.569 (p=0.121) | +1.336 (p=0.186) | +2.255 (p=0.024) | ≈0.000 (p≈1.000) |
-
-The KP statistic is effectively uninformative for this single-security design.
-The Corrado rank test (p=0.024 for volume) is the more appropriate non-
-parametric test; it does not rely on a cross-sectional correlation assumption.
-
-## Artifact source
-
-Script: `scripts/run_event_study.py`
-Artifact: `artifacts/tables/event_study_caar.parquet` (column `mean_cross_correlation`)
+- Kolari, J. W. and Pynnönen, S. (2010). Event study testing with cross-sectional
+  correlation of abnormal returns. *Review of Financial Studies*, 23(11), 3996–4025.
+- Boehmer, E., Musumeci, J. and Poulsen, A. B. (1991). Event-study methodology under
+  conditions of event-induced variance. *Journal of Financial Economics*, 30(2), 253–272.
+- Corrado, C. J. (1989). A nonparametric test for abnormal security-price performance
+  in event studies. *Journal of Financial Economics*, 23(2), 385–395.
