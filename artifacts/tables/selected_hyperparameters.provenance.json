@@ -1,0 +1,19 @@
+{
+  "artifact": "selected_hyperparameters",
+  "description": "Selected hyperparameters per fold for confirmatory family (h=5, k=10, real_time + ex_post, ridge/random_forest/mlp). Table 14a in manuscript.",
+  "script": "scripts/log_selected_hyperparameters.py",
+  "random_seed": 42,
+  "created_at": "2026-11-20T05:43:38.978011Z",
+  "sha256": "a41d5ca432224bcc73c5e6dc6b388af6b9b508a211e8e102179b6ce322c035d7",
+  "rows": 24,
+  "columns": [
+    "horizon",
+    "info_set",
+    "k",
+    "model",
+    "fold",
+    "n_inner_splits",
+    "best_params"
+  ],
+  "notes": "Re-run with seed 42 reproduces Table 8 RMSE/MAE to 3 decimals for all 6 confirmatory models. Files copied from Desktop after prior round production."
+}
